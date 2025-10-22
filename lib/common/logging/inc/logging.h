@@ -1,7 +1,29 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
-typedef enum { LOG_INFO, LOG_WARNING, LOG_ERROR } LogLevel;
+static const char *LOG_LEVEL_STRINGS[] = {
+    "INFO",
+    "WARNING",
+    "ERROR",
+};
+
+typedef enum {
+  LOG_INFO,
+  LOG_WARNING,
+  LOG_ERROR,
+  _LOG_LAST_LEVEL_DONT_EDIT
+} LogLevel;
+
+static inline const char *log_level_to_string(LogLevel logLevel) {
+  static_assert((sizeof(LOG_LEVEL_STRINGS) / sizeof(LOG_LEVEL_STRINGS[0])) ==
+                    _LOG_LAST_LEVEL_DONT_EDIT,
+                "Mismatch in number of log level strings!");
+
+  if (logLevel >= 0 && logLevel < _LOG_LAST_LEVEL_DONT_EDIT) {
+    return LOG_LEVEL_STRINGS[logLevel];
+  }
+  return "NoLevel";
+}
 
 /**
  * @brief initializes the LOG library, it should only occur once throughout the
