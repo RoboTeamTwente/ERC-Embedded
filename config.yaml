@@ -6,6 +6,8 @@ boards:
 testing_options:
   platform: native
   framework: ""
+  lib_extra_dirs:
+    - ${extra.common_lib_dirs}
   build_src_filter:
     - -<src/>
     - +<lib/common/*>
@@ -30,7 +32,6 @@ platformio_options:
   custom_per_env_settings:
     lib_extra_dirs:
       - ${extra.common_lib_dirs}
-      - lib/${this.__env__}
     build_src_filter:
       - +<src/${this.__env__}/**/*.c>
       - -<lib/common>

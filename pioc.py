@@ -1,9 +1,7 @@
 import os
 import yaml
 import argparse
-import ast
 from typing import List, Self, Dict
-import typing
 from pydantic import BaseModel, ValidationError
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -150,9 +148,19 @@ class Board(ConfigEntry):
     def validate_board_src(self, project_root: str) -> bool:
         return os.path.isdir(f"{project_root}/src/{self.board}")
 
+    def get_test_buld_flag_libs(self, project_root):
+        paths = []
+        for root, dirs, files in os.walk(f"{project_root}/lib/{self.board_name}"):
+            if root.endswith("firmware"):
+                continue
+            if os.path.isdir(root):
+                paths.append(root)
+
+        return [f"    -I {path[2:]}\n" for path in paths]
+
     def get_firmware_build_flags(self, project_root) -> List[str]:
         paths = []
-        for root, dirs, files in os.walk(f"{project_root}/lib/{self.board_name}/firmware"):
+        for root, dirs, files in os.walk(f"{project_root}/lib/{self.board_name}"):
             if os.path.isdir(root):
                 paths.append(root)
         return [f"    -I {path[2:]}\n" for path in paths]
@@ -266,7 +274,14 @@ class Configuration(ConfigEntry):
             common_build_flags = "\n    " + "\n    ".join(common_build_flags)
         else:
             common_build_flags = ""
+        testing_lib_extra_dirs = []
+        if "lib_extra_dirs" in self.testing_options.keys():
+            testing_lib_extra_dirs = self.testing_options["lib_extra_dirs"]
         for board in self.boards:
+            self.testing_options["lib_extra_dirs"] = testing_lib_extra_dirs.copy(
+            )
+            self.testing_options["lib_extra_dirs"].append(
+                f"lib/{board.board_name}")
 
             ret += board.get_ini(self.root_path, PlatfmormioOptions.get_header_content(self.platformio_options.custom_per_env_settings), common_build_flags,
                                  PlatfmormioOptions.get_header_content(self.testing_options))
@@ -377,7 +392,7 @@ def main():
     compile_parser.add_argument(
         '-i', '--input',
         help='Specify the input config json file.',
-        default='./config.json'
+        default='./config.yaml'
     )
     compile_parser.add_argument(
         '-o', '--output',
