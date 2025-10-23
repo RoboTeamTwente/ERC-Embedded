@@ -1,4 +1,5 @@
 import os
+import yaml
 import argparse
 import ast
 from typing import List, Self, Dict
@@ -294,10 +295,10 @@ def execute_run(env: str | None = None, upload: bool = False, monitor: bool = Fa
 
 
 def execute_compile(input: str, output: str):
-    with open(input, "r") as file:
-        data = file.read()
+    with open(input) as file:
+        data = yaml.safe_load(file)
 
-    config = Configuration.parse_entry(data)
+    config = Configuration.model_validate(data)
     # TODO: config should be specialized to a specific output dir,
     with open(output, "w") as file:
         file.write(str(config))
