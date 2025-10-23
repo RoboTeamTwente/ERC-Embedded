@@ -10,24 +10,16 @@ static UART_HandleTypeDef huart_handler;
 // Char=byte, system doesnt seem to have bool;
 static char initialized = 0;
 
-static const char *log_level_strings[] = {
-    "INFO",
-    "WARNING",
-    "ERROR",
-};
-
 /**
-  * @brief  Retargets the C library printf function to the USART.
-  * @param  file: File descriptor.
-  * @param  ptr: Pointer to the data to be written.
-  * @param  len: Length of the data.
-  * @retval The number of characters written.
-  */
-int _write(int file, char *ptr, int len)
-{
+ * @brief  Retargets the C library printf function to the USART.
+ * @param  file: File descriptor.
+ * @param  ptr: Pointer to the data to be written.
+ * @param  len: Length of the data.
+ * @retval The number of characters written.
+ */
+int _write(int file, char *ptr, int len) {
   // Only handle stdout (standard output), which has a file descriptor of 1
-  if (file == 1) 
-  {
+  if (file == 1) {
     // Transmit the character buffer 'ptr' of length 'len' via UART
     // The last parameter is the timeout in milliseconds.
     HAL_UART_Transmit(&huart_handler, (uint8_t *)ptr, len, HAL_MAX_DELAY);
@@ -51,7 +43,7 @@ void LOG(LogLevel level, char *TAG, char *log_message, ...) {
   }
   const char *level_str = "UNKNOWN"; // Default
   if (level >= LOG_INFO && level <= LOG_ERROR) {
-    level_str = log_level_strings[level];
+    level_str = LOG_LEVEL_STRINGS[level];
   }
 
   // --- Define all string components ---
