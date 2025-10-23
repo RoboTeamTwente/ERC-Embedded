@@ -1,0 +1,104 @@
+syntax = "proto3";
+//!!DO NOT CHANGE EXISTING FIELD VALUES WHEN ADDING NEW FIELDS!! <also enables backwards compatibility>
+//Its efficient to use numbers between 1-15 as it only uses one byte to encode
+
+// Protobuffs do not use field names, instead it uses field numbers
+// Binary format: [field_number][wire_type][value]
+// For example, when encoding ph_value = 7.2, it becomes:
+// Field number: 1
+// Wire type: 5 (for 32-bit float)
+// Value: 7.2 (encoded as bytes)
+
+// Sensors being used (but no decision has been made for the same)
+// PH Sensor
+// Temperature and Humidity Sensor
+// IMU - Analog Devices 3-Axis Surface Mount Sensor, LGA, I2C, Serial-3 Wire, Serial-4 Wire, Serial-SPI, 14-Pin  (SHOULD WE USE 9-AXIS IMU INSTEAD?)
+//!! Camera details to be added later!!
+
+// Common sensor state enum used across all sensors
+enum SensorState {
+  SENSOR_IDLE = 0;
+  SENSOR_OPERATING = 1;
+  SENSOR_CALIBRATING = 2;
+  SENSOR_ERROR = 3;
+  SENSOR_NOT_CONNECTED = 4;
+}
+
+message PHSensorInformation {
+  float ph_value = 1;
+  float voltage = 2;
+  float temperature_compensated_ph = 3;
+  SensorState state = 4;
+  string error_message = 5;  // Description of error if state is SENSOR_ERROR
+}
+
+message TemperatureHumiditySensorInformation {
+  float temperature_celsius = 1;
+  float humidity_percent = 2;
+  float dew_point = 3;
+  SensorState state = 4;
+  string error_message = 5;  // Description of error if state is SENSOR_ERROR
+}
+
+message IMUSensorInformation {
+  // 3-Axis Accelerometer data
+  float accel_x = 1;
+  float accel_y = 2;
+  float accel_z = 3;
+  
+  // 3-Axis Gyroscope data
+  float gyro_x = 4;
+  float gyro_y = 5;
+  float gyro_z = 6;
+  
+  // 3-Axis Magnetometer data (only present in 9-axis IMU)
+  float mag_x = 7;
+  float mag_y = 8;
+  float mag_z = 9;
+  
+  SensorState state = 10;
+  string error_message = 11;  // Description of error if state is SENSOR_ERROR
+
+//   // Orientation (derived values calculated from raw IMU sensor data)
+//   float roll = 12;
+//   float pitch = 13;
+//   float yaw = 14;
+// }
+
+// commented out protobuff for LIDAR sensor as Software team will calculate the same from raw data
+// message LIDARSensorInformation {
+//   float distance_meters = 1;
+//   float signal_strength = 2;
+//   uint32 measurement_count = 3;
+//   bool is_valid = 4;
+//   SensorState state = 5;
+//   string error_message = 6;  // Description of error if state is SENSOR_ERROR
+// }
+
+message SensorBoardDiagnostics {
+  enum State {
+    IDLE = 0;
+    OPERATING = 1;
+    CALIBRATING = 2;
+    ERROR = 3;
+  }
+
+  State state = 1;
+  PHSensorInformation ph_sensor = 2;
+  TemperatureHumiditySensorInformation temp_humidity_sensor = 3;
+  IMUSensorInformation imu_sensor = 4;
+  LIDARSensorInformation lidar_sensor = 5;
+
+  // Overall sensor board health
+  float board_temperature = 6;
+  float board_voltage = 7;
+}
+
+
+// Message Descriptions:
+// SensorState: Common enum for all sensors (SENSOR_IDLE, SENSOR_OPERATING, SENSOR_CALIBRATING, SENSOR_ERROR, SENSOR_NOT_CONNECTED)
+// PHSensorInformation: Contains pH value, voltage reading, temperature-compensated pH, individual sensor state and error message
+// TemperatureHumiditySensorInformation: Tracks temperature, humidity, calculated dew point, individual sensor state and error message
+// IMUSensorInformation: Comprehensive 3-axis data for accelerometer, gyroscope and magnetometer (if available), individual sensor state and error message
+// <LIDAR DATA removed because we will be using depth sensors instead of LIDAR>
+// SensorBoardDiagnostics: Main message that aggregates all sensors with an overall board state enum (IDLE, OPERATING, CALIBRATING, ERROR) and board health metrics
