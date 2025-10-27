@@ -27,6 +27,7 @@ class Library(ABC):
     # self.path assumed to be in the format PLATFORMIO_ROOT:
     # ./lib/common/{name}/
     def __init__(self, path):
+        self.is_testable = True
         self.path = path
         self.name = path.split("|")[-1]
 
@@ -38,44 +39,27 @@ class Library(ABC):
         pass
 
     @abstractmethod
-    def get_src_filters(self) -> str:
-        pass
-
-    @staticmethod
-    def get_src_filter_for_type() -> str:
-        pass
-
-    @staticmethod
-    def get_build_flags_for_type() -> str:
+    def get_test_build_flags(self, board: str = None) -> str:
         pass
 
 
-class PlatformAgnosticLibrary(Library):
-
+class CommonLibrary(Library):
     def get_build_flags(self, board: str = None):
         return f"    -I {self.path[2:]}\n"
 
-    def get_build_flags_for_type(self):
-        return ""
-
-    def get_src_filters(self):
-        return ""
-
-    def get_src_filter_for_type():
-        return ""
+    def get_test_build_flags(self, board: str = None):
+        return self.get_build_flags(board)
 
 
-class PlatformSpecificLibrary(Library):
+class CommonPlatformDependentLibrary(Library):
     def __init__(self, path):
         super().__init__(path)
         self.available_boards = [
             folder for folder in os.listdir(self.path) if folder != "inc"]
+        self.is_testable = "test" in self.available_boards
 
-    def has_testing_implementation(self):
-        return "native" in self.available_boards
-
-    def get_test_build_flags(self):
-        return self.get_build_flags("native")
+    def get_test_build_flags(self, board: str = None):
+        return self.get_build_flags("test")
 
     def get_available_boards(self):
         return self.available_boards
@@ -83,22 +67,33 @@ class PlatformSpecificLibrary(Library):
     def get_build_flags(self, board: str):
         return f"    -I {self.path[2:]}/inc\n    -I {self.path[2:]}/{board}\n"
 
-    def get_build_flags_for_type(self):
-        return ""
 
-    def get_src_filters(self):
-        return ""
+class BoardPlatformDependentLibrary(Library):
+    def __init__(self, path):
+        super().__init__(path)
+        self.is_testable = "test" in os.listdir(path)
 
-    def get_src_filter_for_type():
-        return ""
+    def get_test_build_flags(self, board: str = None):
+        return f"    -I {self.path}/test\n    -I {self.path[2:]}/inc" if self.is_testable else ""
+
+    def get_build_flags(self, board: str = None):
+        return f"    -I {self.path}/src\n    -I {self.path[2:]}/inc" if self.is_testable else ""
+
+
+class BoardLibrary(Library):
+    def get_build_flags(self, board: str = None):
+        return f"    -I {self.path[2:]}\n"
+
+    def get_test_build_flags(self, board: str = None):
+        return self.get_build_flags(board)
 
 
 def get_library(lib_path: str) -> Library | None:
     files = os.listdir(lib_path)
     if "inc" in files and not any([file.endswith(".c") for file in files]):
-        return PlatformSpecificLibrary(lib_path)
+        return CommonPlatformDependentLibrary(lib_path)
     elif all([file.endswith(".c") or file.endswith(".h") for file in files]):
-        return PlatformAgnosticLibrary(lib_path)
+        return CommonLibrary(lib_path)
     return None
 
 
@@ -113,6 +108,19 @@ def get_all_common_libs(root_path: str) -> List[Library]:
             continue
         libraries.append(library)
     return libraries
+
+
+def get_non_common_libs(root_path: str, board: str) -> List[Library]:
+    libs = []
+    root_path = root_path if root_path[-1] != '/' else root_path[:-1]
+    for lib in os.listdir(f"{root_path}/lib/{board}"):
+        path = f"{root_path}/lib/{board}/{lib}"
+        if "inc" in os.listdir(path):
+            library = BoardPlatformDependentLibrary(path)
+        else:
+            library = BoardLibrary(path)
+        libs.append(library)
+    return libs
 
 
 class ConfigEntry(BaseModel):
@@ -148,6 +156,18 @@ class Board(ConfigEntry):
     def validate_board_src(self, project_root: str) -> bool:
         return os.path.isdir(f"{project_root}/src/{self.board}")
 
+    def get_all_libraries(self, project_root: str) -> List[Library]:
+        libraries = []
+        libraries.extend(get_all_common_libs(project_root))
+        libraries = [lib for lib in libraries if not (isinstance(
+            lib, CommonPlatformDependentLibrary) and not self.board_name in lib.available_boards)]
+        libraries.extend(get_non_common_libs(project_root, self.board_name))
+        return libraries
+
+    def get_all_testable_libraries(self, project_root: str) -> List[Library]:
+        libraries = self.get_all_libraries(project_root)
+        return [lib for lib in libraries if lib.is_testable]
+
     def get_test_buld_flag_libs(self, project_root):
         paths = []
         for root, dirs, files in os.walk(f"{project_root}/lib/{self.board_name}"):
@@ -167,47 +187,25 @@ class Board(ConfigEntry):
 
     def get_build_flags(self, project_root: str) -> List[str]:
         flags = self.get_firmware_build_flags(project_root)
-        for lib in get_all_common_libs(project_root):
-            if isinstance(lib, PlatformAgnosticLibrary):
-                flags.append(lib.get_build_flags())
-                continue
-            lib: PlatformSpecificLibrary = lib
-            if self.board_name not in lib.available_boards:
-                print(f"Library warning: board: {
-                      self.board_name} not implemented for library: {lib.name}")
-                continue
-            flags.append(lib.get_build_flags(self.board_name))
+
+        libraries = self.get_all_libraries(project_root)
+        flags.extend([lib.get_build_flags(self.board_name)
+                     for lib in libraries])
         return flags
 
     def get_test_build_flags(self, project_root: str) -> List[str]:
-        flags = []
-        for lib in get_all_common_libs(project_root):
-            if isinstance(lib, PlatformAgnosticLibrary):
-                flags.append(lib.get_build_flags())
-                continue
-            lib: PlatformSpecificLibrary = lib
-            if self.board_name not in lib.available_boards or not lib.has_testing_implementation():
-                print(f"Library warning: board: {
-                      self.board_name} not implemented for library: {lib.name}")
-                continue
-            flags.append(lib.get_test_build_flags())
-        return flags
+        return [lib.get_test_build_flags() for lib in self.get_all_testable_libraries(project_root)]
 
     def get_ini(self, project_root: str, dev_opts: str, dev_flag_opts: str, test_opts: str) -> str:
         ret = f"[env:{self.board_name}]\n"
         ret += f"board = {self.board_type}\n"
         ret += dev_opts
-        if self.custom_board_settings is not None:
-            ret += PlatfmormioOptions.get_header_content(
-                self.custom_board_settings)
+        ret += f"build_flags=\n{''.join(self.get_build_flags(project_root))}"
 
-        ret += f"build_flags=\n{''.join(
-            self.get_build_flags(project_root))}\n{dev_flag_opts}\n"
         ret += f"\n\n[env:test_{self.board_name}]\n"
         ret += test_opts
-
-        ret += f"build_flags=\n{''.join(
-            self.get_test_build_flags(project_root))}\n\n"
+        ret += f"build_flags=\n{
+            ''.join(self.get_test_build_flags(project_root))}"
         return ret
 
 
@@ -282,6 +280,7 @@ class Configuration(ConfigEntry):
             )
             self.testing_options["lib_extra_dirs"].append(
                 f"lib/{board.board_name}")
+            self.testing_options["test_filter"] = f"{board.board_name}/*"
 
             ret += board.get_ini(self.root_path, PlatfmormioOptions.get_header_content(self.platformio_options.custom_per_env_settings), common_build_flags,
                                  PlatfmormioOptions.get_header_content(self.testing_options))
