@@ -1,0 +1,13 @@
+message DrivingBoardDiagnostics {
+  enum State {
+    IDLE = 0;
+    OPERATING = 1;
+    NOOP_MOTOR = 2;
+  }
+  State state = 1;
+
+  DrivingBoardMotorInformation motor_information1 = 2;
+  DrivingBoardMotorInformation motor_information2 = 3;
+  DrivingBoardMotorInformation motor_information3 = 4;
+  DrivingBoardMotorInformation motor_information4 = 5;
+}

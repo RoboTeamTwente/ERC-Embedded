@@ -201,6 +201,7 @@ class Board(ConfigEntry):
         ret += f"board = {self.board_type}\n"
         ret += dev_opts
         ret += f"build_flags=\n{''.join(self.get_build_flags(project_root))}"
+        ret += dev_flag_opts
 
         ret += f"\n\n[env:test_{self.board_name}]\n"
         ret += test_opts
@@ -269,22 +270,48 @@ class Configuration(ConfigEntry):
         common_build_flags = self.platformio_options.custom_extras_settings.get(
             "common_build_flags")
         if common_build_flags is not None:
-            common_build_flags = "\n    " + "\n    ".join(common_build_flags)
+            common_build_flags = "    " + "\n    ".join(common_build_flags)
         else:
             common_build_flags = ""
         testing_lib_extra_dirs = []
         if "lib_extra_dirs" in self.testing_options.keys():
             testing_lib_extra_dirs = self.testing_options["lib_extra_dirs"]
+        per_env_lib_deps = []
+        if "lib_deps" in self.platformio_options.custom_per_env_settings.keys():
+            per_env_lib_deps = self.platformio_options.custom_per_env_settings["lib_deps"]
         for board in self.boards:
             self.testing_options["lib_extra_dirs"] = testing_lib_extra_dirs.copy(
             )
             self.testing_options["lib_extra_dirs"].append(
                 f"lib/{board.board_name}")
             self.testing_options["test_filter"] = f"{board.board_name}/*"
+            self.platformio_options.custom_per_env_settings["lib_deps"] = per_env_lib_deps.copy(
+            )
+            self.platformio_options.custom_per_env_settings["lib_deps"].extend(
+                [f"{lib.path[2:]}" for lib in board.get_all_libraries(self.root_path) if isinstance(lib, (BoardLibrary, BoardPlatformDependentLibrary))])
 
             ret += board.get_ini(self.root_path, PlatfmormioOptions.get_header_content(self.platformio_options.custom_per_env_settings), common_build_flags,
                                  PlatfmormioOptions.get_header_content(self.testing_options))
         return ret
+
+
+def compile_nanopb_files(project_root: Path, boards: List[Board]):
+    proto_path = f"{project_root}/proto"
+    for board in boards:
+        component_paths = [
+            f"{proto_path}/components/common/{component}" for component in os.listdir(f"{proto_path}/components/common")]
+        if os.path.isdir(f"{proto_path}/components/{board.board_name}"):
+            component_paths.extend(
+                [f"{proto_path}/components/{board.board_name}/{component}" for component in os.listdir(
+                    f"{proto_path}/components/{board.board_name}")]
+            )
+
+        resulting_proto_buffer = f"syntax = \"proto3\";\n"
+        for component in component_paths:
+            with open(component, "r") as f:
+                resulting_proto_buffer += f.read()
+        with open(f"{proto_path}/{board.board_name}.proto", "w") as f:
+            f.write(resulting_proto_buffer)
 
 
 def execute_test(env: str | None = None):
@@ -313,6 +340,7 @@ def execute_compile(input: str, output: str):
         data = yaml.safe_load(file)
 
     config = Configuration.model_validate(data)
+    compile_nanopb_files(".", config.boards)
     # TODO: config should be specialized to a specific output dir,
     with open(output, "w") as file:
         file.write(str(config))
