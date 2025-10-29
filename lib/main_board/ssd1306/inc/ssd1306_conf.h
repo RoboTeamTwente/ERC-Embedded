@@ -10,7 +10,6 @@
 // #define STM32F0
 // #define STM32F1
 // #define STM32F4
-#define STM32H7
 // #define STM32L0
 // #define STM32L1
 // #define STM32L4
@@ -57,7 +56,7 @@
 
 // The width of the screen can be set using this
 // define. The default value is 128.
-// #define SSD1306_WIDTH           64
+#define SSD1306_WIDTH 128
 
 // If your screen horizontal axis does not start
 // in column 0 you can use this define to
@@ -66,6 +65,6 @@
 
 // The height can be changed as well if necessary.
 // It can be 32, 64 or 128. The default value is 64.
-// #define SSD1306_HEIGHT          64
+#define SSD1306_HEIGHT 64
 
 #endif /* __SSD1306_CONF_H__ */

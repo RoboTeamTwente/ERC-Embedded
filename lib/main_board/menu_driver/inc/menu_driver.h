@@ -1,6 +1,7 @@
 #ifndef MENU_DRIVER_H
 #define MENU_DRIVER_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 typedef unsigned char menu_input;
@@ -55,6 +56,7 @@ typedef unsigned char menu_input;
 #define CLEAR_INPUT_BUTTON_PRESS_A(x) ((x) &= ~(1 << INPUT_BUTTON_PRESS_A_FLAG))
 
 #define MAX_CHILDREN 8
+#define MAX_NAME_LEN 32
 struct menu_component;
 struct menu_component_manager;
 
@@ -62,75 +64,27 @@ struct menu_component_manager;
 typedef struct menu_component {
   // --- Tree Structure (The "Node" part) ---
   struct menu_component *parent;
-  struct menu_component *children[MAX_CHILDREN]; // Pointer to first child
+  struct menu_component **children;
   uint8_t num_children;
+  char *name;
+  bool needs_render;
 
   // --- Component Logic (The "Component" part) ---
   void *state; // Your custom data (e.g., button_state_t)
 
   // Function pointers for behavior
-  void (*init)(struct menu_component *self);
-  void (*destroy)(struct menu_component *self);
-  void (*update)(struct menu_component *self, menu_input input);
-  void (*render)(struct menu_component *self);
+  void (*init)(struct menu_component_manager *self);
+  void (*destroy)(struct menu_component_manager *self);
+  void (*update)(struct menu_component_manager *self);
+  void (*render)(struct menu_component_manager *self);
 } menu_component;
 
 typedef struct menu_component_manager {
   menu_component *active_component;
-  char (*get_input)(void);
+  menu_input (*get_input)(void);
 } menu_component_manager;
 
-/**
- * Recursively destroys a component and all of its children.
- * This funciton performs a post-order traversal:
- * 1. It recursively calls itself on all children.
- * 2. After all children are destroyed, it calls the ocmponent's specific
- * destroy Function
- *
- * @Note It does *NOT* free any data, that needs to be handled through
- * comp->destroy
- */
-void menu_component_destroy_recursive(menu_component *comp) {
-  if (comp == NULL) {
-    return;
-  }
-  for (int i = 0; i < comp->num_children; i++) {
-    menu_component_destroy_recursive(comp->children[i]);
-  }
-  if (comp->destroy != NULL) {
-    comp->destroy(comp);
-  }
-}
-
-void menu_manager_switch_active_component(
-    menu_component_manager *manager, menu_component *new_active_component) {
-  if (manager == NULL || new_active_component == NULL) {
-    return;
-  }
-  if (manager->active_component != NULL) {
-    manager->active_component->destroy(manager->active_component);
-  }
-  manager->active_component = new_active_component;
-  manager->active_component->init(manager->active_component);
-}
-void menu_component_manager_go_to_parent(menu_component_manager *manager) {
-  if (manager == NULL || manager->active_component == NULL ||
-      manager->active_component->parent == NULL) {
-    return;
-  }
-  menu_manager_switch_active_component(manager,
-                                       manager->active_component->parent);
-}
-
-void menu_component_manager_go_to_child(menu_component_manager *manager,
-                                        uint8_t child_index) {
-  if (manager == NULL || manager->active_component == NULL) {
-    return;
-  }
-  if (child_index >= manager->active_component->num_children) {
-    return;
-  }
-  menu_manager_switch_active_component(
-      manager, manager->active_component->children[child_index]);
-}
+menu_component get_simple_list_of_elements(char *name, char **elements,
+                                           uint8_t num_elems);
+void tick_menu_component_manager(menu_component_manager *manager);
 #endif // !MENU_DRIVER_H
