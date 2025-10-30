@@ -1,9 +1,10 @@
 #ifndef MENU_DRIVER_H
 #define MENU_DRIVER_H
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
+#define MAX_CHILDREN 15
+#define MAX_PAGES 128
+#define MAX_PAGE_NAME_LEN 64
+
 typedef unsigned char menu_input;
 
 #define INPUT_DIRECTION_LEFT_FLAG 0
@@ -55,36 +56,64 @@ typedef unsigned char menu_input;
 
 #define CLEAR_INPUT_BUTTON_PRESS_A(x) ((x) &= ~(1 << INPUT_BUTTON_PRESS_A_FLAG))
 
-#define MAX_CHILDREN 8
-#define MAX_NAME_LEN 32
-struct menu_component;
-struct menu_component_manager;
+struct menu_page;
+struct menu_manager;
+struct menu_page_binding;
+enum binding_type;
 
-// A single struct to rule them all
-typedef struct menu_component {
-  // --- Tree Structure (The "Node" part) ---
-  struct menu_component *parent;
-  struct menu_component **children;
-  uint8_t num_children;
-  char *name;
-  bool needs_render;
+typedef enum {
+  BINDING_TYPE_INT,
+  BINDING_TYPE_FLOAT,
+  BINDING_TYPE_STR,
+  BINDING_TYPE_RESULT,
+} binding_type;
 
-  // --- Component Logic (The "Component" part) ---
-  void *state; // Your custom data (e.g., button_state_t)
+/**
+ * @brief creates a binding between a key and a piece of data
+ */
+typedef struct {
+  const char *key;   // Name of the binding
+  void *value_ptr;   // Address of the binding value
+  binding_type type; // Type of the binding value
+} menu_page_binding;
 
-  // Function pointers for behavior
-  void (*init)(struct menu_component_manager *self);
-  void (*destroy)(struct menu_component_manager *self);
-  void (*update)(struct menu_component_manager *self);
-  void (*render)(struct menu_component_manager *self);
-} menu_component;
+/**
+ * @brief State of a List page node, stores the current index;
+ */
+typedef struct {
+  unsigned char current_index;
+} menu_page_state_list;
 
-typedef struct menu_component_manager {
-  menu_component *active_component;
+/**
+ * @brief Union of all posisble page states.
+ */
+typedef union {
+  menu_page_state_list list;
+} menu_active_page_state;
+
+/**
+ */
+typedef struct {
+  void *state;
+  unsigned char id;
+
+  char name[MAX_PAGE_NAME_LEN];
+  unsigned char children[MAX_CHILDREN];
+
+  menu_page_binding *bindings;
+
+  void (*init)(void *state);
+  void (*update)(struct menu_manager *manager);
+  void (*render)(struct menu_manager *manager);
+  void (*destruct)(void *state);
+} menu_page_t;
+
+typedef struct {
+  unsigned char active_page_id;
+  menu_active_page_state active_state;
   menu_input (*get_input)(void);
-} menu_component_manager;
+} menu_manager_t;
 
-menu_component get_simple_list_of_elements(char *name, char **elements,
-                                           uint8_t num_elems);
-void tick_menu_component_manager(menu_component_manager *manager);
+static menu_page_t menu_pages_pool[MAX_PAGES];
+
 #endif // !MENU_DRIVER_H

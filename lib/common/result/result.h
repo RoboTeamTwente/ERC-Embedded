@@ -25,8 +25,13 @@ typedef enum {
   RESULT_ERR_NO_MEM,          // Out of memory
   RESULT_ERR_OVERFLOW, // An operation resulted in an overflow (arithmetic or
                        // buffer)
-  RESULT_ERR_TIMEOUT,  // The operation did not complete in the expected time
+  RESULT_ERR_BUFFER_TOO_SMALL, // If a provided buffer is too small
+
+  RESULT_ERR_TIMEOUT, // The operation did not complete in the expected time
   RESULT_ERR_UNIMPLEMENTED, // Function/operation is not implemented
+
+  RESULT_ERR_MUTEX, // A mutex operation failed
+
 } result_t;
 
 /**
