@@ -28,7 +28,8 @@ typedef enum {
   RESULT_ERR_TIMEOUT,  // The operation did not complete in the expected time
   RESULT_ERR_UNIMPLEMENTED, // Function/operation is not implemented
 } result_t;
-
+// TODO: Add lwip error codes here, make it a choice to say what error you are
+// using
 /**
  * @brief  Converts a result code to a short, human-readable string.
  * @param  code The result_t code to convert.
