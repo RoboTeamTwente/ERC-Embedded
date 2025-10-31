@@ -3,6 +3,8 @@ boards:
     board_type: nucleo_h753zi
   - board_name: driving_board
     board_type: nucleo_h753zi
+  - board_name: arm_board
+    board_type: nucleo_h753zi
 testing_options:
   platform: native
   framework: ""
@@ -27,8 +29,9 @@ platformio_options:
       - -mfloat-abi=softfp
       - -Wl,-u,_printf_float
       - -D CONFIG_LOG_LEVEL=LOG_INFO
+      - -lib/common
     common_lib_dirs:
-      - lib/common
+
   custom_per_env_settings:
     lib_extra_dirs:
       - ${extra.common_lib_dirs}

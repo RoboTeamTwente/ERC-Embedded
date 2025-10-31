@@ -26,6 +26,13 @@ message PBBroadcastingReceivingTypes {
   // Identifiers: others are 4byte long identifiers including sender id and message id (length has to be 4*x)
   bytes identifiers = 1;
 }
+message DrivingBoardMotorInformation {
+  float torque = 1;
+  float power_consumption = 2;
+  float rpm = 3;
+  float voltage = 4;
+  float current = 5;
+}
 message DrivingBoardDiagnostics {
   enum State {
     IDLE = 0;
@@ -38,11 +45,4 @@ message DrivingBoardDiagnostics {
   DrivingBoardMotorInformation motor_information2 = 3;
   DrivingBoardMotorInformation motor_information3 = 4;
   DrivingBoardMotorInformation motor_information4 = 5;
-}
-message DrivingBoardMotorInformation {
-  float torque = 1;
-  float power_consumption = 2;
-  float rpm = 3;
-  float voltage = 4;
-  float current = 5;
 }
