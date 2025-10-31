@@ -1,4 +1,3 @@
-syntax = "proto3";
 // used to wrap a message 
 message PBMessageEnvelope {
     // identifier format:

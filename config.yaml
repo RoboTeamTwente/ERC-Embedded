@@ -12,10 +12,10 @@ testing_options:
     - -<src/>
     - +<lib/common/*>
     - -<lib/common/*/*>
-    - +<lib/common/*/native/*>
+    - +<lib/common/*/test/*>
 platformio_options:
   custom_platformio_settings:
-    default_envs: driving_board
+    default_envs: main_board
     src_dir: .
     lib_dir: lib
   custom_extras_settings:
@@ -38,6 +38,7 @@ platformio_options:
       - +<lib/common/*/${this.__env__}/**/*.c>
     custom_nanopb_protos:
       - +<proto/${this.__env__}.proto>
+      - +<proto/common.proto>
     lib_deps:
       - ${extra.common_lib_deps}
       - lib/${this.__env__}/firmware

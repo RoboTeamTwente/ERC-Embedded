@@ -7,4 +7,5 @@
 *.bak
 **/*.bak
 ARM_CM7
-
+compile_commands.json
+platformio.ini
