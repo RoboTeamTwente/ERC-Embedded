@@ -1,0 +1,12 @@
+message ElectromagnetInformation {
+    enum State {
+        ACTIVE = 1;
+        IDLE = 2;
+        OFF = 3;
+    }
+    State state = 1;
+    float power_consumption = 2;
+    float voltage = 3;
+    float current = 4;
+    float field_strength = 5;
+}

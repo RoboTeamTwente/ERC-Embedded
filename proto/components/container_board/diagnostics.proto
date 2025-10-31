@@ -1,0 +1,12 @@
+message ContainerboardDiagnostics {
+    enum State {
+    IDLE = 0;
+    OPERATING = 1;
+    NOOP = 2;
+    }
+
+    State state = 1;
+    ElectromagnetInformation magnet_information = 2;
+    ServoInformation servo_information = 3;
+    ScaleInformation scale_information = 4;
+}
