@@ -1,0 +1,9 @@
+message DrivingBoardMotorMsg {
+  float voltage = 1;
+  float angle_of_body_frame = 2;
+  float angular_momentum = 3;
+  float current = 4;
+  float rpm = 5;
+  float direction_vector_x = 6;
+  float direction_vector_y = 7;
+}
