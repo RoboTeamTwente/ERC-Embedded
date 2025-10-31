@@ -1,5 +1,6 @@
 #ifndef LOGGING_H
 #define LOGGING_H
+#include <assert.h>
 
 static const char *LOG_LEVEL_STRINGS[] = {
     "INFO",
