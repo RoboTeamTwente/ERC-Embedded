@@ -29,7 +29,6 @@ platformio_options:
       - -mfloat-abi=softfp
       - -Wl,-u,_printf_float
       - -D CONFIG_LOG_LEVEL=LOG_INFO
-      - -lib/common
     common_lib_dirs:
 
   custom_per_env_settings:
