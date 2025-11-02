@@ -6,6 +6,17 @@
 #define TAG "ethernet_diagnostics"
 
 extern struct netif gnetif;
+
+/**
+ * @brief callback function for receiving an message over ethernet
+ *
+ * @param payload pointer to the payload of the message
+ * @param length length of the message
+ *
+ * @return
+ */
+typedef void (*receiver_callback)(void *payload, size_t length);
+
 /**
  * @brief does diagnostic checks.
  *          - Checking physical link state

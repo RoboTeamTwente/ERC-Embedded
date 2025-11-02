@@ -13,7 +13,7 @@ void TIM_add_callback(tim_update_callback_t callback, TIM_HandleTypeDef *htim) {
   size_t new_len = (timer_callbacks_len + 1) * sizeof(timer_callbacks_t);
   timer_callbacks_t **temp = realloc(timer_callbacks, new_len);
   if (temp == NULL) {
-    LOG(TAG, "Could not allocate memory");
+    LOGE(TAG, "Could not allocate memory");
     free(temp);
     return;
   }

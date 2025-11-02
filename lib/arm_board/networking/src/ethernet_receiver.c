@@ -1,5 +1,4 @@
 #include "ethernet_receiver.h"
-#include "ethernet.h"
 #include "logging.h"
 #include "pbuf.h"
 #include "stm32f7xx_hal_eth.h"
@@ -9,6 +8,14 @@
 #include <string.h>
 #define TAG "etherent_receiver"
 
+/**
+ * @brief creates a hexstring from bytes
+ *
+ * @param payload the byte array
+ * @param length the lenght of the byte array
+ *
+ * @return the hex string
+ */
 char *bytes_to_hex_string(void *payload, size_t length) {
   uint8_t *bytes = (uint8_t *)payload;
   // Each byte becomes two hex characters, plus null terminator

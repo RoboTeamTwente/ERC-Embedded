@@ -4,6 +4,16 @@
 #include "netif.h"
 
 /**
+ * @brief callback function for receiving ethernet messages
+ *
+ * @param payload pointer to the the first bit of the payload of the message
+ * @param length length of the message
+ *
+ * @return
+ */
+typedef void (*receiver_callback)(void *payload, size_t length);
+
+/**
  * @brief callback function for when the link status changes
  *
  * @param netif pointer to the network interface
