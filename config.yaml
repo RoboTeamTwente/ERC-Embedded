@@ -4,7 +4,7 @@ boards:
   - board_name: driving_board
     board_type: nucleo_h753zi
   - board_name: arm_board
-    board_type: nucleo_h753zi
+    board_type: nucleo_f767zi
 testing_options:
   platform: native
   framework: ""

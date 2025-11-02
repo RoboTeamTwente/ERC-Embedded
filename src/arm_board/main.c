@@ -19,7 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "ethernet.h"
 #include "gpio.h"
-#include "networking/include/ethernet.h"
 #include "stm32f7xx_hal_tim.h"
 #include "tim.h"
 #include "usart.h"

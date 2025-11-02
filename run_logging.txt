@@ -1,0 +1,207 @@
+Processing arm_board (board: nucleo_f767zi; platform: ststm32; framework: stm32cube)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/ststm32/nucleo_f767zi.html
+PLATFORM: ST STM32 (19.3.0) > ST Nucleo F767ZI
+HARDWARE: STM32F767ZIT6 216MHz, 512KB RAM, 2MB Flash
+DEBUG: Current (stlink) On-board (stlink) External (blackmagic, cmsis-dap, jlink)
+PACKAGES: 
+ - framework-stm32cubef7 @ 1.17.2 
+ - tool-ldscripts-ststm32 @ 0.2.0 
+ - toolchain-gccarmnoneeabi @ 1.70201.0 (7.2.1)
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+[nanopb] Processing 'proto/arm_board.proto' (no options)
+/home/jaron/.platformio/penv/bin/python /home/jaron/Documents/RoboTeam/Code/code_Rover/.pio/libdeps/arm_board/Nanopb/generator/../generator/nanopb_generator.py --output-dir /home/jaron/Documents/RoboTeam/Code/code_Rover/.pio/build/arm_board/nanopb/generated-src --error-on-unmatched --proto-path /home/jaron/Documents/RoboTeam/Code/code_Rover/proto arm_board.proto
+Writing to /home/jaron/Documents/RoboTeam/Code/code_Rover/.pio/build/arm_board/nanopb/generated-src/arm_board.pb.h and /home/jaron/Documents/RoboTeam/Code/code_Rover/.pio/build/arm_board/nanopb/generated-src/arm_board.pb.c
+Found 58 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- Nanopb @ 0.4.91
+|-- firmware @ 0.0.0+20251101135020
+|-- common
+Building in release mode
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_adc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_adc_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_can.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_cec.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_cortex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_crc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_crc_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_cryp.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_cryp_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dac.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dac_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dcmi.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dcmi_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dfsdm.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dma.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dma2d.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dma_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_dsi.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_eth.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_exti.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_flash.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_flash_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_gpio.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_hash.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_hash_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_hcd.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_i2c.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_i2c_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_i2s.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_irda.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_iwdg.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_jpeg.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_lptim.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_ltdc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_ltdc_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_mdios.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_mmc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_nand.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_nor.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_pcd.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_pcd_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_pwr.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_pwr_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_qspi.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_rcc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_rcc_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_rng.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_rtc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_rtc_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_sai.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_sai_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_sd.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_sdram.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_smartcard.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_smartcard_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_smbus.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_spdifrx.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_spi.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_spi_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_sram.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_tim.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_tim_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_uart.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_uart_ex.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_usart.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_hal_wwdg.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_adc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_crc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_dac.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_dma.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_dma2d.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_exti.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_fmc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_gpio.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_i2c.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_lptim.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_pwr.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_rcc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_rng.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_rtc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_sdmmc.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_spi.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_tim.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_usart.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_usb.o
+Compiling .pio/build/arm_board/FrameworkHALDriver/Src/stm32f7xx_ll_utils.o
+Compiling .pio/build/arm_board/nanopb/generated-build/arm_board.pb.o
+Compiling .pio/build/arm_board/src/lib/common/logging/arm_board/logging.o
+In file included from lib/common/logging/arm_board/logging.c:1:0:
+lib/common/logging/inc/logging.h: In function 'log_level_to_string':
+lib/common/logging/inc/logging.h:18:3: warning: implicit declaration of function 'static_assert' [-Wimplicit-function-declaration]
+   static_assert((sizeof(LOG_LEVEL_STRINGS) / sizeof(LOG_LEVEL_STRINGS[0])) ==
+   ^~~~~~~~~~~~~
+Compiling .pio/build/arm_board/src/lib/common/networking/arm_board/ethernet.o
+Compiling .pio/build/arm_board/src/lib/common/networking/arm_board/ethernet_diagnostics.o
+Compiling .pio/build/arm_board/src/lib/common/networking/arm_board/ethernet_raw_sender.o
+Compiling .pio/build/arm_board/src/lib/common/networking/arm_board/ethernet_receiver.o
+Compiling .pio/build/arm_board/src/lib/common/networking/arm_board/ethernet_udp_sender.o
+Compiling .pio/build/arm_board/src/lib/common/timer/arm_board/timer_lib.o
+In file included from lib/common/networking/arm_board/ethernet_receiver.c:2:0:
+lib/common/logging/inc/logging.h: In function 'log_level_to_string':
+lib/common/logging/inc/logging.h:18:3: warning: implicit declaration of function 'static_assert' [-Wimplicit-function-declaration]
+   static_assert((sizeof(LOG_LEVEL_STRINGS) / sizeof(LOG_LEVEL_STRINGS[0])) ==
+   ^~~~~~~~~~~~~
+Compiling .pio/build/arm_board/src/src/arm_board/main.o
+Compiling .pio/build/arm_board/lib222/Nanopb/pb_common.o
+Compiling .pio/build/arm_board/lib222/Nanopb/pb_decode.o
+Compiling .pio/build/arm_board/lib222/Nanopb/pb_encode.o
+In file included from lib/common/networking/arm_board/ethernet.c:6:0:
+lib/common/logging/inc/logging.h: In function 'log_level_to_string':
+lib/common/logging/inc/logging.h:18:3: warning: implicit declaration of function 'static_assert' [-Wimplicit-function-declaration]
+   static_assert((sizeof(LOG_LEVEL_STRINGS) / sizeof(LOG_LEVEL_STRINGS[0])) ==
+   ^~~~~~~~~~~~~
+lib/common/networking/arm_board/ethernet.c: At top level:
+lib/common/networking/arm_board/ethernet.c:11:10: fatal error: timer_lib.h: No such file or directory
+
+*******************************************************************
+* Looking for timer_lib.h dependency? Check our library registry!
+*
+* CLI  > platformio lib search "header:timer_lib.h"
+* Web  > https://registry.platformio.org/search?q=header:timer_lib.h
+*
+*******************************************************************
+
+ #include "timer_lib.h"
+          ^~~~~~~~~~~~~
+compilation terminated.
+*** [.pio/build/arm_board/src/lib/common/networking/arm_board/ethernet.o] Error 1
+In file included from lib/common/networking/arm_board/ethernet_diagnostics.c:3:0:
+lib/common/logging/inc/logging.h: In function 'log_level_to_string':
+lib/common/logging/inc/logging.h:18:3: warning: implicit declaration of function 'static_assert' [-Wimplicit-function-declaration]
+   static_assert((sizeof(LOG_LEVEL_STRINGS) / sizeof(LOG_LEVEL_STRINGS[0])) ==
+   ^~~~~~~~~~~~~
+In file included from lib/common/networking/arm_board/ethernet_raw_sender.c:6:0:
+lib/common/logging/inc/logging.h: In function 'log_level_to_string':
+lib/common/logging/inc/logging.h:18:3: warning: implicit declaration of function 'static_assert' [-Wimplicit-function-declaration]
+   static_assert((sizeof(LOG_LEVEL_STRINGS) / sizeof(LOG_LEVEL_STRINGS[0])) ==
+   ^~~~~~~~~~~~~
+In file included from lib/common/timer/arm_board/timer_lib.c:4:0:
+lib/common/logging/inc/logging.h: In function 'log_level_to_string':
+lib/common/logging/inc/logging.h:18:3: warning: implicit declaration of function 'static_assert' [-Wimplicit-function-declaration]
+   static_assert((sizeof(LOG_LEVEL_STRINGS) / sizeof(LOG_LEVEL_STRINGS[0])) ==
+   ^~~~~~~~~~~~~
+lib/common/timer/arm_board/timer_lib.c: In function 'TIM_add_callback':
+lib/common/timer/arm_board/timer_lib.c:7:13: error: incompatible type for argument 1 of 'LOG'
+ #define TAG "TIMER"
+             ^
+lib/common/timer/arm_board/timer_lib.c:16:9: note: in expansion of macro 'TAG'
+     LOG(TAG, "Could not allocate memory");
+         ^~~
+In file included from lib/common/timer/arm_board/timer_lib.c:4:0:
+lib/common/logging/inc/logging.h:41:6: note: expected 'LogLevel {aka enum <anonymous>}' but argument is of type 'char *'
+ void LOG(LogLevel level, char *TAG, char *log_message, ...);
+      ^~~
+lib/common/timer/arm_board/timer_lib.c:16:5: error: too few arguments to function 'LOG'
+     LOG(TAG, "Could not allocate memory");
+     ^~~
+In file included from lib/common/timer/arm_board/timer_lib.c:4:0:
+lib/common/logging/inc/logging.h:41:6: note: declared here
+ void LOG(LogLevel level, char *TAG, char *log_message, ...);
+      ^~~
+*** [.pio/build/arm_board/src/lib/common/timer/arm_board/timer_lib.o] Error 1
+In file included from lib/common/networking/arm_board/ethernet_udp_sender.c:3:0:
+lib/common/logging/inc/logging.h: In function 'log_level_to_string':
+lib/common/logging/inc/logging.h:18:3: warning: implicit declaration of function 'static_assert' [-Wimplicit-function-declaration]
+   static_assert((sizeof(LOG_LEVEL_STRINGS) / sizeof(LOG_LEVEL_STRINGS[0])) ==
+   ^~~~~~~~~~~~~
+lib/common/networking/arm_board/ethernet_receiver.c: At top level:
+lib/common/networking/arm_board/ethernet_receiver.c:33:50: error: unknown type name 'receiver_callback'
+ void ETH_input_callback(ETH_HandleTypeDef *heth, receiver_callback callback) {
+                                                  ^~~~~~~~~~~~~~~~~
+*** [.pio/build/arm_board/src/lib/common/networking/arm_board/ethernet_receiver.o] Error 1
+src/arm_board/main.c:22:10: fatal error: networking/include/ethernet.h: No such file or directory
+ #include "networking/include/ethernet.h"
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+*** [.pio/build/arm_board/src/src/arm_board/main.o] Error 1
+========================== [FAILED] Took 3.02 seconds ==========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+arm_board      FAILED    00:00:03.024
+==================== 1 failed, 0 succeeded in 00:00:03.024 ====================
