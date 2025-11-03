@@ -2,25 +2,44 @@
 #include "logging.h"
 #include "result.h"
 #include <pthread.h>
+#include <stdatomic.h>
 #include <string.h>
 
-const static char *TAG = "KV POOL";
+static char *TAG = "KV POOL";
 
-result_t kv_pool_init_fragmented(void *lookup_table, size_t max_keys,
-                                 void *pool_data, size_t pool_size,
-                                 kv_pool *pool, void (*delay)(void)) {
+void lock_mutex(atomic_flag *lock, void (*delay)(void)) {
+  while (atomic_flag_test_and_set(lock)) {
+    delay();
+  }
+}
+
+result_t kv_pool_init_fragmented(void *lookup_table, size_t lookup_table_size,
+                                 size_t max_keys, void *pool_data,
+                                 size_t pool_size, kv_pool *pool,
+                                 void (*delay)(void)) {
   if (lookup_table == NULL || pool_data == NULL || pool == NULL ||
       delay == NULL) {
+    LOGE(TAG, "Invalid NULL argument(s) to kv_pool_init_fragmented");
     return RESULT_ERR_INVALID_ARG;
   }
   if (max_keys == 0) {
+    LOGE(TAG, "max_keys cannot be zero");
     return RESULT_ERR_INVALID_ARG;
   }
 
   if (pool_size < MINIMUM_BLOCK_SIZE) {
+    LOGE(TAG,
+         "Pool size too small for heap, need at least %zu bytes but got %zu "
+         "bytes",
+         MINIMUM_BLOCK_SIZE, pool_size);
     return RESULT_ERR_BUFFER_TOO_SMALL;
   }
-  if (LOOKUP_TABLE_SIZE(max_keys) > sizeof(lookup_table)) {
+  const size_t required_lookup_size = LOOKUP_TABLE_SIZE(max_keys);
+  if (required_lookup_size > lookup_table_size) {
+    LOGE(TAG,
+         "Lookup table size too small for max_keys, need at least %zu bytes "
+         "but got %zu bytes",
+         required_lookup_size, lookup_table_size); // <-- Use the param
     return RESULT_ERR_BUFFER_TOO_SMALL;
   }
 
@@ -48,11 +67,16 @@ result_t kv_pool_init_fragmented(void *lookup_table, size_t max_keys,
 
 result_t kv_pool_init(void *data, size_t data_size, size_t max_keys,
                       kv_pool *pool, void (*delay)(void)) {
-  if (data_size < LOOKUP_TABLE_SIZE(max_keys) + MINIMUM_BLOCK_SIZE) {
+  if (data_size < sizeof(kv_slot) * (max_keys) + MINIMUM_BLOCK_SIZE) {
+    LOGE(TAG,
+         "Data size too small for lookup table and heap, need at least %zu "
+         "bytes but got %zu bytes",
+         LOOKUP_TABLE_SIZE(max_keys) + MINIMUM_BLOCK_SIZE, data_size);
     return RESULT_ERR_BUFFER_TOO_SMALL;
   }
   return kv_pool_init_fragmented(
-      data, max_keys, (void *)((uintptr_t)data + LOOKUP_TABLE_SIZE(max_keys)),
+      data, LOOKUP_TABLE_SIZE(max_keys), max_keys,
+      (void *)((uintptr_t)data + LOOKUP_TABLE_SIZE(max_keys)),
       data_size - LOOKUP_TABLE_SIZE(max_keys), pool, delay);
 }
 
@@ -65,13 +89,11 @@ result_t kv_pool_get(kv_pool *pool, int key, void *buffer,
     return RESULT_ERR_NOT_FOUND;
   }
 
+  LOGI(TAG, "Getting key %d", key);
   kv_slot *slot = &pool->lookup_table[key];
-
   // Lock the slot
-  while (atomic_flag_test_and_set(&slot->slot_lock)) {
-    pool->delay();
-  }
-
+  lock_mutex(&slot->slot_lock, pool->delay);
+  LOGI(TAG, "Locked slot for key %d", key);
   if (!slot->is_valid) {
     atomic_flag_clear(&slot->slot_lock);
     return RESULT_ERR_NOT_FOUND;
@@ -102,7 +124,6 @@ result_t kv_pool_allocate(kv_pool *pool, size_t size, void **out_ptr) {
   }
   *out_ptr = NULL;
   if (size == 0) {
-
     return RESULT_ERR_INVALID_ARG;
   }
   const size_t data_offset = offsetof(kv_header, as.data);
@@ -112,9 +133,8 @@ result_t kv_pool_allocate(kv_pool *pool, size_t size, void **out_ptr) {
   if (total_size < MINIMUM_BLOCK_SIZE) {
     total_size = MINIMUM_BLOCK_SIZE;
   }
-  while (atomic_flag_test_and_set(&pool->heap_lock)) {
-    pool->delay();
-  }
+
+  lock_mutex(&pool->heap_lock, pool->delay);
 
   kv_header *current = pool->free_list_head;
   kv_header *previous = NULL;
@@ -126,7 +146,7 @@ result_t kv_pool_allocate(kv_pool *pool, size_t size, void **out_ptr) {
     atomic_flag_clear(&pool->heap_lock);
     return RESULT_ERR_NO_MEM;
   }
-  atomic_fetch_clear(&pool->heap_lock);
+  atomic_flag_clear(&pool->heap_lock);
 
   size_t remaining_size = current->size - total_size;
   // Split the block if there's enough space left over
@@ -164,10 +184,7 @@ result_t kv_pool_free(kv_pool *pool, void *ptr) {
   kv_header *block_to_free =
       (kv_header *)((uintptr_t)ptr - offsetof(kv_header, as.data));
 
-  while (atomic_flag_test_and_set(&pool->heap_lock)) {
-    pool->delay();
-  }
-
+  lock_mutex(&pool->heap_lock, pool->delay);
   kv_header *current = pool->free_list_head;
   kv_header *previous = NULL;
   while (current != NULL && current < block_to_free) {
@@ -193,7 +210,107 @@ result_t kv_pool_free(kv_pool *pool, void *ptr) {
       previous->as.next_free = block_to_free;
     }
   }
+  for (int i = 0; i < pool->max_keys; i++) {
+    kv_slot *slot = &pool->lookup_table[i];
+    if (slot->data_ptr == ptr) {
+      lock_mutex(&slot->slot_lock, pool->delay);
+      slot->data_ptr = NULL;
+      slot->data_size = 0;
+      slot->is_valid = false;
+      atomic_flag_clear(&slot->slot_lock);
+      break;
+    }
+  }
 
   atomic_flag_clear(&pool->heap_lock);
   return RESULT_OK;
+}
+
+result_t kv_pool_write(kv_pool *pool, int key, void *buffer,
+                       size_t buffer_size) {
+  if (pool == NULL || buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  TRY(kv_pool_is_index_valid(pool, key));
+  result_t err;
+  kv_slot *slot = &pool->lookup_table[key];
+  lock_mutex(&slot->slot_lock, pool->delay);
+  if (slot->data_size != buffer_size) {
+    LOGE(TAG,
+         "Size mismatch on kv_pool_write: existing size=%zu, provided "
+         "size=%zu",
+         slot->data_size, buffer_size);
+    err = RESULT_ERR_INVALID_ARG;
+    goto cleanup;
+  }
+  memcpy(slot->data_ptr, buffer, buffer_size);
+  err = RESULT_OK;
+cleanup:
+  atomic_flag_clear(&slot->slot_lock);
+  return err;
+}
+
+result_t kv_pool_insert(kv_pool *pool, int key, void *data, size_t data_size) {
+  if (pool == NULL || data == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  if (key < 0 || (size_t)key >= pool->max_keys) {
+    LOGE(TAG, "Invalid key %d for kv_pool_insert", key);
+    return RESULT_ERR_INVALID_ARG;
+  }
+  kv_slot *slot = &pool->lookup_table[key];
+  // lock_mutex(&slot->slot_lock, pool->delay);
+  while (atomic_flag_test_and_set(&slot->slot_lock)) {
+    pool->delay();
+  }
+  slot->is_valid = false; // Mark invalid during insert
+  slot->data_size = 0;
+  slot->data_ptr = NULL;
+  TRY_LOG_CLEAN(kv_pool_allocate(pool, data_size, &slot->data_ptr));
+  lock_mutex(&pool->heap_lock, pool->delay);
+  memcpy(slot->data_ptr, data, data_size);
+cleanup:
+  atomic_flag_clear(&pool->heap_lock);
+  if (slot->data_ptr != NULL) {
+    slot->data_size = data_size;
+    slot->is_valid = true;
+    atomic_flag_clear(&slot->slot_lock);
+    return RESULT_OK;
+  } else {
+    atomic_flag_clear(&slot->slot_lock);
+    return RESULT_ERR_NO_MEM;
+  }
+}
+
+result_t kv_pool_is_index_valid(kv_pool *pool, int key) {
+  if (pool == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  if (key < 0 || (size_t)key >= pool->max_keys) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  kv_slot *slot = &pool->lookup_table[key];
+  result_t err;
+  lock_mutex(&slot->slot_lock, pool->delay);
+  if (slot == NULL) {
+    err = RESULT_ERR_NOT_FOUND;
+    goto cleanup;
+  }
+  if (!slot->is_valid) {
+    err = RESULT_ERR_NOT_FOUND;
+    goto cleanup;
+  }
+  err = RESULT_OK;
+cleanup:
+  atomic_flag_clear(&slot->slot_lock);
+  return err;
+}
+
+result_t kv_pool_remove(kv_pool *pool, int key) {
+  if (pool == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  TRY(kv_pool_is_index_valid(pool, key));
+  kv_slot *slot = &pool->lookup_table[key];
+  return kv_pool_free(pool, slot->data_ptr);
 }

@@ -265,6 +265,18 @@ class Configuration(ConfigEntry):
     def set_root_path(self, path: Path):
         self.root_path = path
 
+    def common_lib_test_ini(self, project_root: str) -> str:
+        libs = get_all_common_libs(project_root)
+        libs = [lib for lib in libs if isinstance(lib, CommonLibrary)]
+        libs.extend([lib for lib in get_all_common_libs(project_root) if isinstance(
+            lib, CommonPlatformDependentLibrary) and lib.is_testable])
+
+        ret = "[env:test_common]\n"
+        ret += PlatfmormioOptions.get_header_content(self.testing_options)
+        ret += "build_flags=\n"
+        ret += "".join([lib.get_test_build_flags() for lib in libs])
+        return ret
+
     def __str__(self) -> str:
         ret = str(self.platformio_options)
         common_build_flags = self.platformio_options.custom_extras_settings.get(
@@ -292,6 +304,11 @@ class Configuration(ConfigEntry):
 
             ret += board.get_ini(self.root_path, PlatfmormioOptions.get_header_content(self.platformio_options.custom_per_env_settings), common_build_flags,
                                  PlatfmormioOptions.get_header_content(self.testing_options))
+
+        self.testing_options["test_filter"] = "common/*"
+        self.testing_options["lib_extra_dirs"] = testing_lib_extra_dirs
+        self.testing_options["lib_extra_dirs"].append("lib/common")
+        ret += self.common_lib_test_ini(self.root_path)
         return ret
 
 

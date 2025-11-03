@@ -9,7 +9,7 @@
 #define KV_ALIGNMENT 16 // Or 8, or 32
 #define ALIGN(x) (((x) + (KV_ALIGNMENT - 1)) & ~(KV_ALIGNMENT - 1))
 #define MINIMUM_BLOCK_SIZE sizeof(kv_header) + 1
-#define LOOKUP_TABLE_SIZE(max_keys) (sizeof(kv_slot) * (max_keys))
+#define LOOKUP_TABLE_SIZE(x) (sizeof(kv_slot) * (x))
 
 /**
  * @brief KV Slot metadata that holds all information about a specific Key-Value
@@ -28,7 +28,7 @@ typedef struct {
  *
  * Manages free blocks by forming a linked list.
  */
-typedef struct {
+typedef struct kv_header {
   size_t size;
   union {
     struct kv_header *next_free;
@@ -66,6 +66,7 @@ typedef struct {
  * valid for the entire lifetime of the `kv_pool`.
  *
  * @param lookup_table  Pointer to the memory for the lookup table.
+ * @param lookup_table_size Size of the lookup table memory in bytes.
  * @param max_keys      The number of keys this pool will manage. The
  * `lookup_table` must be at least (max_keys * sizeof(kv_slot)) bytes.
  * @param data          Pointer to the memory for the data heap.
@@ -74,9 +75,9 @@ typedef struct {
  * @param delay        A pointer to a delay function to be called when awaiting
  * mutex
  */
-result_t kv_pool_init_fragmented(void *lookup_table, size_t max_keys,
-                                 void *data, size_t pool_size, kv_pool *pool,
-                                 void (*delay)(void));
+result_t kv_pool_init_fragmented(void *lookup_table, size_t lookup_table_size,
+                                 size_t max_keys, void *data, size_t pool_size,
+                                 kv_pool *pool, void (*delay)(void));
 
 /**
  * @brief Initializes a kv_pool from a single, contiguous block of memory.
@@ -112,7 +113,6 @@ result_t kv_pool_init(void *data, size_t data_size, size_t max_keys,
  * @param[in]     key          The key (index) of the slot to read.
  * @param[out]    buffer       A pointer to the destination buffer where
  * the data will be copied.
- * @param[in,out] buffer_size  As **input**, this must point to a size_t
  * holding the *maximum capacity* of the buffer.
  * As **output**, this value will be updated to
  * the *actual data size* of the key's value.
@@ -120,6 +120,7 @@ result_t kv_pool_init(void *data, size_t data_size, size_t max_keys,
  * @return      RESULT_OK on success.
  * @return      RESULT_ERR_NOT_FOUND if the key is out of bounds or not valid.
  * @return      RESULT_ERR_BUFFER_TOO_SMALL if the buffer's capacity (the
+ * @param[in,out] buffer_size  As **input**, this must point to a size_t
  * input *buffer_size) was less than the key's data size.
  * On this error, *buffer_size is still updated to the
  * required size, but no data is copied.
@@ -215,4 +216,13 @@ result_t kv_pool_remove(kv_pool *pool, int key);
  * @return      RESULT_INVALID_KEY if the key is out of bounds.
  */
 result_t kv_pool_is_index_valid(kv_pool *pool, int key);
+
+/**
+ * @brief Allocates a block of memory from the pool's heap.
+ */
+result_t kv_pool_allocate(kv_pool *pool, size_t size, void **out_ptr);
+/**
+ * @brief Frees a previously allocated block back to the pool's heap.
+ */
+result_t kv_pool_free(kv_pool *pool, void *ptr);
 #endif // !KV_POOL_H
