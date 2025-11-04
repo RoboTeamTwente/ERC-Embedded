@@ -1,9 +1,12 @@
 #ifndef MENU_DRIVER_H
 #define MENU_DRIVER_H
 
+#include "menu_driver_conf.h"
+#include <stdbool.h>
+#include <stdint.h>
 #define MAX_CHILDREN 15
 #define MAX_PAGES 128
-#define MAX_PAGE_NAME_LEN 64
+#define MAX_PAGE_NAME_LEN 20
 
 typedef unsigned char menu_input;
 
@@ -56,64 +59,44 @@ typedef unsigned char menu_input;
 
 #define CLEAR_INPUT_BUTTON_PRESS_A(x) ((x) &= ~(1 << INPUT_BUTTON_PRESS_A_FLAG))
 
-struct menu_page;
-struct menu_manager;
-struct menu_page_binding;
-enum binding_type;
+struct menu_page_t;
+struct menu_manager_t;
 
-typedef enum {
-  BINDING_TYPE_INT,
-  BINDING_TYPE_FLOAT,
-  BINDING_TYPE_STR,
-  BINDING_TYPE_RESULT,
-} binding_type;
-
-/**
- * @brief creates a binding between a key and a piece of data
- */
 typedef struct {
-  const char *key;   // Name of the binding
-  void *value_ptr;   // Address of the binding value
-  binding_type type; // Type of the binding value
-} menu_page_binding;
+  uint8_t num_entries;
+  uint8_t selected_index;
+  uint8_t entry_ids[MAX_LIST_ENTRIES];
+  unsigned char entry_icons[MAX_LIST_ENTRIES][MENU_LIST_ICON_INTEGER_SIZE];
+} page_list_state;
 
-/**
- * @brief State of a List page node, stores the current index;
- */
-typedef struct {
-  unsigned char current_index;
-} menu_page_state_list;
-
-/**
- * @brief Union of all posisble page states.
- */
 typedef union {
-  menu_page_state_list list;
-} menu_active_page_state;
+  page_list_state list;
 
+} menu_page_state;
 /**
  */
 typedef struct {
   void *state;
   unsigned char id;
+  unsigned char parent_id;
+  bool needs_render; // whether the page needs to be re-rendered
 
   char name[MAX_PAGE_NAME_LEN];
-  unsigned char children[MAX_CHILDREN];
-
-  menu_page_binding *bindings;
 
   void (*init)(void *state);
-  void (*update)(struct menu_manager *manager);
-  void (*render)(struct menu_manager *manager);
+  void (*update)(struct menu_manager_t *manager);
+  void (*render)(struct menu_manager_t *manager);
   void (*destruct)(void *state);
 } menu_page_t;
 
 typedef struct {
   unsigned char active_page_id;
-  menu_active_page_state active_state;
+  menu_page_t pages[MAX_PAGES];
   menu_input (*get_input)(void);
 } menu_manager_t;
 
-static menu_page_t menu_pages_pool[MAX_PAGES];
-
+void menu_manager_init(menu_manager_t *manager,
+                       menu_input (*get_input_func)(void));
+void menu_manager_switch_page(menu_manager_t *manager,
+                              unsigned char new_page_id);
 #endif // !MENU_DRIVER_H

@@ -336,6 +336,28 @@ void ssd1306_Line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2,
   return;
 }
 
+void ssd1306_ListBorder(uint8_t x, uint8_t y, uint8_t width, uint8_t height,
+                        SSD1306_COLOR color) {
+  // Top line
+  ssd1306_Line(x + 1, y, x + width - 2, y, color);
+  // Bottom line
+  ssd1306_Line(x + 1, y + height - 1, x + width - 1, y + height - 1, color);
+  // Left line
+  ssd1306_Line(x, y + 1, x, y + height - 1, color);
+  // Right line
+  ssd1306_Line(x + width - 1, y + 1, x + width - 1, y + height - 1, color);
+  // shadow
+  ssd1306_Line(x + 2, y + height, x + width - 2, y + height, color);
+  ssd1306_Line(x + width, y + 2, x + width, y + height - 2, color);
+}
+
+void ssd1306_ListScrollBar(uint8_t x, uint8_t dot_height, uint8_t dot_gap,
+                           SSD1306_COLOR color) {
+  // Scroll bar border
+  for (uint8_t i = 1; i < SSD1306_HEIGHT; i += dot_height + dot_gap) {
+    ssd1306_Line(x, i, x, i + dot_height, color);
+  }
+}
 /* Draw polyline */
 void ssd1306_Polyline(const SSD1306_VERTEX *par_vertex, uint16_t par_size,
                       SSD1306_COLOR color) {

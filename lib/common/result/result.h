@@ -76,9 +76,6 @@ const char *result_to_desc_str(result_t code);
 
 #ifdef LOGGING_H
 
-#ifndef TAG
-TAG "RESULT"
-#endif
 /**
  * @brief If logging is enabled: Checks, logs on failure using TAG, and returns.
  */
