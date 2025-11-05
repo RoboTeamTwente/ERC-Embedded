@@ -15,7 +15,7 @@ testing_options:
     - +<lib/common/*/test/*>
 platformio_options:
   custom_platformio_settings:
-    default_envs: main_board
+    default_envs: driver_board
     src_dir: .
     lib_dir: lib
   custom_extras_settings:
