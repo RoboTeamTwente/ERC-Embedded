@@ -42,26 +42,38 @@ result_t kv_pool_init_fragmented(void *lookup_table, size_t lookup_table_size,
          required_lookup_size, lookup_table_size); // <-- Use the param
     return RESULT_ERR_BUFFER_TOO_SMALL;
   }
+  LOGI(TAG, "Initializing fragmented KV pool with max keys %d", max_keys);
 
-  memset(lookup_table, 0, sizeof(lookup_table));
+  memset(lookup_table, 0, lookup_table_size);
   memset(pool_data, 0, pool_size);
+  LOGI(TAG, "Cleared lookup table and pool data memory");
 
   pool->lookup_table = (kv_slot *)lookup_table;
   pool->max_keys = max_keys;
   pool->pool_start = pool_data;
   pool->pool_size = pool_size;
+  LOGI(TAG, "Setting up heap free list");
   atomic_flag_clear(&pool->heap_lock);
+  LOGI(TAG, "Setting delay function");
   pool->delay = delay;
+  LOGI(TAG, "Initializing free list head");
   pool->free_list_head = (kv_header *)pool_data;
+  LOGI(TAG, "Setting free list head size to %zu", pool_size);
   pool->free_list_head->size = pool_size;
+  LOGI(TAG, "Setting free list head next to NULL");
   pool->free_list_head->as.next_free = NULL;
+  LOGI(TAG, "Initializing lookup table slots");
+  LOGI(TAG, "!!!! sizeof(kv_slot) is %d bytes !!!!", sizeof(kv_slot));
 
   for (size_t i = 0; i < max_keys; i++) {
     atomic_flag_clear(&pool->lookup_table[i].slot_lock);
-    pool->lookup_table[i].is_valid = false;
-    pool->lookup_table[i].data_size = 0;
-    pool->lookup_table[i].data_ptr = NULL;
+    pool->lookup_table[i] = (kv_slot){
+        .is_valid = false,
+        .data_ptr = NULL,
+        .data_size = 0,
+    };
   }
+  LOGI(TAG, "KV pool initialized successfully");
   return RESULT_OK;
 }
 
@@ -74,6 +86,7 @@ result_t kv_pool_init(void *data, size_t data_size, size_t max_keys,
          LOOKUP_TABLE_SIZE(max_keys) + MINIMUM_BLOCK_SIZE, data_size);
     return RESULT_ERR_BUFFER_TOO_SMALL;
   }
+  LOGI(TAG, "Initializing KV pool with max keys %zu", max_keys);
   return kv_pool_init_fragmented(
       data, LOOKUP_TABLE_SIZE(max_keys), max_keys,
       (void *)((uintptr_t)data + LOOKUP_TABLE_SIZE(max_keys)),

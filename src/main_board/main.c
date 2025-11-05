@@ -1,10 +1,14 @@
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
 #include "cubemx_main.h"
+#include "diagnostics.h"
+#include "diagnostics/diagnostics.h"
 #include "gpio.h"
+#include "kv_pool.h"
 #include "logging.h"
 #include "main_board.pb.h"
 #include "menu_driver.h"
 #include "menu_driver_list.h"
+#include "menu_driver_overview.h"
 #include "pb_message.h"
 #include "result.h"
 #include "ssd1306.h"
@@ -104,6 +108,13 @@ COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
 void MainTask(void *argument);
 
+#define KV_POOL_BUFFER_SIZE 512
+#define KV_POOL_MAX_KEYS 5
+
+void delay_10ms(void) { osDelay(10); }
+static unsigned char kv_pool_buffer[KV_POOL_BUFFER_SIZE];
+static kv_pool main_kv_pool;
+
 // Task attributes for CMSIS-RTOS v2
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
@@ -157,34 +168,61 @@ menu_input get_input_mock() { return btn_input(); }
  */
 void MainTask(void *argument) {
   LOGI(TAG, "In main task");
+  result_t res = kv_pool_init(kv_pool_buffer, KV_POOL_BUFFER_SIZE,
+                              KV_POOL_MAX_KEYS, &main_kv_pool, delay_10ms);
+  if (res != RESULT_OK) {
+    LOGE(TAG, "Failed to initialize KV pool: %d", res);
+    Error_Handler();
+  }
+  LOGI(TAG, "KV pool initialized successfully");
   ssd1306_Init();
   LOGI(TAG, "Initializing components...");
 
   LOGI(TAG, "Components Initialized");
-  result_t res;
   menu_manager_t manager = {
       .active_page_id = 0,
       .pages = pages,
       .get_input = get_input_mock,
   };
-  uint8_t entry_ids[8] = {1, 2, 3, 4, 1, 2, 3, 4};
-  strcpy(manager.pages[1].name, "Item 1");
-  strcpy(manager.pages[2].name, "Item 2");
-  strcpy(manager.pages[3].name, "Item 3");
-  strcpy(manager.pages[4].name, "Item 4");
-  LOGI(TAG, "Preparing list page");
-  unsigned char entry_icons[8][MENU_LIST_ICON_INTEGER_SIZE];
-  memcpy(entry_icons[0], icon_skull, MENU_LIST_ICON_INTEGER_SIZE);
-  memcpy(entry_icons[1], icon_heart, MENU_LIST_ICON_INTEGER_SIZE);
-  memcpy(entry_icons[2], icon_cross, MENU_LIST_ICON_INTEGER_SIZE);
-  memcpy(entry_icons[3], icon_check, MENU_LIST_ICON_INTEGER_SIZE);
-  memcpy(entry_icons[4], icon_skull, MENU_LIST_ICON_INTEGER_SIZE);
-  memcpy(entry_icons[5], icon_heart, MENU_LIST_ICON_INTEGER_SIZE);
-  memcpy(entry_icons[6], icon_cross, MENU_LIST_ICON_INTEGER_SIZE);
-  memcpy(entry_icons[7], icon_check, MENU_LIST_ICON_INTEGER_SIZE);
+  // uint8_t entry_ids[8] = {1, 2, 3, 4, 1, 2, 3, 4};
+  // strcpy(manager.pages[1].name, "Item 1");
+  // strcpy(manager.pages[2].name, "Item 2");
+  // strcpy(manager.pages[3].name, "Item 3");
+  // strcpy(manager.pages[4].name, "Item 4");
+  // LOGI(TAG, "Preparing list page");
+  // unsigned char entry_icons[8][MENU_LIST_ICON_INTEGER_SIZE];
+  // memcpy(entry_icons[0], icon_skull, MENU_LIST_ICON_INTEGER_SIZE);
+  // memcpy(entry_icons[1], icon_heart, MENU_LIST_ICON_INTEGER_SIZE);
+  // memcpy(entry_icons[2], icon_cross, MENU_LIST_ICON_INTEGER_SIZE);
+  // memcpy(entry_icons[3], icon_check, MENU_LIST_ICON_INTEGER_SIZE);
+  // memcpy(entry_icons[4], icon_skull, MENU_LIST_ICON_INTEGER_SIZE);
+  // memcpy(entry_icons[5], icon_heart, MENU_LIST_ICON_INTEGER_SIZE);
+  // memcpy(entry_icons[6], icon_cross, MENU_LIST_ICON_INTEGER_SIZE);
+  // memcpy(entry_icons[7], icon_check, MENU_LIST_ICON_INTEGER_SIZE);
+  //
+  // res = get_menu_page_list(0, 0, 8, entry_ids, entry_icons, "List",
+  // &states[0],
+  //                          &manager.pages[0]);
+  kv_pool_insert(&main_kv_pool, 1, &(diagnostics_t){.last_code = 0x00},
+                 sizeof(diagnostics_t));
+  kv_pool_insert(&main_kv_pool, 2, &(diagnostics_t){.last_code = 0x01},
+                 sizeof(diagnostics_t));
+  kv_pool_insert(&main_kv_pool, 3, &(diagnostics_t){.last_code = 0x02},
+                 sizeof(diagnostics_t));
 
-  res = get_menu_page_list(0, 0, 8, entry_ids, entry_icons, "List", &states[0],
-                           &manager.pages[0]);
+  kv_pool_insert(&main_kv_pool, 4, &(diagnostics_t){.last_code = 0x03},
+                 sizeof(diagnostics_t));
+
+  kv_pool_insert(&main_kv_pool, 5, &(diagnostics_t){.last_code = 0x04},
+                 sizeof(diagnostics_t));
+  kv_pool_insert(&main_kv_pool, 6, &(diagnostics_t){.last_code = 0x05},
+                 sizeof(diagnostics_t));
+  res = get_menu_page_overview(
+      0, 0, "Overview", 6,
+      (char[MENU_OVERVIEW_MAX_ENTRIES][MENU_OVERVIEW_MAX_ENTRY_TITLE_LEN]){
+          "Main", "Wirl", "Snsor", "Drive", "Arm", "SCont"},
+      (uint8_t[MENU_OVERVIEW_MAX_ENTRIES]){1, 2, 3, 4, 5, 6}, &main_kv_pool,
+      &states[0], &manager.pages[0]);
   LOGI(TAG, "List page prepared with result: %d", res);
   LOGI(TAG, "Entering main loop");
   while (1) {

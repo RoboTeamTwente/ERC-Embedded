@@ -17,6 +17,7 @@ result_t get_menu_page_list(
     menu_page_t *out_page) {
   if (num_entries > MAX_LIST_ENTRIES || out_page == NULL || state_ptr == NULL ||
       name == NULL) {
+    out_page = NULL;
     return RESULT_ERR_INVALID_ARG;
   }
   // Populate state

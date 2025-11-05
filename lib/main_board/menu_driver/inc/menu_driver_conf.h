@@ -23,4 +23,15 @@
   (MENU_LIST_ICON_SIZE / sizeof(unsigned char) +                               \
    ((MENU_LIST_ICON_SIZE % sizeof(unsigned char)) ? 1 : 0))
 
+#define MENU_OVERVIEW_ICON_WIDTH 2
+#define MENU_OVERVIEW_ICON_HEIGHT 11
+#define MENU_OVERVIEW_ICON_SIZE                                                \
+  (MENU_OVERVIEW_ICON_WIDTH * MENU_OVERVIEW_ICON_HEIGHT)
+#define MENU_OVERVIEW_ICON_BYTE_SIZE                                           \
+  (MENU_OVERVIEW_ICON_SIZE / sizeof(unsigned char) +                           \
+   ((MENU_OVERVIEW_ICON_SIZE % sizeof(unsigned char)) ? 1 : 0))
+
+#define MENU_OVERVIEW_MAX_ENTRIES 8
+#define MENU_OVERVIEW_MAX_ENTRY_TITLE_LEN 12
+
 #endif // !MENU_DRIVER_CONF_H

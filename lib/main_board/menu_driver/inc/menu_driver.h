@@ -1,6 +1,7 @@
 #ifndef MENU_DRIVER_H
 #define MENU_DRIVER_H
 
+#include "kv_pool.h"
 #include "menu_driver_conf.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -69,8 +70,19 @@ typedef struct {
   unsigned char entry_icons[MAX_LIST_ENTRIES][MENU_LIST_ICON_INTEGER_SIZE];
 } page_list_state;
 
+typedef struct {
+  uint8_t num_entries;
+  char entry_titles[MENU_OVERVIEW_MAX_ENTRIES]
+                   [MENU_OVERVIEW_MAX_ENTRY_TITLE_LEN];
+  uint8_t entry_lookups[MENU_OVERVIEW_MAX_ENTRIES];
+  kv_pool *kv_pool;
+  bool err_sprite_state;
+  uint8_t last_states[MENU_OVERVIEW_MAX_ENTRIES];
+} page_overview_state;
+
 typedef union {
   page_list_state list;
+  page_overview_state overview;
 
 } menu_page_state;
 /**
