@@ -1,8 +1,8 @@
 message ServoInformation {
     float torque = 1;
     float power_consumption = 2;
-    float rpm = 3;
-    float voltage = 4;
-    float current = 5;
-    float angle = 6;
+    float voltage = 3;
+    float current = 4;
+    uint16_t pos = 5;
+    string error_msg = 6;
 }

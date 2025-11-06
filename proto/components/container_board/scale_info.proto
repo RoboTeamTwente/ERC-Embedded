@@ -2,4 +2,5 @@ message ScaleInformation {
     float power_consumption = 1;
     float voltage = 2;
     float current = 3;
+    string error_msg = 4;
 }

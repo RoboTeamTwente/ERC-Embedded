@@ -9,4 +9,5 @@ message ElectromagnetInformation {
     float voltage = 3;
     float current = 4;
     float field_strength = 5;
+    string error_msg = 6;
 }

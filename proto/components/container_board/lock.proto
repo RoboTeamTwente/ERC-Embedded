@@ -1,4 +1,4 @@
+
 message LockMsg {
-    bool actuate = 1;
-    bool rotate_dir = 2;
+    bool open = 1;
 }
