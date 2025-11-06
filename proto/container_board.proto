@@ -1,0 +1,72 @@
+syntax = "proto3";
+// used to wrap a message 
+message PBMessageEnvelope {
+    // identifier format:
+    // |--------|---------------------------|
+    // |board_id|   message_identifier      |
+    // | 8 bits |   27 bits (3 bytes)       |
+    // |--------|---------------------------|
+    // Reserved Identifiers: 0xXX0000: sending types (see below)
+    // Reserved Identifiers: 0xXX0001: receiving types (see below)
+    // Reserved Identifiers: 0xXX0002: diagnostics
+    int32 identifier = 1;
+    bytes data = 2;
+}
+
+// ---------  HANDSHAKE MESSAGES ----------
+
+// Used to identify all messages this node can send
+message PBBroadcastSendingTypes {
+// Identifiers: all others are 3byte long identifiers (lenght has to be 3*x)
+  bytes identifiers = 1;
+}
+
+// Used to identify all messages this node can receive
+message PBBroadcastingReceivingTypes {
+  // Identifiers: others are 4byte long identifiers including sender id and message id (length has to be 4*x)
+  bytes identifiers = 1;
+}
+message ContainerboardDiagnostics {
+    enum State {
+    IDLE = 0;
+    OPERATING = 1;
+    NOOP = 2;
+    }
+
+    State state = 1;
+    ElectromagnetInformation magnet_information = 2;
+    ServoInformation servo_information = 3;
+    ScaleInformation scale_information = 4;
+}message ElectromagnetInformation {
+    enum State {
+        ACTIVE = 1;
+        IDLE = 2;
+        OFF = 3;
+    }
+    State state = 1;
+    float power_consumption = 2;
+    float voltage = 3;
+    float current = 4;
+    float field_strength = 5;
+    string error_msg = 6;
+}
+message LockMsg {
+    bool open = 1;
+}message ScaleMsg {
+    
+}
+
+
+message ScaleInformation {
+    float power_consumption = 1;
+    float voltage = 2;
+    float current = 3;
+    string error_msg = 4;
+}message ServoInformation {
+    float torque = 1;
+    float power_consumption = 2;
+    float voltage = 3;
+    float current = 4;
+    uint16_t pos = 5;
+    string error_msg = 6;
+}

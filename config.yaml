@@ -3,6 +3,9 @@ boards:
     board_type: nucleo_h753zi
   - board_name: driving_board
     board_type: nucleo_h753zi
+  - board_name: container_board
+    board_type: nucleo_h753zi
+
 testing_options:
   platform: native
   framework: ""
@@ -13,6 +16,7 @@ testing_options:
     - +<lib/common/*>
     - -<lib/common/*/*>
     - +<lib/common/*/test/*>
+
 platformio_options:
   custom_platformio_settings:
     default_envs: main_board
@@ -42,6 +46,7 @@ platformio_options:
     lib_deps:
       - ${extra.common_lib_deps}
       - lib/${this.__env__}/firmware
+      
   custom_env_settings:
     platform: ststm32
     framework: stm32cube

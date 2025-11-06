@@ -10,6 +10,7 @@ static uint16_t OPENANGLE;
 static uint16_t MINPW; 
 static uint16_t MAXPW; 
 //TODO: error when not initialized
+//TODI: error logging
 
 //keep track of lock open or close
 static bool is_open; //NOTE: i have no clue if this bool is actually useful YET
@@ -74,9 +75,6 @@ void lock_actuate_and_turn(lock_t* lock, uint16_t angle) {
     //set values to turn servo
     lock->servo.pulse_width = calc_pulse_width(angle);
     lock->servo.pos = angle;
-
-    //set values to actuate magnet
-    set_magnet_voltage(lock->magnet, 0);
 }
 
 uint16_t calc_pulse_width(uint16_t angle) {
@@ -87,17 +85,4 @@ uint16_t calc_pulse_width(uint16_t angle) {
 
     // Map angle [0-MAXANGLE] to pulse [MINPULSEWIDTH-MAXPULSEWIDTH]
 	return ((angle * (MAXPW - MINPW)) / MAXANGLE) + MINPW;
-}
-
-//SETTERS N GETTERS
-uint16_t get_servo_pos(servo_t servo) {
-    return servo.pos;
-}
-
-void set_magnet_voltage(magnet_t magnet, uint16_t volt) {
-    magnet.voltage = volt;
-}
-
-uint16_t get_magnet_voltage(magnet_t magnet) {
-    return magnet.voltage;
 }

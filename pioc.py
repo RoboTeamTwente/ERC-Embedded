@@ -205,8 +205,7 @@ class Board(ConfigEntry):
 
         ret += f"\n\n[env:test_{self.board_name}]\n"
         ret += test_opts
-        ret += f"build_flags=\n{
-            ''.join(self.get_test_build_flags(project_root))}"
+        ret += f"build_flags=\n{''.join(self.get_test_build_flags(project_root))}"
         return ret
 
 
