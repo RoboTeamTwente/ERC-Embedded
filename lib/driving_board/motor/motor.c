@@ -6,6 +6,7 @@
 static MotorInfoCallback_t info_callback = 0;
 motor_t motors[NUM_MOTORS];
 
+
 void motor_init(void){//I want to put the error type from logging instead
 
     for (int i = 0; i < NUM_MOTORS; i++) {
@@ -19,14 +20,14 @@ void motor_init(void){//I want to put the error type from logging instead
     }
 }//this logic would change if there was a thread running for each motor
 
-void motor_update(int index,
+void motor_update(motor_t *motors, int index,
                   float voltage,
                   float angle_of_body_frame,
                   float angular_momentum,
                   float current,
                   float rpm,
                   float direction_vector_x,
-                  float direction_vector_y) {
+                  float direction_vector_y) {//must pass in a pointer to a motor struct
 
     if (index < 0 || index >= NUM_MOTORS) {
         //LOGI("Motor", "index out of bounds");
