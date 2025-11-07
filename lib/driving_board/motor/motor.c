@@ -7,7 +7,7 @@ static MotorInfoCallback_t info_callback = 0;
 motor_t motors[NUM_MOTORS];
 
 
-void motor_init(void){//I want to put the error type from logging instead
+void motor_init(void){//I want to put the result type from logging instead for the return
 
     for (int i = 0; i < NUM_MOTORS; i++) {
         motors[i].voltage = 0.0f;
