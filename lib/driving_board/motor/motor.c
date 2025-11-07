@@ -43,6 +43,7 @@ void motor_update(int index,
 }
 
 
+//IMPORTANT: Actually we might not need a callback function for diagnostics since they are periodical but it might be useful for sending progress after a robot reaches a certain point.
 //TODO: callback function here for control to call for diagnostics.
 
 //currently stub implementatiton
