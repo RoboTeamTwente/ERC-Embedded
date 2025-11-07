@@ -25,5 +25,19 @@ void motor_update(int index,
                   float rpm,
                   float direction_vector_x,
                   float direction_vector_y);
+typedef struct {
+    float motor_id;
+    float current;
+    float rpm;
+    float back_emf;
+} DrivingBoardMotorInformation_t;
+
+typedef void (*MotorInfoCallback_t)(const DrivingBoardMotorInformation_t *data);//MotorInfoCallback_t is the type of any function that takes a pointer to a motor info struct and returns nothing
+
+void Motor_RegisterCallback(MotorInfoCallback_t cb);
+
+void MotorInfoHandler(const DrivingBoardMotorInformation_t *data);
 
 #endif //for MOTOR_H
+
+//TODO: write nice documentation here
