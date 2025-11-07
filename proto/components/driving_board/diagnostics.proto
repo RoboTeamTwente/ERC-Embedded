@@ -8,9 +8,3 @@ message DrivingBoardDiagnostics {
   State state = 1;
     repeated DrivingBoardMotorInformation motors = 2;
 }
-
-//4 motors for turning 6 motors for moving forward
-//used repeated fields for easy entry and scalability instead of
-//DrivingBoardMotorInformation motors = 2;
-//DrivingBoardMotorInformation motors = 3;
-//DrivingBoardMotorInformation motors = 4;

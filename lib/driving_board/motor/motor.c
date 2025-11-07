@@ -1,20 +1,12 @@
-#include "logging.h"
+//#include "logging.h"
 #include <stdint.h>
-#define NUM_MOTORS 10
+#include "motor.h"
 
-typedef struct {
-    float voltage;
-    float angle_of_body_frame;
-    float angular_momentum;
-    float current;
-    float rpm;
-    float direction_vector_x;
-    float direction_vector_y;
-} Motor;
 
-Motor motors[NUM_MOTORS];
 
-void motor_init(void){//I want to put the error type from logging instead (ask Nick)
+motor_t motors[NUM_MOTORS];
+
+void motor_init(void){//I want to put the error type from logging instead
 
     for (int i = 0; i < NUM_MOTORS; i++) {
         motors[i].voltage = 0.0f;
@@ -25,7 +17,7 @@ void motor_init(void){//I want to put the error type from logging instead (ask N
         motors[i].direction_vector_x = 0.0f;
         motors[i].direction_vector_y = 0.0f;
     }
-}
+}//this logic would change if there was a thread running for each motor
 
 void motor_update(int index,
                   float voltage,
@@ -37,7 +29,7 @@ void motor_update(int index,
                   float direction_vector_y) {
 
     if (index < 0 || index >= NUM_MOTORS) {
-        LOGI("Motor", "index out of bounds");
+        //LOGI("Motor", "index out of bounds");
         return; 
     }
 
