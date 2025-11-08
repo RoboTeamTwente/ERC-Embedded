@@ -12,35 +12,35 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug",
-            "executable": "/home/jaron/Documents/RoboTeam/Code/code_rover4/.pio/build/arm_board/firmware.elf",
-            "projectEnvName": "arm_board",
+            "executable": "/home/jaron/Documents/RoboTeam/Code/code_rover4/.pio/build/arm_board_h7/firmware.elf",
+            "projectEnvName": "arm_board_h7",
             "toolchainBinDir": "/home/jaron/.platformio/packages/toolchain-gccarmnoneeabi/bin",
             "internalConsoleOptions": "openOnSessionStart",
-            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32F767.svd",
+            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32H753.svd",
             "preLaunchTask": {
                 "type": "PlatformIO",
-                "task": "Pre-Debug (arm_board)"
+                "task": "Pre-Debug (arm_board_h7)"
             }
         },
         {
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (skip Pre-Debug)",
-            "executable": "/home/jaron/Documents/RoboTeam/Code/code_rover4/.pio/build/arm_board/firmware.elf",
-            "projectEnvName": "arm_board",
+            "executable": "/home/jaron/Documents/RoboTeam/Code/code_rover4/.pio/build/arm_board_h7/firmware.elf",
+            "projectEnvName": "arm_board_h7",
             "toolchainBinDir": "/home/jaron/.platformio/packages/toolchain-gccarmnoneeabi/bin",
             "internalConsoleOptions": "openOnSessionStart",
-            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32F767.svd"
+            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32H753.svd"
         },
         {
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (without uploading)",
-            "executable": "/home/jaron/Documents/RoboTeam/Code/code_rover4/.pio/build/arm_board/firmware.elf",
-            "projectEnvName": "arm_board",
+            "executable": "/home/jaron/Documents/RoboTeam/Code/code_rover4/.pio/build/arm_board_h7/firmware.elf",
+            "projectEnvName": "arm_board_h7",
             "toolchainBinDir": "/home/jaron/.platformio/packages/toolchain-gccarmnoneeabi/bin",
             "internalConsoleOptions": "openOnSessionStart",
-            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32F767.svd",
+            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32H753.svd",
             "loadMode": "manual"
         }
     ]
