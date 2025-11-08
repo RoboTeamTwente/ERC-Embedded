@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "ethernet.h"
 #include "gpio.h"
+#include "logging.h"
 #include "stm32f7xx_hal_tim.h"
 #include "tim.h"
 #include "usart.h"
@@ -27,6 +28,7 @@
 
 #define TAG "MAIN"
 
+extern UART_HandleTypeDef huart3;
 extern TIM_HandleTypeDef htim1;
 /**
  * @brief System Clock Configuration from cubemx_main.c @retval None
@@ -41,7 +43,9 @@ int main(void) {
 
   MX_GPIO_Init();
   MX_USART3_UART_Init();
+  LOG_init(&huart3);
   MX_USB_OTG_FS_PCD_Init();
+
   MX_TIM1_Init();
   ETH_init(&htim1, NULL, NULL);
   ETH_udp_init();
