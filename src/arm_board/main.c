@@ -45,7 +45,6 @@ int main(void) {
   MX_USART3_UART_Init();
   LOG_init(&huart3);
   MX_USB_OTG_FS_PCD_Init();
-
   MX_TIM1_Init();
   ETH_init(&htim1, NULL, NULL);
   ETH_udp_init();
