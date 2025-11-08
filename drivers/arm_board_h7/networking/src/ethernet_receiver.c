@@ -1,7 +1,6 @@
 #include "ethernet_receiver.h"
 #include "logging.h"
 #include "pbuf.h"
-#include "stm32f7xx_hal_eth.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -20,10 +20,8 @@
 #include "ethernet.h"
 #include "gpio.h"
 #include "logging.h"
-#include "stm32f7xx_hal_tim.h"
 #include "tim.h"
 #include "usart.h"
-#include "usb_otg.h"
 #include <stdint.h>
 
 #define TAG "MAIN"
@@ -42,9 +40,9 @@ int main(void) {
   SystemClock_Config();
 
   MX_GPIO_Init();
-  MX_USART3_UART_Init();
-  LOG_init(&huart3);
-  MX_USB_OTG_FS_PCD_Init();
+  MX_TIM1_Init();
+  MX_USART1_UART_Init();
+  LOG_init(&huart1);
   MX_TIM1_Init();
   ETH_init(&htim1, NULL, NULL);
   ETH_udp_init();

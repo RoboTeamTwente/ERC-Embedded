@@ -5,8 +5,6 @@
 #include "ethernet_udp_sender.h"
 #include "logging.h"
 #include "lwip.h"
-#include "stm32f7xx_hal_eth.h"
-#include "stm32f7xx_hal_tim.h"
 #include "tim.h"
 #include "timer_lib.h"
 #include "udp.h"
