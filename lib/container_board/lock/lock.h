@@ -4,20 +4,13 @@
 #include <stdint.h>
 
 typedef struct {
-    float torque;
-    float power_consumption;
-    float voltage;
-    float current;
     uint16_t pos;
     uint16_t pulse_width;
 } servo_t;
 
 typedef struct {
     uint16_t voltage;
-    float current;
-    float field_strength;
 } magnet_t;
-
 
 typedef struct {
     servo_t servo;
@@ -33,21 +26,38 @@ typedef struct {
  * @param min_pulse_width pulse width at a 1MHz clock when lid is closed
  * @param max_pulse_width pulse width at a 1MHz clock when lid is open
  */
-void lock_init(lock_t* lock, uint16_t closed_angle, uint16_t open_angle, uint16_t min_pulse_width, uint16_t max_pulse_width);
+void init(lock_t* lock, uint16_t closed_angle, uint16_t open_angle, uint16_t min_pulse_width, uint16_t max_pulse_width);
+
+/**
+ * @brief update all values in servo
+ * 
+ * @param servo servo struct
+ * @param servo_pos angle 
+ * @param servo_pulse_width pulse width
+ */
+void servo_update(servo_t servo, uint16_t servo_pos, uint16_t servo_pulse_width);
+
+/**
+ * @brief update all values in magnet
+ * 
+ * @param magnet magnet struct
+ * @param magnet_voltage voltage to actuate
+ */
+void magnet_update(magnet_t magnet, uint16_t magnet_voltage);
 
 /**
  * @brief opens the lock by actuating and turning to OPENANGLE
  * 
  * @param lock lock struct
  */
-void lock_open(lock_t* lock);
+void open(lock_t* lock);
 
 /**
  * @brief closes the lock by actuating and turning to CLOSEDANGLE
  * 
  * @param lock lock struct
  */
-void lock_close(lock_t* lock);
+void close(lock_t* lock);
 
 /**
  * @brief HELPER FUCTION that actuates the lock and turns the servo to a specified angle
@@ -55,7 +65,7 @@ void lock_close(lock_t* lock);
  * @param lock lock struct
  * @param angle turn angle
  */
-void lock_actuate_and_turn(lock_t* lock, uint16_t angle);
+void actuate_and_turn(lock_t* lock, uint16_t angle);
 
 /**
  * @brief HELPER FUNCTION that maps an angles of the servo to a pulsewidth
@@ -64,12 +74,5 @@ void lock_actuate_and_turn(lock_t* lock, uint16_t angle);
  * @return uint16_t a pulse width between MINPW and MAXPW
  */
 uint16_t calc_pulse_width(uint16_t angle);
-
-//GETTERS AND SETTERS
-uint16_t get_servo_pos(servo_t servo);
-
-void set_magnet_voltage(magnet_t magnet, uint16_t volt);
-
-uint16_t get_magnet_voltage(magnet_t magnet);
 
 #endif
