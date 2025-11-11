@@ -65,7 +65,7 @@ void close(lock_t* lock);
  * @param lock lock struct
  * @param angle turn angle
  */
-void actuate_and_turn(lock_t* lock, uint16_t angle);
+static void actuate_and_turn(lock_t* lock, uint16_t angle);
 
 /**
  * @brief HELPER FUNCTION that maps an angles of the servo to a pulsewidth
@@ -73,6 +73,6 @@ void actuate_and_turn(lock_t* lock, uint16_t angle);
  * @param angle angle to turn to
  * @return uint16_t a pulse width between MINPW and MAXPW
  */
-uint16_t calc_pulse_width(uint16_t angle);
+static uint16_t calc_pulse_width(uint16_t angle);
 
 #endif

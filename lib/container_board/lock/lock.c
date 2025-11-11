@@ -55,7 +55,7 @@ void close(lock_t* lock) {
 }
 
 //HELPER METHODS
-void actuate_and_turn(lock_t* lock, uint16_t angle) {
+static void actuate_and_turn(lock_t* lock, uint16_t angle) {
     //set values to actuate magnet
     magnet_update(lock->magnet, MAGNETVOLTAGE);
 
@@ -63,7 +63,7 @@ void actuate_and_turn(lock_t* lock, uint16_t angle) {
     servo_update(lock->servo, angle, calc_pulse_width(angle));
 }
 
-uint16_t calc_pulse_width(uint16_t angle) {
+static uint16_t calc_pulse_width(uint16_t angle) {
     //Cap angle at the maximum
     if(angle>MAXANGLE) {
 		angle=MAXANGLE;
