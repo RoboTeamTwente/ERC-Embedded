@@ -6,5 +6,14 @@ message DrivingBoardDiagnostics {
       }
 
   State state = 1;
-    repeated DrivingBoardMotorInformation motors = 2;
+    DrivingBoardMotorInformation motor_information1 = 2;
+    DrivingBoardMotorInformation motor_information2 = 3;
+    DrivingBoardMotorInformation motor_information3 = 4;
+    DrivingBoardMotorInformation motor_information4 = 5;
+    DrivingBoardMotorInformation motor_information5 = 6;
+    DrivingBoardMotorInformation motor_information6 = 7;
+    DrivingBoardMotorInformation motor_information7 = 8;
+    DrivingBoardMotorInformation motor_information8 = 9;
+    DrivingBoardMotorInformation motor_information9 = 10;
+    DrivingBoardMotorInformation motor_information10 = 11;
 }

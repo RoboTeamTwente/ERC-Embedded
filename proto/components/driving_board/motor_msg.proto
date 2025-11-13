@@ -4,6 +4,6 @@ message DrivingBoardMotorMsg {
   float angular_momentum = 3;
   float current = 4;
   float rpm = 5;
-  float direction_vector_x = 6;
-  float direction_vector_y = 7;
+  float distance_to_go = 6;
+  float steering_angle = 7;
 }

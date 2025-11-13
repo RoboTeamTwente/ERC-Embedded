@@ -26,7 +26,9 @@ message PBBroadcastingReceivingTypes {
   // Identifiers: others are 4byte long identifiers including sender id and message id (length has to be 4*x)
   bytes identifiers = 1;
 }
-message DrivingBoardMotorInformation {
+message DrivingBoardMotorProgress {
+  float distance_left = 1;
+}message DrivingBoardMotorInformationDebug {
   float motor_id = 1;
   float current = 2;
   float rpm = 3;
@@ -39,7 +41,7 @@ message DrivingBoardMotorInformation {
       }
 
   State state = 1;
-    repeated DrivingBoardMotorInformation motors = 2;
+    repeated DrivingBoardMotorInformation motors = 2;//fix back to manual motors
 }
 message DrivingBoardMotorMsg {
   float voltage = 1;
@@ -47,6 +49,6 @@ message DrivingBoardMotorMsg {
   float angular_momentum = 3;
   float current = 4;
   float rpm = 5;
-  float direction_vector_x = 6;
-  float direction_vector_y = 7;
+  float distance_to_go = 6;
+  float steering_angle = 7;
 }
