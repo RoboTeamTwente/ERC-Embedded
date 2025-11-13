@@ -26,14 +26,16 @@ message PBBroadcastingReceivingTypes {
   // Identifiers: others are 4byte long identifiers including sender id and message id (length has to be 4*x)
   bytes identifiers = 1;
 }
-message DrivingBoardMotorProgress {
+message DrivingBoardMotorPeriodicProgress {
   float distance_left = 1;
-}message DrivingBoardMotorInformationDebug {
+}message DrivingBoardMotorInformation {
   float motor_id = 1;
   float current = 2;
   float rpm = 3;
   float back_emf = 4;
-  }message DrivingBoardDiagnostics {
+  }message DrivingBoardMotorDistanceReachedNotification {
+  float distance_reached = 1;
+}message DrivingBoardDiagnostics {
   enum State {
       IDLE = 0;
       OPERATING = 1;
@@ -41,7 +43,16 @@ message DrivingBoardMotorProgress {
       }
 
   State state = 1;
-    repeated DrivingBoardMotorInformation motors = 2;//fix back to manual motors
+    DrivingBoardMotorInformation motor_information1 = 2;
+    DrivingBoardMotorInformation motor_information2 = 3;
+    DrivingBoardMotorInformation motor_information3 = 4;
+    DrivingBoardMotorInformation motor_information4 = 5;
+    DrivingBoardMotorInformation motor_information5 = 6;
+    DrivingBoardMotorInformation motor_information6 = 7;
+    DrivingBoardMotorInformation motor_information7 = 8;
+    DrivingBoardMotorInformation motor_information8 = 9;
+    DrivingBoardMotorInformation motor_information9 = 10;
+    DrivingBoardMotorInformation motor_information10 = 11;
 }
 message DrivingBoardMotorMsg {
   float voltage = 1;

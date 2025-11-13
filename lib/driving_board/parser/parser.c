@@ -2,9 +2,9 @@
 
 //will use that type in the future right now it assumes I got drivingboard msg
 
-#include "pb_decode.h"//nanopb decoder
+#include "pb_message.h"
 #include <stdint.h>
 
-uint8_t buffer[BUFFER_SIZE];
+
 
 //rn DrivingBoardMotorMsg can come from test
