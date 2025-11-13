@@ -1,6 +1,7 @@
 #include "lock.h"
 #include <stdbool.h>
 #include <logging.h>
+#include <result.h>
 
 //static vars of the system
 static const uint16_t MAXANGLE = 180; //The maximum angle the servo can turn
@@ -9,14 +10,9 @@ static uint16_t CLOSEDANGLE;
 static uint16_t OPENANGLE; 
 static uint16_t MINPW; 
 static uint16_t MAXPW; 
-//TODO: error logging
-
-//keep track of lock open or close
-static bool is_open; //NOTE: i have no clue if this bool is actually useful YET
 
 //INIT AND UPDATE
-void init(lock_t* lock, uint16_t closed_angle, uint16_t open_angle, uint16_t min_pulse_width, uint16_t max_pulse_width) {
-    is_open = false;
+result_t init(lock_t* lock, uint16_t closed_angle, uint16_t open_angle, uint16_t min_pulse_width, uint16_t max_pulse_width) {
 
     //set angles
     CLOSEDANGLE = closed_angle;
@@ -29,38 +25,38 @@ void init(lock_t* lock, uint16_t closed_angle, uint16_t open_angle, uint16_t min
 
     //init magnet
     magnet_update(lock->magnet, 0);
+    return RESULT_OK;
 }
 
-void servo_update(servo_t servo, uint16_t servo_pos, uint16_t servo_pulse_width) {
+result_t servo_update(servo_t servo, uint16_t servo_pos, uint16_t servo_pulse_width) {
     servo.pos = servo_pos;
     servo.pulse_width = servo_pulse_width;
+    return RESULT_OK;
 }
 
-void magnet_update(magnet_t magnet, uint16_t magnet_voltage) {
+result_t magnet_update(magnet_t magnet, uint16_t magnet_voltage) {
     magnet.voltage = magnet_voltage;
+    return RESULT_OK;
 }
 
-void open(lock_t* lock) {
-    if (!is_open) {
-        lock_actuate_and_turn(lock, OPENANGLE);
-        is_open = true;
-    }
+result_t open(lock_t* lock) {
+    lock_actuate_and_turn(lock, OPENANGLE);
+    return RESULT_OK;
 }
 
-void close(lock_t* lock) {
-    if (is_open) {
-        lock_actuate_and_turn(lock, CLOSEDANGLE);
-        is_open = false;
-    }
+result_t close(lock_t* lock) {
+    lock_actuate_and_turn(lock, CLOSEDANGLE);
+    return RESULT_OK;
 }
 
 //HELPER METHODS
-static void actuate_and_turn(lock_t* lock, uint16_t angle) {
+static result_t actuate_and_turn(lock_t* lock, uint16_t angle) {
     //set values to actuate magnet
     magnet_update(lock->magnet, MAGNETVOLTAGE);
 
     //set values to turn servo
     servo_update(lock->servo, angle, calc_pulse_width(angle));
+    return RESULT_OK;
 }
 
 static uint16_t calc_pulse_width(uint16_t angle) {
