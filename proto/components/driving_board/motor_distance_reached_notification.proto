@@ -1,0 +1,3 @@
+message DrivingBoardMotorDistanceReachedNotification {
+  boolean distance_reached = 1;
+}

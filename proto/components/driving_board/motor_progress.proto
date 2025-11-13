@@ -1,3 +1,0 @@
-message DrivingBoardMotorProgress {
-  float distance_left = 1;
-}
