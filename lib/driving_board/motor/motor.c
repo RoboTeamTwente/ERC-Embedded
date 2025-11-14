@@ -4,43 +4,35 @@
 
 
 static MotorInfoCallback_t info_callback = 0;
-motor_t motors[NUM_MOTORS];
 
 
-void motor_init(void){//I want to put the result type from logging instead for the return
+
+result_t motor_init(motor_t *motors){//I want to put the result type from logging instead for the return
 
     for (int i = 0; i < NUM_MOTORS; i++) {
-        motors[i].voltage = 0.0f;
-        motors[i].angle_of_body_frame = 0.0f;
-        motors[i].angular_momentum = 0.0f;
-        motors[i].current = 0.0f;
-        motors[i].rpm = 0.0f;
-        motors[i].direction_vector_x = 0.0f;
-        motors[i].direction_vector_y = 0.0f;
+        motor_t *motor = &motors[i];
+        motor->motor_id = i;
+        motor-> distance_to_go = 0;
+        motor->turning_radius = 0;
+        motor->turning_angle = 0;
     }
+    return RESULT_OK;
 }//this logic would change if there was a thread running for each motor
 
-void motor_update(motor_t *motors, int index,
-                  float voltage,
-                  float angle_of_body_frame,
-                  float angular_momentum,
-                  float current,
-                  float rpm,
-                  float direction_vector_x,
-                  float direction_vector_y) {//must pass in a pointer to a motor struct
+result_t motor_update(motor_t *motors, int index,
+                  float distance_to_go,
+                  float turning_radius,
+                  float turning_angle) {//must pass in a pointer to a motor struct
 
     if (index < 0 || index >= NUM_MOTORS) {
         //LOGI("Motor", "index out of bounds");
-        return; 
+        return RESULT_ERR_INVALID_ARG;
     }
-
-    motors[index].voltage = voltage;
-    motors[index].angle_of_body_frame = angle_of_body_frame;
-    motors[index].angular_momentum = angular_momentum;
-    motors[index].current = current;
-    motors[index].rpm = rpm;
-    motors[index].direction_vector_x = direction_vector_x;
-    motors[index].direction_vector_y = direction_vector_y;
+    motor_t *motor = &motors[index];
+    motor->distance_to_go= distance_to_go;
+    motor->turning_radius = turning_radius;
+    motor->turning_angle = turning_angle;
+    return RESULT_OK;
 }
 
 

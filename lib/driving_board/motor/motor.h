@@ -4,13 +4,10 @@
 #define NUM_MOTORS 10
 
 typedef struct {
-    float voltage;
-    float angle_of_body_frame;
-    float angular_momentum;
-    float current;
-    float rpm;
-    float direction_vector_x;
-    float direction_vector_y;
+   float motor_id;
+   float distance_to_go;
+   float turning_angle;
+   float turning_radius;
 } motor_t;
 
 
@@ -28,13 +25,9 @@ void motor_init(void);
 @
 */
 void motor_update(motor_t *motors, int index,
-                  float voltage,
-                  float angle_of_body_frame,
-                  float angular_momentum,
-                  float current,
-                  float rpm,
-                  float direction_vector_x,
-                  float direction_vector_y);
+                  float distance_to_go,
+                  float turning_radius,
+                  float turning_angle);
 typedef struct {
     float motor_id;
     float current;
