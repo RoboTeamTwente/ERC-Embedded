@@ -1,9 +1,5 @@
 message DrivingBoardMotorMsg {
-  float voltage = 1;
-  float angle_of_body_frame = 2;
-  float angular_momentum = 3;
-  float current = 4;
-  float rpm = 5;
-  float distance_to_go = 6;
-  float steering_angle = 7;
+  float distance_to_go = 1;
+  float turning_angle = 2;
+  float turning_radius = 3;
 }

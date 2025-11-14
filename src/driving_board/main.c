@@ -3,6 +3,8 @@
 #include "gpio.h"
 #include "logging.h"
 #include "string.h"
+#include "driving_board.pb.h"
+#include "pb_message.h"
 
 #include "calculator.h"
 
@@ -59,6 +61,16 @@ int main(void) { init_board(); }
  * @retval None
  */
 void MainTask(void *argument) {
+  DrivingBoardTest message = DrivingBoardTest_init_zero;
+  message.a = 2 * n;
+  message.b = 2 * n + 1;
+  pb_encoding_t encoding = pb_message_encode((void *)&message, MainBoardTest_fields);
+  if (encoding.result != RESULT_OK) {
+    LOGE(TAG, "Encoding error: %s", result_to_short_str(encoding.result));
+    continue;
+  }
+
+
   BSP_LED_Init(LED_GREEN);
   BSP_LED_Init(LED_BLUE);
   BSP_LED_Init(LED_RED);
