@@ -1,4 +1,4 @@
-#include "lock_logic.h" // The library we are testing
+#include "lock/lock.h" // The library we are testing
 #include "logging.h"
 #include <unity.h>
 
