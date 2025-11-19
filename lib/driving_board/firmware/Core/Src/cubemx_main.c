@@ -127,7 +127,12 @@ int cubemx_main(void) {
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
-
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, 0);
+    HAL_Delay(1000);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 0);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, 1);
+    HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
