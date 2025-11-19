@@ -5,6 +5,7 @@
 #include "string.h"
 #include "driving_board.pb.h"
 #include "pb_message.h"
+#include "control.h"
 
 #include "calculator.h"
 
@@ -50,6 +51,8 @@ void init_board() {
   osKernelStart();
 
   while (1) {
+    control_step();
+    
   }
 }
 
