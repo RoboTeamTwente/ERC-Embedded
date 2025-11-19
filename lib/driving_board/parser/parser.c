@@ -37,3 +37,43 @@ result_t DBMMsgEncode(float distance_to_go, float turning_angle, float turning_r
  }
 }
 //rn DrivingBoardMotorMsg can come from test
+
+result_t DBMPProgressEncode(float distance_left, pb_encoding_t* encoding_out){//pointer passing for the result encoding_out
+
+ if (distance_left < 0){
+   LOGE(TAG, "distance left can't be negative: %f", distance_left);
+   return RESULT_ERR_INVALID_ARG;
+ }
+  DrivingBoardMotorPeriodicProgress message = DrivingBoardMotorPeriodicProgress_init_zero;
+   message.distance_left =distance_left;
+   *encoding_out = pb_message_encode((void *)&message, DrivingBoardMotorPeriodicProgress_fields);
+   if (encoding_out->result != RESULT_OK) {
+     LOGE(TAG, "Encoding error: %s", result_to_short_str(encoding_out->result));
+     return RESULT_FAIL;
+ }
+   else {
+     LOGE(TAG, "message encoded successfully: %s", result_to_short_str(encoding_out->result));
+ }
+}
+
+result_t DBMDReachedNotificationEncode(float distance_reached, pb_encoding_t* encoding_out){//pointer passing for the result encoding_out
+
+ if (distance_reached != 0 && distance_reached != 1){
+   LOGE(TAG, "distance left cannot be a number except 0 or 1: %f", distance_left);
+   return RESULT_ERR_INVALID_ARG;
+ }
+  DrivingBoardMotorDistanceReachedNotification message = DrivingBoardMotorDistanceReachedNotification_init_zero;
+   message.distance_reached = distance_reached;
+   *encoding_out = pb_message_encode((void *)&message, DrivingBoardMotorDistanceReachedNotification_fields);
+   if (encoding_out->result != RESULT_OK) {
+     LOGE(TAG, "Encoding error: %s", result_to_short_str(encoding_out->result));
+     return RESULT_FAIL;
+ }
+   else {
+     LOGE(TAG, "message encoded successfully: %s", result_to_short_str(encoding_out->result));
+ }
+}
+
+
+
+//diagnostic parser is going to be a bit bigger
