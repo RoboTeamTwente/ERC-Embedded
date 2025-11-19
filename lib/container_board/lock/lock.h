@@ -1,20 +1,13 @@
 #ifndef LOCK_LOGIC_H
 #define LOCK_LOGIC_H
 
+#include "result.h"
 #include <stdint.h>
 
 typedef struct {
-    uint16_t pos;
-    uint16_t pulse_width;
-} servo_t;
-
-typedef struct {
-    uint16_t voltage;
-} magnet_t;
-
-typedef struct {
-    servo_t servo;
-    magnet_t magnet;
+    uint16_t servo_pos;
+    uint16_t servo_pulse_width;
+    uint16_t magnet_voltage;
 } lock_t;
 
 /**
@@ -27,17 +20,16 @@ typedef struct {
  * @param max_pulse_width pulse width at a 1MHz clock when lid is open
  * @return RESULT_OK if ok
  */
-result_t init(lock_t* lock, uint16_t closed_angle, uint16_t open_angle, uint16_t min_pulse_width, uint16_t max_pulse_width);
+result_t lock_init(lock_t* lock, uint16_t closed_angle, uint16_t open_angle, uint16_t min_pulse_width, uint16_t max_pulse_width);
 
 /**
  * @brief update all values in servo
  * 
  * @param servo servo struct
  * @param servo_pos angle 
- * @param servo_pulse_width pulse width
  * @return RESULT_OK if ok
  */
-result_t servo_update(servo_t servo, uint16_t servo_pos, uint16_t servo_pulse_width);
+result_t servo_update(lock_t* lock, uint16_t servo_pos);
 
 /**
  * @brief update all values in magnet
@@ -47,7 +39,7 @@ result_t servo_update(servo_t servo, uint16_t servo_pos, uint16_t servo_pulse_wi
  * 
  * @return RESULT_OK if ok
  */
-result_t magnet_update(magnet_t magnet, uint16_t magnet_voltage);
+result_t magnet_update(lock_t* lock, uint16_t magnet_voltage);
 
 /**
  * @brief opens the lock by actuating and turning to OPENANGLE
@@ -55,7 +47,7 @@ result_t magnet_update(magnet_t magnet, uint16_t magnet_voltage);
  * @param lock lock struct
  * @return RESULT_OK if ok
  */
-result_t open(lock_t* lock);
+result_t lock_open(lock_t* lock);
 
 /**
  * @brief closes the lock by actuating and turning to CLOSEDANGLE
@@ -63,7 +55,7 @@ result_t open(lock_t* lock);
  * @param lock lock struct
  * @return RESULT_OK if ok
  */
-result_t close(lock_t* lock);
+result_t lock_close(lock_t* lock);
 
 /**
  * @brief HELPER FUCTION that actuates the lock and turns the servo to a specified angle
