@@ -13,13 +13,7 @@ scale_t* scale_ptr = &scale;
 // setUp and tearDown are optional functions that run before/after each test
 void setUp(void) {
     // set stuff up here
-    add_weight_on_scale(0);
     scale_init(scale_ptr);
-}
-
-//function to simulate actual weight data from the scale by "adding" items onto it
-void add_weight_on_scale(float weight) {
-    scale = {scale.isOn, weight*FAKE_CALIBRATION_FACTOR + FAKE_OFFSET};
 }
 
 void test_function_init(void) {
@@ -34,7 +28,7 @@ void test_function_tare(void) {
 
 }
 
-void test_pipeline(void) {
+void test_function_pipeline(void) {
     //after init, you should have to calibrate first before being able to read weight
     float res_weight; //var to store result
     TEST_ASSERT_EQUAL(scale_read_weight(scale_ptr, &res_weight), RESULT_ERR_NOT_INITIALIZED);
@@ -42,7 +36,7 @@ void test_pipeline(void) {
     //to calibrate place a known weight on the scale
     float known_weight = 10;
     float tared_weight; //var to store result
-    add_weight_on_scale(known_weight);
+    scale.raw_data = known_weight*FAKE_CALIBRATION_FACTOR + FAKE_OFFSET;
     scale_read_tared(scale_ptr, &tared_weight);
     scale_calibrate(scale_ptr, tared_weight, known_weight);
 }
@@ -55,7 +49,7 @@ void tearDown(void) {
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_function_init);
-    RUN_TEST(test_function_tare)
-    RUN_TEST(test_pipeline);
+    RUN_TEST(test_function_tare);
+    RUN_TEST(test_function_pipeline);
     return UNITY_END();
 }
