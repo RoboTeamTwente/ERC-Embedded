@@ -39,9 +39,9 @@ message ContainerboardDiagnostics {
     ScaleInformation scale_information = 4;
 }message ElectromagnetInformation {
     enum State {
-        ACTIVE = 1;
-        IDLE = 2;
-        OFF = 3;
+        ACTIVE = 0;
+        IDLE = 1;
+        OFF = 2;
     }
     State state = 1;
     float power_consumption = 2;
@@ -67,6 +67,6 @@ message ScaleInformation {
     float power_consumption = 2;
     float voltage = 3;
     float current = 4;
-    uint16_t pos = 5;
+    int32 pos = 5;
     string error_msg = 6;
 }
