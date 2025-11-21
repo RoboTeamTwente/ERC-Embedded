@@ -1,4 +1,4 @@
-
+#ifndef PIO_UNIT_TESTING
 #include "calculator.h"
 #include "cubemx_main.h"
 #include "gpio.h"
@@ -39,3 +39,4 @@ void init_board() {
 }
 
 int main(void) { init_board(); }
+#endif //! PIO_UNIT_TESTING
