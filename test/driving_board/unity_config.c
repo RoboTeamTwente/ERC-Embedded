@@ -1,24 +1,13 @@
-
-#include "calculator.h"
+#include "unity_config.h"
 #include "cubemx_main.h"
-#include "gpio.h"
+#include "stm32h7xx_hal_uart.h"
+#include "stm32h7xx_nucleo.h"
 #include "logging.h"
-#include "string.h"
-
-static char *TAG = "MAIN";
-
-COM_InitTypeDef BspCOMInit;
-
 UART_HandleTypeDef huart_com;
+extern COM_InitTypeDef BspCOMInit;
 
-void Error_Handler(void);
-void SystemClock_Config(void);
-void MPU_Config(void);
-void MX_GPIO_Init(void);
-
-void init_board() {
+void unityOutputStart() {
   HAL_Init();
-  SystemClock_Config();
 
   BspCOMInit.BaudRate = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
@@ -30,12 +19,12 @@ void init_board() {
   }
   MX_USART3_Init(&huart_com, &BspCOMInit);
 
-  LOG_init(&huart_com);
-
-  while (1) {
-    LOGI(TAG, "works");
-    HAL_Delay(500);
-  }
 }
 
-int main(void) { init_board(); }
+void unityOutputChar(char c) {
+  HAL_UART_Transmit(&huart_com, (uint8_t *)(&c), 1, 1000);
+}
+
+void unityOutputFlush() {}
+
+void unityOutputComplete() {}
