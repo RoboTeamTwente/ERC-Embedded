@@ -1,5 +1,5 @@
-#ifndef LOCK_LOGIC_H
-#define LOCK_LOGIC_H
+#ifndef LOGIC_H
+#define LOGIC_H
 
 #include "result.h"
 #include <stdint.h>

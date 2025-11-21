@@ -21,6 +21,8 @@ void tearDown(void) {
 
 void test_function_init(void) {
     TEST_ASSERT_EQUAL_INT(lock.servo_pos, 0);
+    TEST_ASSERT_EQUAL_INT(lock.servo_pulse_width, 1000);
+    TEST_ASSERT_EQUAL_INT(lock.magnet_voltage, 0);
 }
 
 void test_function_open_lock(void) {
