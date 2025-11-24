@@ -7,12 +7,12 @@
  *
  * Code generated for Simulink model 'control'.
  *
- * Model version                  : 1.29
- * Simulink Coder version         : 24.2 (R2024b) 21-Jun-2024
- * C/C++ source code generated on : Mon Nov 17 11:34:47 2025
+ * Model version                  : 3.7
+ * Simulink Coder version         : 25.2 (R2025b) 28-Jul-2025
+ * C/C++ source code generated on : Mon Nov 24 15:58:20 2025
  *
  * Target selection: ert.tlc
- * Embedded hardware selection: AMD->x86-64 (Linux 64)
+ * Embedded hardware selection: STMicroelectronics->ST10/Super10
  * Code generation objectives:
  *    1. Execution efficiency
  *    2. RAM efficiency
@@ -35,10 +35,10 @@
 
 /*=======================================================================*
  * Target hardware information
- *   Device type: AMD->x86-64 (Linux 64)
- *   Number of bits:     char:   8    short:   16    int:  32
- *                       long:  64    long long:  64
- *                       native word size:  64
+ *   Device type: STMicroelectronics->ST10/Super10
+ *   Number of bits:     char:   8    short:   16    int:  16
+ *                       long:  32    long long:  64
+ *                       native word size:  16
  *   Byte ordering: LittleEndian
  *   Signed integer division rounds to: Zero
  *   Shift right on a signed integer as arithmetic shift: on
@@ -52,12 +52,12 @@
  *=======================================================================*/
 typedef signed char int8_T;
 typedef unsigned char uint8_T;
-typedef short int16_T;
-typedef unsigned short uint16_T;
-typedef int int32_T;
-typedef unsigned int uint32_T;
-typedef long int64_T;
-typedef unsigned long uint64_T;
+typedef int int16_T;
+typedef unsigned int uint16_T;
+typedef long int32_T;
+typedef unsigned long uint32_T;
+typedef long long int64_T;
+typedef unsigned long long uint64_T;
 typedef float real32_T;
 typedef double real64_T;
 
@@ -87,12 +87,12 @@ typedef char_T byte_T;
 #define MAX_int16_T                    ((int16_T)(32767))
 #define MIN_int16_T                    ((int16_T)(-32768))
 #define MAX_uint16_T                   ((uint16_T)(65535U))
-#define MAX_int32_T                    ((int32_T)(2147483647))
-#define MIN_int32_T                    ((int32_T)(-2147483647-1))
-#define MAX_uint32_T                   ((uint32_T)(0xFFFFFFFFU))
-#define MAX_int64_T                    ((int64_T)(9223372036854775807L))
-#define MIN_int64_T                    ((int64_T)(-9223372036854775807L-1L))
-#define MAX_uint64_T                   ((uint64_T)(0xFFFFFFFFFFFFFFFFUL))
+#define MAX_int32_T                    ((int32_T)(2147483647L))
+#define MIN_int32_T                    ((int32_T)(-2147483647L-1L))
+#define MAX_uint32_T                   ((uint32_T)(0xFFFFFFFFUL))
+#define MAX_int64_T                    ((int64_T)(9223372036854775807LL))
+#define MIN_int64_T                    ((int64_T)(-9223372036854775807LL-1LL))
+#define MAX_uint64_T                   ((uint64_T)(0xFFFFFFFFFFFFFFFFULL))
 
 /* Block D-Work pointer type */
 typedef void * pointer_T;
