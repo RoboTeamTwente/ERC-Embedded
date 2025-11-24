@@ -49,7 +49,7 @@ void init_board() {
   MX_USART3_Init(&huart_com, &BspCOMInit);
   LOG_init(&huart_com);
 
-  //control_initialize();
+  control_initialize();
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
@@ -75,21 +75,10 @@ void MainTask(void *argument) {
 
   BSP_LED_Toggle(LED_GREEN);
   
-  DrivingBoardMotorMsg message = DrivingBoardMotorMsg_init_zero;
-  message.distance_to_go = 2;
-  message.turning_angle = 3;
-  message.turning_radius = 3;
-  pb_encoding_t encoding =
-    pb_message_encode((void *)&message, DrivingBoardMotorMsg_fields);
-  if (encoding.result != RESULT_OK) {
-    LOGE(TAG, "Encoding error: %s", result_to_short_str(encoding.result));
-  }
-  else {
-    LOGE(TAG, "message encoded successfully: %s", result_to_short_str(encoding.result));
-  }
+  
 
   while (1) {
-   // control_step();
+    control_step();
     BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
     BSP_LED_Toggle(LED_RED);
