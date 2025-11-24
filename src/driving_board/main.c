@@ -6,6 +6,7 @@
 #include "driving_board.pb.h"
 #include "pb_message.h"
 #include "control.h"
+#include "rtwtypes.h"
 
 #include "calculator.h"
 
@@ -31,9 +32,10 @@ const osThreadAttr_t mainTask_attributes = {
 void init_board() {
   HAL_Init();
   SystemClock_Config();
-
+  
   osKernelInitialize();
   MX_GPIO_Init();
+  
 
   /* Initialize COM1 port */
   BspCOMInit.BaudRate = 115200;
@@ -47,11 +49,13 @@ void init_board() {
   MX_USART3_Init(&huart_com, &BspCOMInit);
   LOG_init(&huart_com);
 
+  //control_initialize();
+
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
 
+
   while (1) {
-    control_step();
     
   }
 }
@@ -85,6 +89,7 @@ void MainTask(void *argument) {
   }
 
   while (1) {
+   // control_step();
     BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
     BSP_LED_Toggle(LED_RED);

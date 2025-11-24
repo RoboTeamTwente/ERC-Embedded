@@ -24,8 +24,6 @@
 #ifndef control_COMMON_INCLUDES_
 #define control_COMMON_INCLUDES_
 #include "rtwtypes.h"
-#include "rtw_continuous.h"
-#include "rtw_solver.h"
 #endif                                 /* control_COMMON_INCLUDES_ */
 
 /* Macros for accessing real-time model data structure */

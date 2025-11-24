@@ -21,6 +21,8 @@
 #include "cmsis_os.h"
 #include "gpio.h"
 
+
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -43,23 +45,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-COM_InitTypeDef BspCOMInit;
-
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
-void SystemClock_Config(void);
-void MX_FREERTOS_Init(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
