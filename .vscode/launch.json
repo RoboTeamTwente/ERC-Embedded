@@ -16,7 +16,7 @@
             "projectEnvName": "arm_board",
             "toolchainBinDir": "/home/jaron/.platformio/packages/toolchain-gccarmnoneeabi/bin",
             "internalConsoleOptions": "openOnSessionStart",
-            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32F767.svd",
+            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32H753.svd",
             "preLaunchTask": {
                 "type": "PlatformIO",
                 "task": "Pre-Debug"
@@ -30,7 +30,7 @@
             "projectEnvName": "arm_board",
             "toolchainBinDir": "/home/jaron/.platformio/packages/toolchain-gccarmnoneeabi/bin",
             "internalConsoleOptions": "openOnSessionStart",
-            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32F767.svd"
+            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32H753.svd"
         },
         {
             "type": "platformio-debug",
@@ -40,7 +40,7 @@
             "projectEnvName": "arm_board",
             "toolchainBinDir": "/home/jaron/.platformio/packages/toolchain-gccarmnoneeabi/bin",
             "internalConsoleOptions": "openOnSessionStart",
-            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32F767.svd",
+            "svdPath": "/home/jaron/.platformio/platforms/ststm32/misc/svd/STM32H753.svd",
             "loadMode": "manual"
         }
     ]

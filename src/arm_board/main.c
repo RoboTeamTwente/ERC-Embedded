@@ -20,21 +20,34 @@
 #include "ethernet.h"
 #include "gpio.h"
 #include "logging.h"
-#include "stm32f7xx_hal_tim.h"
 #include "tim.h"
 #include "usart.h"
-#include "usb_otg.h"
 #include <stdint.h>
 
 #define TAG "MAIN"
 
-extern UART_HandleTypeDef huart3;
 extern TIM_HandleTypeDef htim1;
+UART_HandleTypeDef huart_com;
+extern COM_InitTypeDef BspCOMInit;
 /**
  * @brief System Clock Configuration from cubemx_main.c @retval None
  */
 extern void SystemClock_Config(void);
 
+void uart_setup() {
+
+  /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity
+   */
+  BspCOMInit.BaudRate = 115200;
+  BspCOMInit.WordLength = COM_WORDLENGTH_8B;
+  BspCOMInit.StopBits = COM_STOPBITS_1;
+  BspCOMInit.Parity = COM_PARITY_NONE;
+  BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
+  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
+    Error_Handler();
+  }
+  MX_USART3_Init(&huart_com, &BspCOMInit);
+}
 int main(void) {
 
   HAL_Init();
@@ -42,9 +55,9 @@ int main(void) {
   SystemClock_Config();
 
   MX_GPIO_Init();
-  MX_USART3_UART_Init();
-  LOG_init(&huart3);
-  MX_USB_OTG_FS_PCD_Init();
+  MX_TIM1_Init();
+  uart_setup();
+  LOG_init(&huart_com);
   MX_TIM1_Init();
   ETH_init(&htim1, NULL, NULL);
   ETH_udp_init();

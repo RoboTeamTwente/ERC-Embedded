@@ -3,7 +3,7 @@ MV_CMD="mv"
 
 # Rename files
 
-find ../drivers/ -type f | while read -r file; do
+find ../components/ -type f | while read -r file; do
   # Extract the basename (filename without path)
   base="$(basename "$file")"
 
@@ -20,7 +20,7 @@ find ../drivers/ -type f | while read -r file; do
   fi
 done
 
-grep -rl '#include "main.h"' ../drivers/ | while read -r file; do
+grep -rl '#include "main.h"' ../components/ | while read -r file; do
   sed -i 's/#include "main.h"/#include "cubemx_main.h"/g' "$file"
   echo "Updated include in $file"
 done
