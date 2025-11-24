@@ -1,7 +1,8 @@
 #include "logging.h"
 #include <stdint.h>
-#include "motor.h"
 #include "result.h"
+#include "motor.h"
+
 
 
 static MotorInfoCallback_t info_callback = 0;

@@ -34,6 +34,7 @@ result_t DBMMsgEncode(float distance_to_go, float turning_angle, float turning_r
  }
    else {
      LOGE(TAG, "message encoded successfully: %s", result_to_short_str(encoding_out->result));
+     return RESULT_OK;
  }
 }
 //rn DrivingBoardMotorMsg can come from test
@@ -53,13 +54,14 @@ result_t DBMPProgressEncode(float distance_left, pb_encoding_t* encoding_out){//
  }
    else {
      LOGE(TAG, "message encoded successfully: %s", result_to_short_str(encoding_out->result));
+     return RESULT_OK;
  }
 }
 
 result_t DBMDReachedNotificationEncode(float distance_reached, pb_encoding_t* encoding_out){//pointer passing for the result encoding_out
 
  if (distance_reached != 0 && distance_reached != 1){
-   LOGE(TAG, "distance left cannot be a number except 0 or 1: %f", distance_left);
+   LOGE(TAG, "distance reached cannot be a number except 0 or 1: %f", distance_reached);
    return RESULT_ERR_INVALID_ARG;
  }
   DrivingBoardMotorDistanceReachedNotification message = DrivingBoardMotorDistanceReachedNotification_init_zero;
@@ -71,6 +73,7 @@ result_t DBMDReachedNotificationEncode(float distance_reached, pb_encoding_t* en
  }
    else {
      LOGE(TAG, "message encoded successfully: %s", result_to_short_str(encoding_out->result));
+     return RESULT_OK;
  }
 }
 
