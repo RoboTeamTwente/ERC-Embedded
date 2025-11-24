@@ -12,6 +12,9 @@
 
 static char *TAG = "MAIN";
 
+extern ExtU rtU;
+extern ExtY rtY;
+
 void Error_Handler(void);
 void cubemx_main(void);
 void SystemClock_Config(void);
@@ -79,6 +82,15 @@ void MainTask(void *argument) {
 
   while (1) {
     control_step();
+
+    rtU.dist2goal = 10.0;  // meters
+    rtU.steerang  = 30.0;
+
+    printf("desspeed[0]   = %f\n", rtY.desspeed[0]);
+    printf("controlb[0]   = %f\n", rtY.controlb[0]);
+    printf("desang[0]     = %f\n", rtY.desang[0]);
+    printf("pwnenable[0]  = %f\n", rtY.pwnenable[0]);
+    printf("pwmrev[0]     = %f\n", rtY.pwmrev[0]);
     BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
     BSP_LED_Toggle(LED_RED);
