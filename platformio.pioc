@@ -16,7 +16,6 @@ test_build_src = True
 
 [env:driving_board]
 board = nucleo_h753zi
-lib_extra_dirs = ${extra.common_lib_dirs}
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*>
