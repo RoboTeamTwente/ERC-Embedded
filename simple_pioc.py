@@ -7,6 +7,7 @@ import sys
 build_flags_tag = "build_flags"
 board_path = "components"
 c_defines_tag = "C_DEFS"
+env_syntax = ["[env:","]"]
 def remove_slash(path):
     return path[:-1] if path[-1] in "/\\" else path 
 
@@ -36,7 +37,7 @@ def categorize_patterns(patterns):
             standard_build_flags.append(pattern)
     return glob_patterns, standard_build_flags
 
-def parse_pio_file(input_file_path, result_file_path,board_folder):
+def parse_pio_file(input_file_path, result_file_path):
     input_file = Path(input_file_path)
 
     output_file = Path(result_file_path)
@@ -46,6 +47,9 @@ def parse_pio_file(input_file_path, result_file_path,board_folder):
     with open(input_file, "r") as inputf: 
         with open(output_file, "a") as outputf:
             while line := inputf.readline():
+                board_folder = ""
+                if(line.starts_with(env_syntax[0])):
+                    board_folder = line.strip().lstrip(env_syntax[0]).rstrip(env_syntax[1])
                 if(line.startswith(build_flags_tag)):
                     outputf.write(line)
                     patterns = []
@@ -80,7 +84,4 @@ def parse_c_defines(board_folder):
     return defines
 
 if __name__ == "__main__":
-    args = sys.argv
-    if(len(args) > 2):
-        print("Error: missing board name", file=sys.stderr)
     parse_pio_file("platformio.pioc","platformio.ini", args[1])
