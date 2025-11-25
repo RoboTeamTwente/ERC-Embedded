@@ -3,6 +3,7 @@
 #include "diagnostics.h"
 #include "diagnostics/diagnostics.h"
 #include "gpio.h"
+#include "i2c.h"
 #include "kv_pool.h"
 #include "logging.h"
 #include "main_board.pb.h"
