@@ -1,12 +1,14 @@
+#ifndef PIO_UNIT_TESTING
+
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
+#include "control.h"
 #include "cubemx_main.h"
+#include "driving_board.pb.h"
 #include "gpio.h"
 #include "logging.h"
-#include "string.h"
-#include "driving_board.pb.h"
 #include "pb_message.h"
-#include "control.h"
 #include "rtwtypes.h"
+#include "string.h"
 
 #include "calculator.h"
 
@@ -35,10 +37,9 @@ const osThreadAttr_t mainTask_attributes = {
 void init_board() {
   HAL_Init();
   SystemClock_Config();
-  
+
   osKernelInitialize();
   MX_GPIO_Init();
-  
 
   /* Initialize COM1 port */
   BspCOMInit.BaudRate = 115200;
@@ -57,9 +58,7 @@ void init_board() {
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
 
-
   while (1) {
-    
   }
 }
 
@@ -77,14 +76,12 @@ void MainTask(void *argument) {
   BSP_LED_Init(LED_RED);
 
   BSP_LED_Toggle(LED_GREEN);
-  
-  
 
   while (1) {
     control_step();
 
-    rtU.dist2goal = 10.0;  // meters
-    rtU.steerang  = 30.0;
+    rtU.dist2goal = 10.0; // meters
+    rtU.steerang = 30.0;
 
     printf("desspeed[0]   = %f\n", rtY.desspeed[0]);
     printf("controlb[0]   = %f\n", rtY.controlb[0]);
@@ -94,9 +91,11 @@ void MainTask(void *argument) {
     BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
     BSP_LED_Toggle(LED_RED);
-    LOGI(TAG, "%d + %d = %d", 5,2,add(5,2));
+    LOGI(TAG, "%d + %d = %d", 5, 2, add(5, 2));
 
     LOGI(TAG, "This is the driving board");
     osDelay(1000);
   }
 }
+
+#endif //! PIO_UNIT_TESTS
