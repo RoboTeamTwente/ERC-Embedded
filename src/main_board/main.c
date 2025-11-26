@@ -18,9 +18,10 @@ UART_HandleTypeDef huart_com;
  * additional initialization code is required. For example, if you need to
  * initialize additional peripherals or set up specific configurations. Things
  * like i2c, SPI and UART initializations should go here.
- */
+ * Mohammed Mosallam
+  */
 void system_initialization(void) {
-
+  int i;
   HAL_Init();
   SystemClock_Config();
   MX_GPIO_Init();
