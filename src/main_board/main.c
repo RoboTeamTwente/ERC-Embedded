@@ -47,6 +47,7 @@ int main(void) {
 
   while (1) {
     LOGI(TAG, "Main loop iteration.");
+    HAL_Delay(1000);
     /** Code that needs to be run multiple times can go here**/
   }
 }

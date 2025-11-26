@@ -29,6 +29,9 @@
  ******************************************************************************
  */
 
+#include <stdint.h>
+uint32_t call_counter = 0;
+uint32_t gflag = 0;
 #if !defined(__GNUC__) || defined(__CC_ARM)
 #error "newlib_lock_glue.c" should be used with GNU Compilers only
 #endif /* !defined (__GNUC__) || defined (__CC_ARM) */
