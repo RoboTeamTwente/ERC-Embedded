@@ -77,17 +77,29 @@ void MainTask(void *argument) {
 
   BSP_LED_Toggle(LED_GREEN);
 
+
+    for (size_t i = 0; i < 4; i++)
+   {
+      rtU.actang[i] = rtY.desang[i];
+   }
+  
+ for (size_t i = 0; i < 4; i++)
+   {
+      rtU.actspeed[i] = rtY.desspeed[i]*0.8;
+   }
+ rtU.dist2goal = 30.0;  // meters
+ rtU.steerang  = 1.0;
+ 
   while (1) {
     control_step();
 
     rtU.dist2goal = 10.0; // meters
     rtU.steerang = 30.0;
-
-    printf("desspeed[0]   = %f\n", rtY.desspeed[0]);
-    printf("controlb[0]   = %f\n", rtY.controlb[0]);
-    printf("desang[0]     = %f\n", rtY.desang[0]);
-    printf("pwnenable[0]  = %f\n", rtY.pwnenable[0]);
-    printf("pwmrev[0]     = %f\n", rtY.pwmrev[0]);
+   LOGI(TAG, "desspeed[0]   = %f, desspeed[1]   = %f, desspeed[2]   = %f, desspeed[3]   = %f, desspeed[4]   = %f, desspeed[5]   = %f\n", rtY.desspeed[0], rtY.desspeed[1], rtY.desspeed[2], rtY.desspeed[3], rtY.desspeed[4], rtY.desspeed[5]);
+   LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
+   LOGI(TAG, "desang[0]     = %f, desang[1]     = %f, desang[2]     = %f, desang[3]     = %f\n", rtY.desang[0], rtY.desang[1], rtY.desang[2], rtY.desang[3]);
+   LOGI(TAG, "pwnenable[0]  = %f, pwnenable[1]  = %f, pwnenable[2]  = %f, pwnenable[3]  = %f\n", rtY.pwnenable[0], rtY.pwnenable[1], rtY.pwnenable[2], rtY.pwnenable[3]);
+   LOGI(TAG, "pwmrev[0]     = %f, pwmrev[1]     = %f, pwmrev[2]     = %f, pwmrev[3]     = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3]);
     BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
     BSP_LED_Toggle(LED_RED);
