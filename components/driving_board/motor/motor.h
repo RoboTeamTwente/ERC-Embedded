@@ -4,14 +4,25 @@
 #define NUM_MOTORS 10
 
 typedef struct {
-   float motor_id;
-   float distance_to_go;
-   float turning_angle;
-   float turning_radius;
-} motor_t;
+    float motor_id;
+    float actspeed;
+    float control_var;//control variable for motors
+} motor_speed_t;
+typedef struct {
+    float motor_id;
+    float actangle;
+    float desang;                   
+    float pwnenable;                
+    float pwmrev;
+} motor_steering_t;
+typedef struct {
+    float turning_radius;
+    float turning_angle;
+    float distance_to_go;
+    float state;
+} driving_system_t;
 
-
-extern motor_t motors[NUM_MOTORS]; //number of motors will be 10
+//extern motor_t motors[NUM_MOTORS]; //number of motors will be 10
 
 /**
 @brief initializes the motor by setting all fields of the motor_t struct to 0

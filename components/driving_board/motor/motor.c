@@ -4,9 +4,7 @@
 #include "motor.h"
 
 
-
 static MotorInfoCallback_t info_callback = 0;
-
 
 
 //init these in shared data for motor init just have whts different for each motor
