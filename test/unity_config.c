@@ -8,7 +8,7 @@ COM_InitTypeDef BspCOMInit;
 
 void unityOutputStart() {
   HAL_Init();
-
+  HAL_Delay(2000); // service delay
   BspCOMInit.BaudRate = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
   BspCOMInit.StopBits = COM_STOPBITS_1;
