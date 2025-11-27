@@ -1,14 +1,14 @@
 #include "unity_config.h"
 #include "cubemx_main.h"
+#include "logging.h"
 #include "stm32h7xx_hal_uart.h"
 #include "stm32h7xx_nucleo.h"
-#include "logging.h"
 UART_HandleTypeDef huart_com;
 extern COM_InitTypeDef BspCOMInit;
 
 void unityOutputStart() {
   HAL_Init();
-
+  HAL_Delay(2000); // service delay
   BspCOMInit.BaudRate = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
   BspCOMInit.StopBits = COM_STOPBITS_1;
@@ -18,7 +18,6 @@ void unityOutputStart() {
     Error_Handler();
   }
   MX_USART3_Init(&huart_com, &BspCOMInit);
-
 }
 
 void unityOutputChar(char c) {
