@@ -33,7 +33,6 @@ extern COM_InitTypeDef BspCOMInit;
  * @brief System Clock Configuration from cubemx_main.c @retval None
  */
 extern void SystemClock_Config(void);
-
 void uart_setup() {
 
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity
@@ -49,7 +48,6 @@ void uart_setup() {
   MX_USART3_Init(&huart_com, &BspCOMInit);
 }
 int main(void) {
-
   HAL_Init();
 
   SystemClock_Config();
