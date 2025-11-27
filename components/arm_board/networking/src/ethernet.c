@@ -23,9 +23,10 @@ void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth) {
     ETH_input_callback(heth, r_callback);
     return;
   }
-  LOGI(TAG, "heth.DMAErrorCode raw_send: %x", heth->DMAErrorCode);
 
   ETH_input_callback(heth, *ETH_input_callback_example);
+  LOGI(TAG, "heth.DMAErrorCode input: %x", heth->DMAErrorCode);
+
 }
 
 void ETH_udp_init() {
@@ -35,13 +36,11 @@ void ETH_udp_init() {
 
 void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload) {
   udp_client_send(upcb, ip, port, payload);
-  LOGI(TAG, "heth.DMAErrorCode udp_send: %x", heth.DMAErrorCode);
 
 }
 
 void ETH_raw_send(uint8_t *mac, char *payload) {
   raw_packet_send(&gnetif, &heth, mac, payload);
-  LOGI(TAG, "heth.DMAErrorCode raw_send: %x", heth.DMAErrorCode);
 
 }
 
