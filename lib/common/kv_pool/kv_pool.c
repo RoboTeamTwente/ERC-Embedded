@@ -52,18 +52,11 @@ result_t kv_pool_init_fragmented(void *lookup_table, size_t lookup_table_size,
   pool->max_keys = max_keys;
   pool->pool_start = pool_data;
   pool->pool_size = pool_size;
-  LOGI(TAG, "Setting up heap free list");
   atomic_flag_clear(&pool->heap_lock);
-  LOGI(TAG, "Setting delay function");
   pool->delay = delay;
-  LOGI(TAG, "Initializing free list head");
   pool->free_list_head = (kv_header *)pool_data;
-  LOGI(TAG, "Setting free list head size to %zu", pool_size);
   pool->free_list_head->size = pool_size;
-  LOGI(TAG, "Setting free list head next to NULL");
   pool->free_list_head->as.next_free = NULL;
-  LOGI(TAG, "Initializing lookup table slots");
-  LOGI(TAG, "!!!! sizeof(kv_slot) is %d bytes !!!!", sizeof(kv_slot));
 
   for (size_t i = 0; i < max_keys; i++) {
     atomic_flag_clear(&pool->lookup_table[i].slot_lock);
