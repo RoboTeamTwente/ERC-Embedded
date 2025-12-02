@@ -26,23 +26,36 @@ message PBBroadcastingReceivingTypes {
   // Identifiers: others are 4byte long identifiers including sender id and message id (length has to be 4*x)
   bytes identifiers = 1;
 }
-message DrivingBoardMotorInformation {
-  float torque = 1;
-  float power_consumption = 2;
+message DrivingBoardMotorPeriodicProgress {
+  float distance_left = 1;
+}message DrivingBoardMotorInformation {
+  float motor_id = 1;
+  float current = 2;
   float rpm = 3;
-  float voltage = 4;
-  float current = 5;
-}
-message DrivingBoardDiagnostics {
+  float back_emf = 4;
+  }message DrivingBoardMotorDistanceReachedNotification {
+  float distance_reached = 1;
+}message DrivingBoardDiagnostics {
   enum State {
-    IDLE = 0;
-    OPERATING = 1;
-    NOOP_MOTOR = 2;
-  }
-  State state = 1;
+      IDLE = 0;
+      OPERATING = 1;
+      ERROR = 2;
+      }
 
-  DrivingBoardMotorInformation motor_information1 = 2;
-  DrivingBoardMotorInformation motor_information2 = 3;
-  DrivingBoardMotorInformation motor_information3 = 4;
-  DrivingBoardMotorInformation motor_information4 = 5;
+  State state = 1;
+    DrivingBoardMotorInformation motor_information1 = 2;
+    DrivingBoardMotorInformation motor_information2 = 3;
+    DrivingBoardMotorInformation motor_information3 = 4;
+    DrivingBoardMotorInformation motor_information4 = 5;
+    DrivingBoardMotorInformation motor_information5 = 6;
+    DrivingBoardMotorInformation motor_information6 = 7;
+    DrivingBoardMotorInformation motor_information7 = 8;
+    DrivingBoardMotorInformation motor_information8 = 9;
+    DrivingBoardMotorInformation motor_information9 = 10;
+    DrivingBoardMotorInformation motor_information10 = 11;
+}
+message DrivingBoardMotorMsg {
+  float distance_to_go = 1;
+  float turning_angle = 2;
+  float turning_radius = 3;
 }
