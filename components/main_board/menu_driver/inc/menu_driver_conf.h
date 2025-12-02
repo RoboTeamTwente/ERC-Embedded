@@ -1,0 +1,37 @@
+#ifndef MENU_DRIVER_CONF_H
+#define MENU_DRIVER_CONF_H
+#define MAX_LIST_ENTRIES 10
+#define MAX_LIST_TITLE_LEN 24
+#define MENU_LIST_ICON_WIDTH 16
+#define MENU_LIST_ICON_SIZE MENU_LIST_ICON_WIDTH *MENU_LIST_ICON_WIDTH
+
+#define MENU_LIST_ICON_X 4
+#define MENU_LIST_ITEM_Y_1 0
+#define MENU_LIST_ITEM_Y_2 22
+#define MENU_LIST_ITEM_Y_3 44
+
+#define MENU_LIST_ICON_Y_1 MENU_LIST_ITEM_Y_1 + 2
+#define MENU_LIST_ICON_Y_2 MENU_LIST_ITEM_Y_2 + 2
+#define MENU_LIST_ICON_Y_3 MENU_LIST_ITEM_Y_3 + 2
+
+#define MENU_LIST_BORDER_HEIGHT 20
+#define MENU_LIST_BORDER_WIDTH 118
+#define MENU_LIST_SCROLL_BAR_X 126
+#define MENU_LIST_TITLE_START MENU_LIST_ICON_WIDTH + 6
+
+#define MENU_LIST_ICON_INTEGER_SIZE                                            \
+  (MENU_LIST_ICON_SIZE / sizeof(unsigned char) +                               \
+   ((MENU_LIST_ICON_SIZE % sizeof(unsigned char)) ? 1 : 0))
+
+#define MENU_OVERVIEW_ICON_WIDTH 2
+#define MENU_OVERVIEW_ICON_HEIGHT 11
+#define MENU_OVERVIEW_ICON_SIZE                                                \
+  (MENU_OVERVIEW_ICON_WIDTH * MENU_OVERVIEW_ICON_HEIGHT)
+#define MENU_OVERVIEW_ICON_BYTE_SIZE                                           \
+  (MENU_OVERVIEW_ICON_SIZE / sizeof(unsigned char) +                           \
+   ((MENU_OVERVIEW_ICON_SIZE % sizeof(unsigned char)) ? 1 : 0))
+
+#define MENU_OVERVIEW_MAX_ENTRIES 8
+#define MENU_OVERVIEW_MAX_ENTRY_TITLE_LEN 12
+
+#endif // !MENU_DRIVER_CONF_H
