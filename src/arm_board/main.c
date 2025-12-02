@@ -48,6 +48,7 @@ void uart_setup() {
   MX_USART3_Init(&huart_com, &BspCOMInit);
 }
 int main(void) {
+
   HAL_Init();
 
   SystemClock_Config();

@@ -17,16 +17,15 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/${this.__env__}/*>
     -<components/${this.__env__}/firmware/Drivers/*>
+    +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
 custom_nanopb_protos = +<proto/${this.__env__}.proto>
     +<proto/common.proto>
 lib_deps = ${extra.common_lib_deps}
 build_flags=
     +<components/arm_board/**>
-    -<components/arm_board/firmware/**>
-    +<components/arm_board/firmware/**> 
     -<components/arm_board/firmware/Drivers/**>
-    -<components/arm_board/*/test/**>
+    +<components/arm_board/firmware/Drivers/BSP/**>
     +<components/common/*>
     +<components/common/*/inc>
     +<components/common/*/arm_board/**>
