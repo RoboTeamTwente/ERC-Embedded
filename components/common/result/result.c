@@ -40,6 +40,10 @@ const char *result_to_short_str(result_t code) {
     return "Timeout";
   case RESULT_ERR_UNIMPLEMENTED:
     return "Unimplemented";
+  case RESULT_ERR_BUFFER_TOO_SMALL:
+    return "Buffer too small";
+  case RESULT_ERR_MUTEX:
+    return "Mutex Error";
   default:
     return "Unknown Error";
   }
@@ -89,6 +93,10 @@ const char *result_to_desc_str(result_t code) {
   case RESULT_ERR_UNIMPLEMENTED:
     return "This function exists, but its functionality has not been "
            "implemented yet.";
+  case RESULT_ERR_BUFFER_TOO_SMALL:
+    return "The provided buffer is too small for the required operation";
+  case RESULT_ERR_MUTEX:
+    return "A mutex operation (e.g., lock, unlock) failed.";
   default:
     return "An unknown error code was encountered.";
   }

@@ -314,6 +314,10 @@
                 "STM32H7xx",
                 "STM32H753xx",
                 "CONFIG_LOG_LEVEL=LOG_INFO",
+                "USE_PWR_LDO_SUPPLY",
+                "USE_NUCLEO_64",
+                "USE_HAL_DRIVER",
+                "STM32H753xx",
                 "USE_HAL_DRIVER",
                 "F_CPU=400000000L",
                 ""

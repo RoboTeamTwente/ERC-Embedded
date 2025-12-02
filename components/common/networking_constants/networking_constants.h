@@ -13,5 +13,4 @@
 #define ROBOTIC_ARM_ID 0x22
 #define SURFACE_SAMPLE_CONTAINER_ID 0x23
 
-// TODO: Create a package structure for the different boards to use
 #endif // !NETWORKING_CONSTANTS_H

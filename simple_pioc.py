@@ -2,9 +2,12 @@ import glob
 from pathlib import Path
 import re
 import os
+import sys
 
 build_flags_tag = "build_flags"
-
+board_path = "components/"
+c_defines_tag = "C_DEFS"
+env_syntax = ["[env:","]"]
 def remove_slash(path):
     return path[:-1] if path[-1] in "/\\" else path 
 
@@ -39,11 +42,14 @@ def parse_pio_file(input_file_path, result_file_path):
 
     output_file = Path(result_file_path)
     output_file.parent.mkdir(exist_ok=True, parents=True)
+    board_file = ""
     with open(output_file, "w") as outputf:
         outputf.write("")
     with open(input_file, "r") as inputf: 
         with open(output_file, "a") as outputf:
             while line := inputf.readline():
+                if(line.startswith(env_syntax[0])):
+                    board_folder = line.strip().lstrip(env_syntax[0]).rstrip(env_syntax[1])
                 if(line.startswith(build_flags_tag)):
                     outputf.write(line)
                     patterns = []
@@ -54,14 +60,28 @@ def parse_pio_file(input_file_path, result_file_path):
 
                     glob_patterns, standard_build_flags = categorize_patterns(patterns)
                     paths = return_paths(glob_patterns)
+                    c_defines = parse_c_defines(board_folder)
                     for path in paths:
                         outputf.write("\t-I " + path + "\n")
                     for flag in standard_build_flags:
                         outputf.write("\t"+flag+"\n")
+                    for c_define in c_defines:
+                        outputf.write("\t" + c_define + "\n")
                 if line:
                     outputf.write(line)
 
-            
-        
+def parse_c_defines(board_folder):
+    makefile = Path(board_path + board_folder + "/firmware/Makefile")
+    defines = []
+    with open(makefile, "r") as inputf:
+        while line := inputf.readline():
+            if(line.startswith(c_defines_tag)):
+                line = inputf.readline().strip().rstrip("\\")
+                while line and line[0] == "-":
+                    defines.append(line[:-1] if line[-1]=="/" else line)
+                    line = inputf.readline().strip().rstrip("\\")
+                break
+    return defines
+
 if __name__ == "__main__":
     parse_pio_file("platformio.pioc","platformio.ini")
