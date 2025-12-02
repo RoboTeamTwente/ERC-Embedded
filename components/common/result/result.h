@@ -33,6 +33,8 @@ typedef enum {
   RESULT_ERR_UNIMPLEMENTED = 16, // Function/operation is not implemented
 
   RESULT_ERR_MUTEX = 17, // A mutex operation failed
+  RESULT_ERR_INVALID_DATA = 18,   // Data is invalid or out of range
+
 
 } result_t;
 
