@@ -4,53 +4,50 @@
 #include "logging.h"
 #include "motor.h"
 
-static motor_t motors[NUM_MOTORS];
+static motor_speed_t motors_speed[NUM_MOTORS_SPEED];
+static motor_steering_t motors_steering[NUM_MOTORS_STEERING];
+static driving_system_t driving_system;
 
 void setUp(void) {
-    motor_init();  // Unity calls setUp before each test
+    driving_system_init(&driving_system);  // Unity calls setUp before each test
 }
 
 void tearDown(void) {
 }
 
-void test_motor_init(void) {
-    for (int i = 0; i < NUM_MOTORS; i++) {
-        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors[i].voltage);
-        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors[i].angle_of_body_frame);
-        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors[i].angular_momentum);
-        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors[i].current);
-        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors[i].rpm);
-        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors[i].direction_vector_x);
-        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors[i].direction_vector_y);
-    }
+void test_driving_system_init(void) {
+    driving_system_t ds = driving_system;
+    TEST_ASSERT_EQUAL(0, ds.distance_to_go);
+    TEST_ASSERT_EQUAL(0, ds.turning_radius);
+    TEST_ASSERT_EQUAL(0, ds.turning_angle);
+    TEST_ASSERT_EQUAL(0, ds.state);
 }
 
-void test_motor_update_valid(void) {
-    motor_update(motors, 1, 24.0f, 30.0f, 0.5f, 1.2f, 3000.0f, 0.1f, 0.2f);
 
-    TEST_ASSERT_EQUAL_FLOAT(24.0f, motors[1].voltage);
-    TEST_ASSERT_EQUAL_FLOAT(30.0f, motors[1].angle_of_body_frame);
-    TEST_ASSERT_EQUAL_FLOAT(0.5f, motors[1].angular_momentum);
-    TEST_ASSERT_EQUAL_FLOAT(1.2f, motors[1].current);
-    TEST_ASSERT_EQUAL_FLOAT(3000.0f, motors[1].rpm);
-    TEST_ASSERT_EQUAL_FLOAT(0.1f, motors[1].direction_vector_x);
-    TEST_ASSERT_EQUAL_FLOAT(0.2f, motors[1].direction_vector_y);
+
+void test_motor_steering_update_valid(void) {
+    motor_steering_update(motors_steering, 1, 1.8f, 1.0f, 0.5f, 1.2f);
+
+    TEST_ASSERT_EQUAL_FLOAT(1.8f, motors_steering[1].actangle);
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, motors_steering[1].desang);
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, motors_steering[1].pwnenable);
+    TEST_ASSERT_EQUAL_FLOAT(1.2f, motors_steering[1].pwmrev);
 }
 
-void test_motor_update_invalid_index(void) {
-    motor_update(motors, -1, 1,1,1,1,1,1,1);// index below available
-    motor_update(motors, NUM_MOTORS, 2,2,2,2,2,2,2); // index above what is available
+void test_motor_steering_update_invalid_index(void) {
+    motor_steering_update(motors_steering, -1, 1.8f, 1.0f, 0.5f, 1.2f);// index below available
+    motor_steering_update(motors_steering, 9, 2,2,2,2); // index above what is available
 
     // Checks that motors remain initialized to 0
-    for (int i = 0; i < NUM_MOTORS; i++) {
-        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors[i].voltage);
+    for (int i = 0; i < NUM_MOTORS_STEERING; i++) {
+        TEST_ASSERT_EQUAL_FLOAT(0.0f, motors_steering[i].actangle);
     }
 }
 
 int main(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_motor_init);
-    RUN_TEST(test_motor_update_valid);
-    RUN_TEST(test_motor_update_invalid_index);
+    RUN_TEST(test_driving_system_init);
+    RUN_TEST(test_motor_steering_update_invalid_index);
+    RUN_TEST(test_motor_steering_update_valid);
     return UNITY_END();
 }
