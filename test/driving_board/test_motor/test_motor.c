@@ -1,8 +1,9 @@
 #include <assert.h>
 #include <stdio.h>
-#include "unity.h"
-#include "logging.h"
+#include "result.h"
 #include "motor.h"
+#include "logging.h"
+#include <unity.h>
 
 static motor_speed_t motors_speed[NUM_MOTORS_SPEED];
 static motor_steering_t motors_steering[NUM_MOTORS_STEERING];
@@ -22,8 +23,6 @@ void test_driving_system_init(void) {
     TEST_ASSERT_EQUAL(0, ds.turning_angle);
     TEST_ASSERT_EQUAL(0, ds.state);
 }
-
-
 
 void test_motor_steering_update_valid(void) {
     motor_steering_update(motors_steering, 1, 1.8f, 1.0f, 0.5f, 1.2f);

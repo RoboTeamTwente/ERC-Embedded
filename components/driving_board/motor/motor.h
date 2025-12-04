@@ -1,5 +1,6 @@
 #ifndef MOTOR_H
 #define MOTOR_H
+#include "result.h"
 
 #define NUM_MOTORS_SPEED 6
 #define NUM_MOTORS_STEERING 4
