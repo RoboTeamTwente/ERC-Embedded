@@ -1,6 +1,7 @@
 #ifndef ILI9341_H
 #define ILI9341_H
 
+#include "ili9341_fonts.h"
 #include "stm32h7xx_hal.h"
 
 #define ILI9341_SCREEN_HEIGHT 240
@@ -69,4 +70,7 @@ void ILI9341_Draw_Horizontal_Line(uint16_t X, uint16_t Y, uint16_t Width,
 void ILI9341_Draw_Vertical_Line(uint16_t X, uint16_t Y, uint16_t Height,
                                 uint16_t Colour);
 
+void ILI9341_WriteString(uint16_t x, uint16_t y, const char *str,
+                         ILI9341_FontDef font, uint16_t color,
+                         uint16_t bgcolor);
 #endif

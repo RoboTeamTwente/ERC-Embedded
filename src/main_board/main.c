@@ -1,7 +1,9 @@
+#include "button_matrix_driver.h"
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
 #include "cubemx_main.h"
 #include "gpio.h"
 #include "ili9341.h"
+#include "ili9341_fonts.h"
 #include "logging.h"
 #include "main_board.pb.h"
 #include "pb_message.h"
@@ -62,55 +64,18 @@ void main() {
   }
 }
 SPI_HandleTypeDef hspi1;
-#define ILI_CS_PORT GPIOC
-#define ILI_CS_PIN GPIO_PIN_8
-
-#define ILI_RST_PORT GPIOC
-#define ILI_RST_PIN GPIO_PIN_6
-
-#define ILI_DC_PORT GPIOC
-#define ILI_DC_PIN GPIO_PIN_5
-
-// Helper Macros
-#define ILI_CS_LO HAL_GPIO_WritePin(ILI_CS_PORT, ILI_CS_PIN, GPIO_PIN_RESET)
-#define ILI_CS_HI HAL_GPIO_WritePin(ILI_CS_PORT, ILI_CS_PIN, GPIO_PIN_SET)
-#define ILI_DC_CMD HAL_GPIO_WritePin(ILI_DC_PORT, ILI_DC_PIN, GPIO_PIN_RESET)
-#define ILI_DC_DATA HAL_GPIO_WritePin(ILI_DC_PORT, ILI_DC_PIN, GPIO_PIN_SET)
-#define ILI_RST_LO HAL_GPIO_WritePin(ILI_RST_PORT, ILI_RST_PIN, GPIO_PIN_RESET)
-#define ILI_RST_HI HAL_GPIO_WritePin(ILI_RST_PORT, ILI_RST_PIN, GPIO_PIN_SET)
-
-// Simple function to send a command
-void ILI9341_SendCmd(uint8_t cmd) {
-  ILI_DC_CMD;                             // Tell screen "Here comes a command"
-  ILI_CS_LO;                              // Select screen
-  HAL_SPI_Transmit(&hspi1, &cmd, 1, 100); // Send it (Assuming hspi1)
-  ILI_CS_HI;                              // Deselect
-}
 void MainTask(void *argument) {
-  ILI_CS_HI; // Deselect everything first
-  ILI_RST_HI;
-  osDelay(10);
-  ILI_RST_LO;   // HOLD DOWN RESET
-  osDelay(100); // Wait...
-  ILI_RST_HI;   // RELEASE RESET
-  osDelay(150); // Give it a moment to wake up.
-
-  // --- STEP 2: The Software Wakeup Call ---
-  ILI9341_SendCmd(0x01); // SOFTWARE RESET
-  osDelay(100);
-
-  ILI9341_SendCmd(0x11); // SLEEP OUT (Turn on internal oscillator)
-  osDelay(150);
-
-  ILI9341_SendCmd(0x29); // DISPLAY ON (Turn on the output)
-  osDelay(100);
-
-  // --- STEP 3: The "Invert" Test ---
-  // If the screen flickers or changes color (often to black or random noise),
-  // IT IS ALIVE. White screen means it's ignoring us.
-  ILI9341_SendCmd(0x21);
+  ILI9341_Init();
+  ILI9341_Set_Rotation(SCREEN_HORIZONTAL_1);
+  ILI9341_Fill_Screen(BLUE);
+  ILI9341_Draw_Rectangle(50, 50, 100, 150, RED);
+  ILI9341_WriteString(60, 120, "Hello, world!!", ILI9341_Font_11x18, WHITE,
+                      BLUE);
   // Example usage of protobuf message
   while (1) {
+
+    ButtonMatrixDriver_Scan();
     LOGI(TAG, "ILI9341 Initialized and Running\n");
+    osDelay(1000);
   }
 }

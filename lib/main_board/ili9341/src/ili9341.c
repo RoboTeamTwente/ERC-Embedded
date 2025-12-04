@@ -2,6 +2,7 @@
 
 #include "cmsis_os2.h"
 #include "cubemx_main.h"
+#include "ili9341_fonts.h"
 #include "logging.h"
 #include "stm32h7xx_hal.h"
 #include "stm32h7xx_hal_gpio.h"
@@ -400,4 +401,50 @@ void ILI9341_Draw_Vertical_Line(uint16_t X, uint16_t Y, uint16_t Height,
   }
   ILI9341_Set_Address(X, Y, X, Y + Height - 1);
   ILI9341_Draw_Colour_Burst(Colour, Height);
+}
+static void ILI9341_WriteChar(uint16_t x, uint16_t y, char ch,
+                              ILI9341_FontDef font, uint16_t color,
+                              uint16_t bgcolor) {
+  uint32_t i, b, j;
+
+  ILI9341_Set_Address(x, y, x + font.width - 1, y + font.height - 1);
+
+  for (i = 0; i < font.height; i++) {
+    b = font.data[(ch - 32) * font.height + i];
+    for (j = 0; j < font.width; j++) {
+      if ((b << j) & 0x8000) {
+        uint8_t data[] = {color >> 8, color & 0xFF};
+        ILI9341_Write_Data(color >> 8);
+        ILI9341_Write_Data(color & 0xFF);
+      } else {
+        uint8_t data[] = {bgcolor >> 8, bgcolor & 0xFF};
+        ILI9341_Write_Data(bgcolor >> 8);
+        ILI9341_Write_Data(bgcolor & 0xFF);
+      }
+    }
+  }
+}
+void ILI9341_WriteString(uint16_t x, uint16_t y, const char *str,
+                         ILI9341_FontDef font, uint16_t color,
+                         uint16_t bgcolor) {
+
+  while (*str) {
+    if (x + font.width >= ILI9341_SCREEN_WIDTH) {
+      x = 0;
+      y += font.height;
+      if (y + font.height >= ILI9341_SCREEN_HEIGHT) {
+        break;
+      }
+
+      if (*str == ' ') {
+        // skip spaces in the beginning of the new line
+        str++;
+        continue;
+      }
+    }
+
+    ILI9341_WriteChar(x, y, *str, font, color, bgcolor);
+    x += font.width;
+    str++;
+  }
 }
