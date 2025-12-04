@@ -4,7 +4,7 @@
 #include "logging.h"
 #include "motor.h"
 
-extern motor_t motors[NUM_MOTORS];
+static motor_t motors[NUM_MOTORS];
 
 void setUp(void) {
     motor_init();  // Unity calls setUp before each test
