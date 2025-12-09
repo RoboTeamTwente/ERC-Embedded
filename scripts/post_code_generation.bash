@@ -24,3 +24,8 @@ grep -rl '#include "main.h"' ../components/ | while read -r file; do
   sed -i 's/#include "main.h"/#include "cubemx_main.h"/g' "$file"
   echo "Updated include in $file"
 done
+
+grep -rl '^void' ../components/*/firmware/Core/Src/cubemx_main.c | while read -r file; do
+  sed -i 's/^void/__weak void/g' "$file"
+  echo "created weak voids in $file"
+done
