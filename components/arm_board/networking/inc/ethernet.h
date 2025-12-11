@@ -9,15 +9,13 @@
 /**
  * @brief Initializes ethernet
  *
- * @param[in] htim1 Timer used for periodocaly network diagnostics
- *                  Timer has to be initialized before calling the function
  *
  * @param[in] receiver_callback callback function for receiving a message
  * @param[in] link_state_change_callback callback function for when the physical
  *                                       Ethernet link state changes
  *                                       I.e. cable connects/disconnects
  */
-void ETH_init(TIM_HandleTypeDef *htim, receiver_callback receiver_callback,
+void ETH_init(receiver_callback receiver_callback,
               linkstatus_callback_t link_state_change_callback);
 
 /**

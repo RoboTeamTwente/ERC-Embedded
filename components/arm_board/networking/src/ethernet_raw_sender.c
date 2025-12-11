@@ -34,11 +34,18 @@ err_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
     if (err != ERR_OK) {
       LOGE(TAG, "buffer could not be filled: %d \n", err);
     }
-    err = netif->linkoutput(netif, txBuf);
+    if (netif_is_link_up(netif)) {
+    err = netif->linkoutput(netif, txBuf);}
+    else{
+      err = ERR_CONN;
+    }
     if (err != ERR_OK) {
       LOGE(TAG, "Message could not be send: %d \n", err);
     }
     pbuf_free(txBuf);
+  }
+  else{
+    err = ERR_BUF;
   }
   free(frame);
   return err; // TODO: make this return when the error is found, not at the end

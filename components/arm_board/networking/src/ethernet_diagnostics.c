@@ -18,13 +18,6 @@ extern struct netif gnetif;
 typedef void (*receiver_callback)(void *payload, size_t length);
 
 /**
- * @brief does diagnostic checks.
- *          - Checking physical link state
- *
- */
-void ETH_diagnostic_checks() { ethernet_link_thread(&gnetif); }
-
-/**
  * @brief Is called when the physical link status is updated
  *
  * @param[in] netif Pointer to the network handler

@@ -78,12 +78,12 @@ void MainTask(void *argument) {
 
   uint8_t ip[4] = {0, 0, 0, 0};
   uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
-  ETH_init(&htim1, NULL, NULL);
+  ETH_init(NULL, NULL);
   ETH_udp_init();
   while (1) {
   ETH_udp_send(ip, 7, "udp message");
-  //   osDelay(100);
-  //   ETH_raw_send(mac, "raw message");
-  //   osDelay(100);
+  osDelay(100);
+  ETH_raw_send(mac, "raw message");
+  osDelay(100);
   }
 }
