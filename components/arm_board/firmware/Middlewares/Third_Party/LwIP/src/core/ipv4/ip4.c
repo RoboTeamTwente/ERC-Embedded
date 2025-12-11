@@ -169,10 +169,7 @@ ip4_route(const ip4_addr_t *dest)
   /* iterate through netifs */
   NETIF_FOREACH(netif) {
     /* is the netif up, does it have a link and a valid address? */
-    int a = netif_is_up(netif);
-    int b = netif_is_link_up(netif);
-    int c = !ip4_addr_isany_val(*netif_ip4_addr(netif));
-    if (a&&b&&c) {
+    if (netif_is_up(netif) && netif_is_link_up(netif) && !ip4_addr_isany_val(*netif_ip4_addr(netif))) {
       /* network mask matches? */
       if (ip4_addr_netcmp(dest, netif_ip4_addr(netif), netif_ip4_netmask(netif))) {
         /* return netif on which to forward IP packet */
