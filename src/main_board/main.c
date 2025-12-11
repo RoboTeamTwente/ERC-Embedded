@@ -1,5 +1,6 @@
 #include "cubemx_main.h"
 #include "logging.h"
+#include "stm32h7xx_hal_gpio.h"
 
 static char *TAG = "MAIN";
 
@@ -47,8 +48,9 @@ int main(void) {
   /** Code for initialization can go here**/
 
   while (1) {
-    LOGI(TAG, "Main loop iteration.");
-    HAL_Delay(1000);
+    LOGI(TAG, "pin status: %i", HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3) );
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_3);
+    HAL_Delay(500);
     /** Code that needs to be run multiple times can go here**/
   }
 }
