@@ -1,16 +1,10 @@
 #ifndef ETHERNET_H
 #define ETHERNET_H
 
-#include "timer_lib.h"
 #include <stdint.h>
 
-#ifdef TEST
-typedef void (*linkstatus_callback_t)(void *netif);
-typedef void (*receiver_callback)(void *payload, size_t length);
-#else
 #include "ethernet_diagnostics.h"
 #include "ethernet_receiver.h"
-#endif // !TEST
 
 /**
  * @brief Initializes ethernet

@@ -22,7 +22,7 @@ typedef void (*receiver_callback)(void *payload, size_t length);
  *          - Checking physical link state
  *
  */
-void ETH_diagnostic_checks() { ethernet_link_check_state(&gnetif); }
+void ETH_diagnostic_checks() { ethernet_link_thread(&gnetif); }
 
 /**
  * @brief Is called when the physical link status is updated

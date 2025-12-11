@@ -17,22 +17,24 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include "cmsis_os2.h"
 #include "ethernet.h"
 #include "gpio.h"
 #include "logging.h"
 #include "tim.h"
-#include "usart.h"
 #include <stdint.h>
 
 #define TAG "MAIN"
 
-extern TIM_HandleTypeDef htim1;
-UART_HandleTypeDef huart_com;
-extern COM_InitTypeDef BspCOMInit;
-/**
- * @brief System Clock Configuration from cubemx_main.c @retval None
- */
+extern __weak void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
+
+void MainTask(void *argument);
+
+extern TIM_HandleTypeDef htim1;
+extern COM_InitTypeDef BspCOMInit;
+UART_HandleTypeDef huart_com;
+
 void uart_setup() {
 
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity
@@ -47,6 +49,13 @@ void uart_setup() {
   }
   MX_USART3_Init(&huart_com, &BspCOMInit);
 }
+
+const osThreadAttr_t mainTask_attributes = {
+    .name = "mainTask",
+    .stack_size = 1024 * 8,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+
 int main(void) {
 
   HAL_Init();
@@ -55,18 +64,26 @@ int main(void) {
 
   MX_GPIO_Init();
   MX_TIM1_Init();
+  osKernelInitialize();
+
   uart_setup();
   LOG_init(&huart_com);
-  MX_TIM1_Init();
-  ETH_init(&htim1, NULL, NULL);
-  ETH_udp_init();
+  osThreadNew(MainTask, NULL, &mainTask_attributes);
+  osKernelStart();
+  while (1) {
+  }
+}
+
+void MainTask(void *argument) {
 
   uint8_t ip[4] = {0, 0, 0, 0};
   uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
+  ETH_init(&htim1, NULL, NULL);
+  // ETH_udp_init();
   while (1) {
-    ETH_udp_send(ip, 7, "udp message");
-    HAL_Delay(100);
-    ETH_raw_send(mac, "raw message");
-    HAL_Delay(100);
+  //   ETH_udp_send(ip, 7, "udp message");
+  //   osDelay(100);
+  //   ETH_raw_send(mac, "raw message");
+  //   osDelay(100);
   }
 }
