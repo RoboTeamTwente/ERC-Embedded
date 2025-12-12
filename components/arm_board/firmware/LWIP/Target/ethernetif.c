@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "cubemx_main.h"
+#include "logging.h"
 #include "lwip/opt.h"
 #include "lwip/timeouts.h"
 #include "netif/ethernet.h"

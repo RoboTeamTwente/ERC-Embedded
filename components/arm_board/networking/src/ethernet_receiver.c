@@ -1,11 +1,62 @@
 #include "ethernet_receiver.h"
+#include "cmsis_os2.h"
 #include "logging.h"
 #include "pbuf.h"
+#include "stm32h7xx_hal_eth.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "queue.h"
 #define TAG "etherent_receiver"
+
+extern ETH_HandleTypeDef heth;
+
+receiver_callback r_callback;
+QueueHandle_t receiveQueue;
+
+
+const osThreadAttr_t receiver_callback_task_attr = {
+    .name = "receiverCallbackTask",
+    .stack_size = 1024 * 8,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+void ETH_receiver_callback_task(void *arg)
+{
+     receive_packet *buf;
+
+    while (1) {
+        // if (xQueueReceive(receiveQueue, &buf, portMAX_DELAY) == pdPASS) {
+        //     r_callback(buf->data, buf->len);
+        //     // Free buffer
+        //     vPortFree(buf->data);
+            
+        // }
+    }
+}
+
+
+void send_pbuf_to_queue(struct pbuf *p, QueueHandle_t queue)
+{
+    receive_packet packet;
+    packet.data = pvPortMalloc(p->tot_len);  
+    if (!packet.data) return;
+
+    // Determine total length
+    uint16_t total_len = p->tot_len;
+
+    // Allocate buffer (static, or from pool)
+
+    // Copy pbuf contents
+    int16_t len = pbuf_copy_partial(p, packet.data, total_len, 0);
+    packet.len = len;
+
+    // Send buffer pointer to queue (ISR-safe)
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(queue, &packet, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
 
 /**
  * @brief creates a hexstring from bytes
@@ -28,7 +79,7 @@ char *bytes_to_hex_string(void *payload, size_t length) {
   return hex_str;
 }
 
-void ETH_input_callback_example(void *payload, size_t length) {
+void ETH_receiver_callback_example(void *payload, size_t length) {
 
   char *data = bytes_to_hex_string(payload, length);
 
@@ -36,18 +87,20 @@ void ETH_input_callback_example(void *payload, size_t length) {
   free(data);
 }
 
-void ETH_input_callback(ETH_HandleTypeDef *heth, receiver_callback callback) {
+int8_t ETH_receiver_callback(struct pbuf *pbuf, struct netif *netif) {
+  send_pbuf_to_queue(pbuf, receiveQueue);
+  return tcpip_input(pbuf, netif);
 
-  struct pbuf *buffer_pointer = NULL;
-  if (HAL_ETH_ReadData(heth, (void **)&buffer_pointer) == HAL_OK) {
-
-    callback(buffer_pointer->payload, heth->RxDescList.RxDataLength);
-
-  } else {
-    // TODO: return error
-  }
-  pbuf_free(
-      buffer_pointer); // not confident about the stability of this, because
-                       // normally it is called when netif.input != ERR_OK might
-                       // only be needed when The buffer is full?
 }
+void ETH_set_receiver_callback(ETH_HandleTypeDef *heth, struct netif *netif,
+                               receiver_callback callback) {
+
+  receiveQueue = xQueueCreate(10, sizeof(uint8_t *));
+  r_callback = callback;
+  netif->input = &ETH_receiver_callback;
+ // osThreadNew(ETH_receiver_callback_task, NULL, &receiver_callback_task_attr);
+
+
+}
+
+

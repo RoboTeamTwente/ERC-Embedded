@@ -68,6 +68,7 @@ int main(void) {
 
   uart_setup();
   LOG_init(&huart_com);
+  ETH_init(NULL, NULL);
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
   while (1) {
@@ -78,7 +79,6 @@ void MainTask(void *argument) {
 
   uint8_t ip[4] = {0, 0, 0, 0};
   uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
-  ETH_init(NULL, NULL);
   ETH_udp_init();
   while (1) {
   ETH_udp_send(ip, 7, "udp message");
