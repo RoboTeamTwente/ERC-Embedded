@@ -22,9 +22,12 @@ void cubemx_main(void);
 void SystemClock_Config(void);
 void MPU_Config(void);
 void MX_GPIO_Init(void);
+void MX_DAC1_Init(void);
 
 COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
+DAC_HandleTypeDef hdacl;
+uint16_t dac_value;
 void MainTask(void *argument);
 
 // Task attributes for CMSIS-RTOS v2
@@ -40,6 +43,7 @@ void init_board() {
 
   osKernelInitialize();
   MX_GPIO_Init();
+  MX_DAC1_Init();
 
   /* Initialize COM1 port */
   BspCOMInit.BaudRate = 115200;
@@ -57,6 +61,7 @@ void init_board() {
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
+  HAL_DAC_Start(&hdacl, DAC_CHANNEL_2);
 
   while (1) {
   }
@@ -75,7 +80,7 @@ void MainTask(void *argument) {
   BSP_LED_Init(LED_BLUE);
   BSP_LED_Init(LED_RED);
 
-  BSP_LED_Toggle(LED_GREEN);
+  //BSP_LED_Toggle(LED_GREEN);
 
 
     for (size_t i = 0; i < 4; i++)
@@ -91,18 +96,33 @@ void MainTask(void *argument) {
  rtU.steerang  = 1.0;
  
   while (1) {
-    control_step();
+    
+    for(dac_value=0; dac_value<4095; dac_value++ ){
+      HAL_DAC_SetValue(&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
+    }
 
+        for(dac_value=4095; dac_value>0; dac_value-- ){
+      HAL_DAC_SetValue(&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
+    }
+
+    //dac_value = 4095;
+    //HAL_DAC_SetValue (&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);//12 bit resolution
+    //HAL_Delay(2000);
+    //dac_value = 0;
+    //HAL_DAC_SetValue (&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
+    //HAL_Delay(2000);
+
+    control_step();
     rtU.dist2goal = 10.0; // meters
     rtU.steerang = 30.0;
-   LOGI(TAG, "desspeed[0]   = %f, desspeed[1]   = %f, desspeed[2]   = %f, desspeed[3]   = %f, desspeed[4]   = %f, desspeed[5]   = %f\n", rtY.desspeed[0], rtY.desspeed[1], rtY.desspeed[2], rtY.desspeed[3], rtY.desspeed[4], rtY.desspeed[5]);
-   LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
-   LOGI(TAG, "desang[0]     = %f, desang[1]     = %f, desang[2]     = %f, desang[3]     = %f\n", rtY.desang[0], rtY.desang[1], rtY.desang[2], rtY.desang[3]);
-   LOGI(TAG, "pwnenable[0]  = %f, pwnenable[1]  = %f, pwnenable[2]  = %f, pwnenable[3]  = %f\n", rtY.pwnenable[0], rtY.pwnenable[1], rtY.pwnenable[2], rtY.pwnenable[3]);
-   LOGI(TAG, "pwmrev[0]     = %f, pwmrev[1]     = %f, pwmrev[2]     = %f, pwmrev[3]     = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3]);
-    BSP_LED_Toggle(LED_GREEN);
-    BSP_LED_Toggle(LED_BLUE);
-    BSP_LED_Toggle(LED_RED);
+    LOGI(TAG, "desspeed[0]   = %f, desspeed[1]   = %f, desspeed[2]   = %f, desspeed[3]   = %f, desspeed[4]   = %f, desspeed[5]   = %f\n", rtY.desspeed[0], rtY.desspeed[1], rtY.desspeed[2], rtY.desspeed[3], rtY.desspeed[4], rtY.desspeed[5]);
+    LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
+    LOGI(TAG, "desang[0]     = %f, desang[1]     = %f, desang[2]     = %f, desang[3]     = %f\n", rtY.desang[0], rtY.desang[1], rtY.desang[2], rtY.desang[3]);
+    LOGI(TAG, "pwnenable[0]  = %f, pwnenable[1]  = %f, pwnenable[2]  = %f, pwnenable[3]  = %f\n", rtY.pwnenable[0], rtY.pwnenable[1], rtY.pwnenable[2], rtY.pwnenable[3]);
+    LOGI(TAG, "pwmrev[0]     = %f, pwmrev[1]     = %f, pwmrev[2]     = %f, pwmrev[3]     = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3]);
+    //BSP_LED_Toggle(LED_GREEN);
+    //BSP_LED_Toggle(LED_BLUE);
+    //BSP_LED_Toggle(LED_RED);
     LOGI(TAG, "%d + %d = %d", 5, 2, add(5, 2));
 
     LOGI(TAG, "This is the driving board");
