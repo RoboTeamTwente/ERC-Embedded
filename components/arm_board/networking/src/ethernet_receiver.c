@@ -8,7 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "queue.h"
+
 #define TAG "etherent_receiver"
+#define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
 
 extern ETH_HandleTypeDef heth;
 
@@ -16,46 +18,13 @@ receiver_callback r_callback;
 QueueHandle_t receiveQueue;
 
 
-const osThreadAttr_t receiver_callback_task_attr = {
-    .name = "receiverCallbackTask",
-    .stack_size = 1024 * 8,
-    .priority = (osPriority_t)osPriorityNormal,
-};
-void ETH_receiver_callback_task(void *arg)
-{
-     receive_packet *buf;
 
-    while (1) {
-        // if (xQueueReceive(receiveQueue, &buf, portMAX_DELAY) == pdPASS) {
-        //     r_callback(buf->data, buf->len);
-        //     // Free buffer
-        //     vPortFree(buf->data);
-            
-        // }
-    }
+
+u8_t eth_reader(struct netif *netif, struct pbuf *p) {
+    r_callback(p->payload, p->len);
+    return 1; //not handled, we never handle it, because I have no clue what I am doing
 }
 
-
-void send_pbuf_to_queue(struct pbuf *p, QueueHandle_t queue)
-{
-    receive_packet packet;
-    packet.data = pvPortMalloc(p->tot_len);  
-    if (!packet.data) return;
-
-    // Determine total length
-    uint16_t total_len = p->tot_len;
-
-    // Allocate buffer (static, or from pool)
-
-    // Copy pbuf contents
-    int16_t len = pbuf_copy_partial(p, packet.data, total_len, 0);
-    packet.len = len;
-
-    // Send buffer pointer to queue (ISR-safe)
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xQueueSendFromISR(queue, &packet, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
 
 
 /**
@@ -87,20 +56,22 @@ void ETH_receiver_callback_example(void *payload, size_t length) {
   free(data);
 }
 
-int8_t ETH_receiver_callback(struct pbuf *pbuf, struct netif *netif) {
-  send_pbuf_to_queue(pbuf, receiveQueue);
-  return tcpip_input(pbuf, netif);
 
-}
-void ETH_set_receiver_callback(ETH_HandleTypeDef *heth, struct netif *netif,
-                               receiver_callback callback) {
-
-  receiveQueue = xQueueCreate(10, sizeof(uint8_t *));
-  r_callback = callback;
-  netif->input = &ETH_receiver_callback;
- // osThreadNew(ETH_receiver_callback_task, NULL, &receiver_callback_task_attr);
+void ETH_set_receiver_callback(receiver_callback callback) {
+  if (callback != NULL){
+    r_callback = callback;
+  }else {
+    r_callback = ETH_receiver_callback_example;
+  }
 
 
 }
+
+
+
+
+
+
+
 
 

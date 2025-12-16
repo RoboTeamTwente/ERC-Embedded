@@ -11,10 +11,8 @@
  * @param length The lenght of the payload
  */
 typedef void (*receiver_callback)(void *payload, size_t length);
-typedef struct {
-    uint8_t *data;   // pointer to buffer
-    uint16_t len;    // length of the buffer
-} receive_packet;
+
+
 /**
  * @brief Example function for the ethernet callback
  *
@@ -26,12 +24,9 @@ void ETH_receiver_callback_example(void *payload, size_t length);
 /**
  * @brief Ethernet receiver callback setter
  *
- * @param[in] heth Ethenet handler
- * @param[in] netif network interface
- * @param[in] callback The callback function
+ * @param[in] callback The callback function, if NULL, a ETH_receiver_callback_example is used
  */
-void ETH_set_receiver_callback(ETH_HandleTypeDef *heth, struct netif *netif,
-                               receiver_callback callback);
+void ETH_set_receiver_callback(receiver_callback callback);
 
 
 

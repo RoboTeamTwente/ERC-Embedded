@@ -35,14 +35,9 @@ void ETH_init(
     receiver_callback receiver_callback,
     linkstatus_callback_t link_state_change_callback) { // TODO: return an error
   LOGI(TAG, "Setting up ethernet...\n");
-  r_callback = receiver_callback;
   MX_LWIP_Init();
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
   HAL_ETH_Start_IT(&heth);
-
-  r_callback == NULL ? ETH_set_receiver_callback(&heth, &gnetif,
-                                                 *ETH_receiver_callback_example)
-                     : ETH_set_receiver_callback(&heth, &gnetif, r_callback);
-
+  ETH_set_receiver_callback( receiver_callback);
   LOGI(TAG, "Ethernet is set up!\n");
 }
