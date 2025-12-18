@@ -26,8 +26,9 @@
 
 #define TAG "MAIN"
 
-extern __weak void MX_FREERTOS_Init(void);
+extern void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
+extern void MPU_Config_wrapper(void);
 
 void MainTask(void *argument);
 
@@ -56,7 +57,18 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
+// void main_receiver_callback(void *payload, size_t length) {
+
+//   char *data = payload;
+
+//   LOGI(TAG, "DATA RECEIVED: %s\n", data);
+//   free(data);
+// }
+
+
 int main(void) {
+
+  MPU_Config_wrapper();
 
   HAL_Init();
 
@@ -75,15 +87,19 @@ int main(void) {
   }
 }
 
+
+
+
+
 void MainTask(void *argument) {
 
   uint8_t ip[4] = {0, 0, 0, 0};
   uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
   ETH_udp_init();
   while (1) {
-  ETH_udp_send(ip, 7, "udp message");
-  osDelay(100);
-  ETH_raw_send(mac, "raw message");
-  osDelay(100);
+    ETH_udp_send(ip, 7, "udp message");
+    osDelay(100);
+    ETH_raw_send(mac, "raw message");
+    osDelay(100);
   }
 }
