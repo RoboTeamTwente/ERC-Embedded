@@ -73,4 +73,9 @@ void ILI9341_Draw_Vertical_Line(uint16_t X, uint16_t Y, uint16_t Height,
 void ILI9341_WriteString(uint16_t x, uint16_t y, const char *str,
                          ILI9341_FontDef font, uint16_t color,
                          uint16_t bgcolor);
+
+void ILI9341_Draw_Colour_Array(uint16_t *Colour, uint32_t PixelCount);
+void ILI9341_Draw_Bitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
+                         const uint8_t *bitmap, uint16_t Color,
+                         uint16_t BgColor);
 #endif

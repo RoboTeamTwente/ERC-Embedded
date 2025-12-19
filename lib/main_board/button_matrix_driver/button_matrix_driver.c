@@ -27,7 +27,7 @@ button_matrix_input_t ButtonMatrixDriver_Scan(void) {
           HAL_GPIO_ReadPin((GPIO_TypeDef *)row_ports[row], row_pins[row]);
       if (row_state == GPIO_PIN_RESET) {
         // Button pressed
-        LOGI(TAG, "Button matrix input detected: row %d, col %d", row, col);
+        // LOGI(TAG, "Button matrix input detected: row %d, col %d", row, col);
         input.row = row;
         input.col = col;
       }

@@ -299,6 +299,79 @@ void ILI9341_Draw_Colour_Burst(uint16_t Colour, uint32_t Size) {
   HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_SET);
 }
 
+/* * Sends an array of pixel data to the LCD
+ * Colour: Pointer to the array of uint16_t colors
+ * PixelCount: Total number of pixels to draw (NOT bytes)
+ */
+void ILI9341_Draw_Colour_Array(uint16_t *Colour, uint32_t PixelCount) {
+  HAL_GPIO_WritePin(LCD_DC_PORT, LCD_DC_PIN, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_RESET);
+
+  uint32_t pixel_index = 0;
+
+  const uint32_t MAX_PIXELS_PER_BURST = BURST_MAX_SIZE / 2;
+
+  while (pixel_index < PixelCount) {
+    uint32_t remaining_pixels = PixelCount - pixel_index;
+
+    uint32_t pixels_to_send = (remaining_pixels > MAX_PIXELS_PER_BURST)
+                                  ? MAX_PIXELS_PER_BURST
+                                  : remaining_pixels;
+
+    HAL_SPI_Transmit(HSPI_INSTANCE, (uint8_t *)(Colour + pixel_index),
+                     pixels_to_send * 2, 100);
+
+    pixel_index += pixels_to_send;
+  }
+
+  HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_SET);
+}
+
+void ILI9341_Draw_Bitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
+                         const uint8_t *data, uint16_t Color,
+                         uint16_t bgcolor) {
+
+  ILI9341_Set_Address(x, y, x + w - 1, y + h - 1);
+
+  HAL_GPIO_WritePin(LCD_DC_PORT, LCD_DC_PIN, GPIO_PIN_SET);   // Data Mode
+  HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_RESET); // Select Chip
+
+  uint16_t swapped_color = (Color >> 8) | (Color << 8);
+  uint16_t swapped_bgcolor = (bgcolor >> 8) | (bgcolor << 8);
+
+  uint16_t color_buffer[BURST_MAX_SIZE]; // Buffer to hold colour data
+  uint32_t buffer_index = 0;
+
+  uint16_t byteWidth = (w + 7) / 8;
+
+  for (uint16_t j = 0; j < h; j++) {   // Rows
+    for (uint16_t i = 0; i < w; i++) { // Columns
+
+      uint8_t byte = data[j * byteWidth + i / 8];
+      uint8_t mask = 0x80 >> (i % 8);
+
+      if (byte & mask) {
+        color_buffer[buffer_index] = swapped_color;
+      } else {
+        color_buffer[buffer_index] = swapped_bgcolor;
+      }
+
+      buffer_index++;
+
+      if (buffer_index >= BURST_MAX_SIZE) {
+        HAL_SPI_Transmit(HSPI_INSTANCE, (uint8_t *)color_buffer,
+                         buffer_index * 2, 100);
+        buffer_index = 0;
+      }
+    }
+  }
+
+  if (buffer_index > 0) {
+    HAL_SPI_Transmit(HSPI_INSTANCE, (uint8_t *)color_buffer, buffer_index * 2,
+                     100);
+  }
+  HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_SET);
+}
 // FILL THE ENTIRE SCREEN WITH SELECTED COLOUR (either #define-d ones or custom
 // 16bit)
 /*Sets address (entire screen) and Sends Height*Width ammount of colour
@@ -363,8 +436,6 @@ void ILI9341_Draw_Pixel(uint16_t X, uint16_t Y, uint16_t Colour) {
 // Rectangle is hollow. X and Y positions mark the upper left corner of
 // rectangle As with all other draw calls x0 and y0 locations dependant on
 // screen orientation
-//
-
 void ILI9341_Draw_Rectangle(uint16_t X, uint16_t Y, uint16_t Width,
                             uint16_t Height, uint16_t Colour) {
   if ((X >= LCD_WIDTH) || (Y >= LCD_HEIGHT))
