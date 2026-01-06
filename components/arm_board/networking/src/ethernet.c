@@ -31,12 +31,28 @@ void ETH_raw_send(uint8_t *mac, char *payload) {
   raw_packet_send(&gnetif, &heth, mac, payload);
 }
 
+void ETH_setup_MAC_address_filtering(){
+  ETH_MACFilterConfigTypeDef macfilterconfig;
+  HAL_ETH_GetMACFilterConfig(&heth, &macfilterconfig);
+  macfilterconfig.HachOrPerfectFilter = DISABLE; 
+  macfilterconfig.PromiscuousMode = DISABLE;
+  HAL_ETH_SetMACFilterConfig(&heth, &macfilterconfig); 
+  int allowed_mac[6] = {0x11,0x22,0x33,0x44,0x55,0x66};
+  (&heth) -> Instance->MACA1HR = (1U << 31) | (allowed_mac[5] << 8) | allowed_mac[4];
+  (&heth) -> Instance->MACA1LR = (allowed_mac[3] << 24) |
+               (allowed_mac[2] << 16) |
+               (allowed_mac[1] << 8)  |
+               allowed_mac[0];
+
+}
+
 void ETH_init(
     receiver_callback receiver_callback,
     linkstatus_callback_t link_state_change_callback) { // TODO: return an error
   LOGI(TAG, "Setting up ethernet...\n");
   MX_LWIP_Init();
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
+  ETH_setup_MAC_address_filtering();
   HAL_ETH_Start_IT(&heth);
   ETH_set_receiver_callback( receiver_callback);
   LOGI(TAG, "Ethernet is set up!\n");
