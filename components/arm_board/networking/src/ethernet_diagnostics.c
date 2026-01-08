@@ -7,21 +7,7 @@
 
 extern struct netif gnetif;
 
-/**
- * @brief callback function for receiving an message over ethernet
- *
- * @param payload pointer to the payload of the message
- * @param length length of the message
- *
- * @return
- */
-typedef void (*receiver_callback)(void *payload, size_t length);
 
-/**
- * @brief Is called when the physical link status is updated
- *
- * @param[in] netif Pointer to the network handler
- */
 void ethernet_linkstatus_callback_default(struct netif *netif) {
   if (netif_is_up(netif)) {
     LOGI(TAG, "Physical ethernet link is up");
@@ -30,11 +16,6 @@ void ethernet_linkstatus_callback_default(struct netif *netif) {
   }
 }
 
-/**
- * @brief initializes the diagnostics callbacks
- *
- * @param[in] netif pointer to the network handler
- */
 void ETH_diagnostic_callback_init(struct netif *netif,
                                   linkstatus_callback_t callback) {
   if (callback != NULL) {

@@ -19,7 +19,7 @@ struct udp_pcb *upcb;
 
 void ETH_udp_init() {
   udp_client_init(&upcb, IP_ADDRESS);
-  osDelay(3000); // FIXME: very ugly but udp doesn't
+  osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
 }
 
@@ -38,6 +38,7 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]){
   macfilterconfig.HachOrPerfectFilter = DISABLE; 
   macfilterconfig.PromiscuousMode = DISABLE;
   HAL_ETH_SetMACFilterConfig(&heth, &macfilterconfig); 
+
   if(mac1 != NULL){
     (&heth) -> Instance->MACA1HR = (1U << 31) | (mac1[5] << 8) | mac1[4];
     (&heth) -> Instance->MACA1LR = (mac1[3] << 24) |

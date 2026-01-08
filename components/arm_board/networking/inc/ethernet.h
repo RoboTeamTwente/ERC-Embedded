@@ -6,6 +6,9 @@
 #include "ethernet_diagnostics.h"
 #include "ethernet_receiver.h"
 
+
+
+
 /**
  * @brief Initializes ethernet
  *

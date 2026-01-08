@@ -18,8 +18,6 @@ receiver_callback r_callback;
 QueueHandle_t receiveQueue;
 
 
-
-
 u8_t eth_reader(struct netif *netif, struct pbuf *p) {
     r_callback(p->payload, p->len);
     return 1; //not handled, we never handle it, because I have no clue what I am doing

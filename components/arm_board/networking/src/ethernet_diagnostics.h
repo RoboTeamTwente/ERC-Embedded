@@ -3,15 +3,6 @@
 
 #include "netif.h"
 
-/**
- * @brief callback function for receiving ethernet messages
- *
- * @param payload pointer to the the first bit of the payload of the message
- * @param length length of the message
- *
- * @return
- */
-typedef void (*receiver_callback)(void *payload, size_t length);
 
 /**
  * @brief callback function for when the link status changes
@@ -30,12 +21,5 @@ typedef void (*linkstatus_callback_t)(struct netif *netif);
  */
 void ETH_diagnostic_callback_init(struct netif *netif,
                                   linkstatus_callback_t callback);
-
-/**
- * @brief does diagnostic checks.
- *          - Checking physical link state
- *
- */
-void ETH_diagnostic_checks();
 
 #endif // !ETHERNET_DIAGNOSTICS

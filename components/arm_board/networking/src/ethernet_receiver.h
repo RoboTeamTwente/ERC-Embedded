@@ -1,7 +1,6 @@
 #ifndef ETHERNET_RECEIVER_H
 #define ETHERNET_RECEIVER_H
 
-#include "ethernet.h"
 #include "lwip.h"
 
 /**
