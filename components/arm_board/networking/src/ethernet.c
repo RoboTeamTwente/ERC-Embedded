@@ -31,19 +31,34 @@ void ETH_raw_send(uint8_t *mac, char *payload) {
   raw_packet_send(&gnetif, &heth, mac, payload);
 }
 
-void ETH_setup_MAC_address_filtering(){
+
+void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]){
   ETH_MACFilterConfigTypeDef macfilterconfig;
   HAL_ETH_GetMACFilterConfig(&heth, &macfilterconfig);
   macfilterconfig.HachOrPerfectFilter = DISABLE; 
   macfilterconfig.PromiscuousMode = DISABLE;
   HAL_ETH_SetMACFilterConfig(&heth, &macfilterconfig); 
-  int allowed_mac[6] = {0x11,0x22,0x33,0x44,0x55,0x66};
-  (&heth) -> Instance->MACA1HR = (1U << 31) | (allowed_mac[5] << 8) | allowed_mac[4];
-  (&heth) -> Instance->MACA1LR = (allowed_mac[3] << 24) |
-               (allowed_mac[2] << 16) |
-               (allowed_mac[1] << 8)  |
-               allowed_mac[0];
-
+  if(mac1 != NULL){
+    (&heth) -> Instance->MACA1HR = (1U << 31) | (mac1[5] << 8) | mac1[4];
+    (&heth) -> Instance->MACA1LR = (mac1[3] << 24) |
+                 (mac1[2] << 16) |
+                (mac1[1] << 8)  |
+                mac1[0];
+  }
+  if(mac2 != NULL){
+    (&heth) -> Instance->MACA2HR = (1U << 31) | (mac2[5] << 8) | mac2[4];
+    (&heth) -> Instance->MACA2LR = (mac2[3] << 24) |
+                (mac2[2] << 16) |
+                (mac2[1] << 8)  |
+                mac2[0];
+  }
+  if(mac3 != NULL){
+    (&heth) -> Instance->MACA3HR = (1U << 31) | (mac3[5] << 8) | mac3[4];
+    (&heth) -> Instance->MACA3LR = (mac3[3] << 24) |
+                (mac3[2] << 16) |
+                (mac3[1] << 8)  |
+                mac3[0];
+  }
 }
 
 void ETH_init(
@@ -52,7 +67,6 @@ void ETH_init(
   LOGI(TAG, "Setting up ethernet...\n");
   MX_LWIP_Init();
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
-  ETH_setup_MAC_address_filtering();
   HAL_ETH_Start_IT(&heth);
   ETH_set_receiver_callback( receiver_callback);
   LOGI(TAG, "Ethernet is set up!\n");

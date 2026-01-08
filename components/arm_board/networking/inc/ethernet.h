@@ -32,6 +32,16 @@ void ETH_udp_init();
  */
 void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload);
 
+
+/**
+ * @brief Sets registers for perfect mac filtering
+ *
+ * @param[in] mac1 mac to filter, can be NULL
+ * @param[in] mac2 mac to filter, can be NULL
+ * @param[in] mac3 mac to filter, can be NULL
+ */
+void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]);
+
 /**
  * @brief Send a raw ethernet frame
  *
