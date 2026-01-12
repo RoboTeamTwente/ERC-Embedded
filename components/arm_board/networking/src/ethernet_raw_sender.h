@@ -4,8 +4,9 @@
 #include "err.h"
 #include "netif.h"
 #include <stdint.h>
-
+#include "result.h"
 /**
+ *
  * @brief sturct defining an raw ethernet frame.
  */
 typedef struct {
@@ -25,7 +26,7 @@ typedef struct {
  *
  * @return error
  */
-err_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
+result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
                       uint8_t mac_address[6], char *payload);
 
 #endif // !ETHERNET_RAW_SENDER_H

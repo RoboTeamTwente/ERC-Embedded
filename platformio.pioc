@@ -40,6 +40,7 @@ board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/*.c>
     +<components/${this.__env__}/*>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>

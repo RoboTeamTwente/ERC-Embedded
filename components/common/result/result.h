@@ -34,7 +34,7 @@ typedef enum {
 
   RESULT_ERR_MUTEX = 17, // A mutex operation failed
   RESULT_ERR_INVALID_DATA = 18,   // Data is invalid or out of range
-
+  RESULT_ERR_BUFF = 19, //general buffer error
 
 } result_t;
 
