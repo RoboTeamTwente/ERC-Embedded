@@ -23,10 +23,13 @@ void SystemClock_Config(void);
 void MPU_Config(void);
 void MX_GPIO_Init(void);
 void MX_DAC1_Init(void);
+void MX_TIM2_Init(void);
 
 COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
-DAC_HandleTypeDef hdacl;
+DAC_HandleTypeDef hdac1;
+TIM_HandleTypeDef htim2;
+
 uint16_t dac_value;
 void MainTask(void *argument);
 
@@ -44,6 +47,7 @@ void init_board() {
   osKernelInitialize();
   MX_GPIO_Init();
   MX_DAC1_Init();
+  HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
   /* Initialize COM1 port */
   BspCOMInit.BaudRate = 115200;
@@ -61,11 +65,38 @@ void init_board() {
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
-  HAL_DAC_Start(&hdacl, DAC_CHANNEL_2);
+
 
   while (1) {
   }
 }
+
+void pwm_test(){
+  
+  int32_t CH1_DC = 0;
+
+  HAL_Init();
+  SystemClock_Config();
+  MX_GPIO_Init();
+  MX_TIM2_Init();
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  while (1)
+  {
+    while(CH1_DC < 65535)
+    {
+    	  TIM2->CCR1 = CH1_DC;
+    	  CH1_DC += 70;
+    	  HAL_Delay(1);
+    }
+    while(CH1_DC > 0)
+    {
+        TIM2->CCR1 = CH1_DC;
+        CH1_DC -= 70;
+        HAL_Delay(1);
+    }
+  
+    }
+  }
 
 int main(void) { init_board(); }
 
@@ -98,11 +129,13 @@ void MainTask(void *argument) {
   while (1) {
     
     for(dac_value=0; dac_value<4095; dac_value++ ){
-      HAL_DAC_SetValue(&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
+      HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
+      osDelay(1);
     }
 
         for(dac_value=4095; dac_value>0; dac_value-- ){
-      HAL_DAC_SetValue(&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
+      HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
+      osDelay(1);
     }
 
     //dac_value = 4095;
@@ -126,7 +159,8 @@ void MainTask(void *argument) {
     LOGI(TAG, "%d + %d = %d", 5, 2, add(5, 2));
 
     LOGI(TAG, "This is the driving board");
-    osDelay(1000);
+    //osDelay(1000);
+    pwm_test();
   }
 }
 
