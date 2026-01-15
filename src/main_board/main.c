@@ -10,6 +10,7 @@
 #include "main_board.pb.h"
 #include "menu_driver.h"
 #include "menu_driver_icons.h"
+#include "menu_driver_imgs.h"
 #include "menu_driver_list.h"
 #include "pb_message.h"
 #include "result.h"
@@ -133,17 +134,28 @@ static menu_manager_t manager = {
 void MainTask(void *argument) {
   LOGI(TAG, "Starting Main Task\n");
   LOGI(TAG, "Initializing ILI9341\n");
+
+  HAL_GPIO_WritePin(MATRIX_COL_A_GPIO_Port, MATRIX_COL_A_Pin, GPIO_PIN_RESET);
+  while (1) {
+    osDelay(1000);
+  }
   ILI9341_Init();
   ILI9341_Set_Rotation(SCREEN_HORIZONTAL_1);
+  // ILI9341_Set_Address(40, 0, ILI9341_SCREEN_WIDTH - 1,
+  //                     ILI9341_SCREEN_HEIGHT - 1);
+  // ILI9341_Draw_Colour_Array(menu_driver_img_ludwig_1, 280 * 240);
 
-  // menu_page_t active_page = manager.pages[manager.active_page_id];
-  // active_page.init(active_page.state);
-  // LOGI(TAG, "Rendering Active Page\n");
-  // active_page.render(&manager);
-  // LOGI(TAG, "Active Page Rendered\n");
-
-  ILI9341_Fill_Screen(BLACK);
+  // // menu_page_t active_page = manager.pages[manager.active_page_id];
+  // // active_page.init(active_page.state);
+  // // LOGI(TAG, "Rendering Active Page\n");
+  // // active_page.render(&manager);
+  // // LOGI(TAG, "Active Page Rendered\n");
+  //
+  // // ILI9341_Fill_Screen(BLACK);
   menu_driver_draw_ribbon();
+  // ILI9341_WriteString(65, 200, "Oopsie, rover dead :D", ILI9341_Font_11x18,
+  //                     MENU_DRIVER_FOREGROUND_COLOR,
+  //                     MENU_DRIVER_BACKGROUND_COLOR);
   menu_page_render_list(&manager);
   while (1) {
     if (pages[0].needs_render) {
@@ -159,8 +171,7 @@ void MainTask(void *argument) {
           main_menu_state.list.num_entries;
       pages[0].needs_render = true;
     }
-
     // LOGI(TAG, "ILI9341 Initialized and Running\n");
-    osDelay(10);
+    osDelay(80);
   }
 }

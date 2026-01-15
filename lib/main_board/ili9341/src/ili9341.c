@@ -303,23 +303,29 @@ void ILI9341_Draw_Colour_Burst(uint16_t Colour, uint32_t Size) {
  * Colour: Pointer to the array of uint16_t colors
  * PixelCount: Total number of pixels to draw (NOT bytes)
  */
-void ILI9341_Draw_Colour_Array(uint16_t *Colour, uint32_t PixelCount) {
+void ILI9341_Draw_Colour_Array(const uint16_t *Colour, uint32_t PixelCount) {
   HAL_GPIO_WritePin(LCD_DC_PORT, LCD_DC_PIN, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_RESET);
 
-  uint32_t pixel_index = 0;
+  const uint32_t MAX_PIXELS_PER_BURST =
+      BURST_MAX_SIZE / 2; // BURST_MAX_SIZE in bytes
+  static uint8_t tx_buf[BURST_MAX_SIZE];
 
-  const uint32_t MAX_PIXELS_PER_BURST = BURST_MAX_SIZE / 2;
+  uint32_t pixel_index = 0;
 
   while (pixel_index < PixelCount) {
     uint32_t remaining_pixels = PixelCount - pixel_index;
-
     uint32_t pixels_to_send = (remaining_pixels > MAX_PIXELS_PER_BURST)
                                   ? MAX_PIXELS_PER_BURST
                                   : remaining_pixels;
 
-    HAL_SPI_Transmit(HSPI_INSTANCE, (uint8_t *)(Colour + pixel_index),
-                     pixels_to_send * 2, 100);
+    for (uint32_t i = 0; i < pixels_to_send; i++) {
+      uint16_t c = Colour[pixel_index + i];
+      tx_buf[(i * 2U) + 0U] = (uint8_t)(c >> 8);    // MSB first (big-endian)
+      tx_buf[(i * 2U) + 1U] = (uint8_t)(c & 0xFFU); // LSB
+    }
+
+    HAL_SPI_Transmit(HSPI_INSTANCE, tx_buf, pixels_to_send * 2U, 100);
 
     pixel_index += pixels_to_send;
   }

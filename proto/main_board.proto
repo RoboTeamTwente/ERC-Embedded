@@ -1,28 +1,14 @@
 syntax = "proto3";
 // used to wrap a message 
+
+message DiagnosticMessage {
+  int32 level = 1;
+  int32 timestamp =2;
+}
 message PBMessageEnvelope {
-    // identifier format:
-    // |--------|---------------------------|
-    // |board_id|   message_identifier      |
-    // | 8 bits |   27 bits (3 bytes)       |
-    // |--------|---------------------------|
-    // Reserved Identifiers: 0xXX0000: sending types (see below)
-    // Reserved Identifiers: 0xXX0001: receiving types (see below)
-    // Reserved Identifiers: 0xXX0002: diagnostics
-    int32 identifier = 1;
-    bytes data = 2;
+  oneof payload {
+    bytes pb_broadcast_message = 1;
+    DiagnosticMessage diagnostic_message = 2;
+  }
 }
 
-// ---------  HANDSHAKE MESSAGES ----------
-
-// Used to identify all messages this node can send
-message PBBroadcastSendingTypes {
-// Identifiers: all others are 3byte long identifiers (lenght has to be 3*x)
-  bytes identifiers = 1;
-}
-
-// Used to identify all messages this node can receive
-message PBBroadcastingReceivingTypes {
-  // Identifiers: others are 4byte long identifiers including sender id and message id (length has to be 4*x)
-  bytes identifiers = 1;
-}
