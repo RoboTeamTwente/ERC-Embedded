@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+//Possible errors for the arm while moving
+enum ArmError {
+    PATH_NOT_VIABLE = 0;
+    OBSTRUCTION = 1;
+    MOTOR_MALFUNCTION = 2;
+    ALL_OK = 3;
+}
+
+//Message In: (x,y,z) coordinates for moving
+message Movement {
+    float x_target = 1;
+    float y_target = 2;
+    float z_target = 3;
+}
+
+//Message Out: feedback on movement
+message MovementFeedback {
+    int32 progress = 1; //0-100%
+    ArmError arm_error = 2;
+}
+
+//Message In: (x,y,z,w) coordinates for rotating
+message Rotation {
+    float x_target = 1;
+    float y_target = 2;
+    float z_target = 3;
+    float w_target = 4;
+}
+
+//Message Out: feedback on rotation
+message RotationFeedback {
+    int32 progress = 1; //0-100%
+    ArmError arm_error = 2;
+}
+
+message Obstructions {
+    float obstructions_list = 1;
+}
+
+//Neccessary??
+//Split in two?
+//Message Out: world position???? or would this just be (0,0,0) at all times?
+message GripperPos {
+    //Position
+    float x_pos = 1;
+    float y_pos = 2;
+    float z_pos = 3;
+    //Rotation
+    float x_rot = 4;
+    float y_rot = 5;
+    float z_rot = 6;
+    float w_rot = 7;
+}
+
+//Copy of the diagnostics for driving board
+//Message Out: State of ONE motor
+message ArmMotorInformation {
+    enum State {
+        IDLE = 0;
+        OPERATING = 1;
+        CALIBRATING = 2;
+        ERROR = 3;
+    }
+
+    State state = 1;
+    int32 motor_id = 2;
+    float rpm = 3;
+    float voltage = 4;
+    float current = 5;
+    float torque = 6;
+    float power_consumption = 7;
+}
+
+//Message Out: States of all motors
+//(If im correct theres 6 on the arm + gripper)
+message ArmMotorDiagnostics {
+    ArmMotorInformation motor1 = 1;
+    ArmMotorInformation motor2 = 2;
+    ArmMotorInformation motor3 = 3;
+    ArmMotorInformation motor4 = 4;
+    ArmMotorInformation motor5 = 5;
+    ArmMotorInformation motor6 = 6;
+}
+
+//Message Out: SUPER diagnostics message with all feedback/diagnostics included
+message ArmDiagnostics {
+    enum State {
+        OPERATIONAL = 0;
+        ERRORED = 1;
+    }
+    State state = 1;
+    GripperPos current_pos = 2;
+    MovementFeedback move_feedback = 3;
+    RotationFeedback rotate_feedback = 4;
+    ArmMotorDiagnostics motor_diagnostics = 5;
+}
