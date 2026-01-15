@@ -62,6 +62,12 @@ int main(void) {
 
   MPU_Config_wrapper();
 
+  SCB_EnableICache();
+
+  /* Enable D-Cache---------------------------------------------------------*/
+  SCB_EnableDCache();
+
+
   HAL_Init();
 
   SystemClock_Config();

@@ -917,6 +917,7 @@ void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff, uint16_t 
   }
   *ppEnd  = p;
 
+
   /* Update the total length of all the buffers of the chain. Each pbuf in the chain should have its tot_len
    * set to its own length, plus the length of all the following pbufs in the chain. */
   for (p = *ppStart; p != NULL; p = p->next)

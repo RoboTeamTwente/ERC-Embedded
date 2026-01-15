@@ -20,6 +20,8 @@ QueueHandle_t receiveQueue;
 
 u8_t eth_reader(struct netif *netif, struct pbuf *p) {
     r_callback(p->payload, p->len);
+    //HAL_Delay(100);
+    //pbuf_free(p);
     return 1; //not handled, we never handle it, because I have no clue what I am doing
 }
 
@@ -51,6 +53,8 @@ void ETH_receiver_callback_example(void *payload, size_t length) {
   char *data = bytes_to_hex_string(payload, length);
 
   LOGI(TAG, "DATA RECEIVED: %s\n", data);
+  LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
+  LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
   free(data);
 }
 

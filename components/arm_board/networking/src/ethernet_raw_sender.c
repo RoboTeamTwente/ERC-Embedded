@@ -22,7 +22,6 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
   ethernet_frame_t *frame = malloc(data_size);
   if (!frame){
     err = RESULT_ERR_NO_MEM;
-    char* result = result_to_short_str(err);
     LOGE("Could not send the message: %s \n", result_to_short_str(err));
     return err;
   }
