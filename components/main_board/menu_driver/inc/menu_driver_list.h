@@ -1,6 +1,6 @@
 #ifndef MENU_DRIVER_LIST_H
 #define MENU_DRIVER_LIST_H
-#include "lib/main_board/menu_driver/inc/menu_driver_icons.h"
+#include "menu_driver_icons.h"
 #include "menu_driver.h"
 #include "menu_driver_conf.h"
 #include "result.h"

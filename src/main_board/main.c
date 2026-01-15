@@ -1,11 +1,12 @@
+#ifndef UNIT_TEST
 #include "button_matrix_driver.h"
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
 #include "cubemx_main.h"
 #include "gpio.h"
 #include "ili9341.h"
 #include "ili9341_fonts.h"
-#include "lib/main_board/menu_driver/inc/menu_driver_conf.h"
-#include "lib/main_board/menu_driver/inc/menu_driver_icons.h"
+#include "components/main_board/menu_driver/inc/menu_driver_conf.h"
+#include "components/main_board/menu_driver/inc/menu_driver_icons.h"
 #include "logging.h"
 #include "main_board.pb.h"
 #include "menu_driver.h"
@@ -175,3 +176,5 @@ void MainTask(void *argument) {
     osDelay(80);
   }
 }
+
+#endif //! UNIT_TEST

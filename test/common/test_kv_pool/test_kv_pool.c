@@ -35,10 +35,7 @@ static char g_heap_buffer[G_HEAP_SIZE];
  * @brief A simple 100ms delay for testing.
  */
 static void delay_100ms(void) {
-  struct timespec ts;
-  ts.tv_sec = 0;
-  ts.tv_nsec = 100000000L; // 100 million ns = 100 ms
-  nanosleep(&ts, NULL);
+  HAL_Delay(100);
 }
 
 // Helper to get the start of the heap in the contiguous pool

@@ -1,0 +1,36 @@
+[platformio]
+default_envs = main_board
+src_dir = .
+
+
+[extra]
+common_lib_deps = Nanopb
+
+
+[env]
+platform = ststm32
+framework = stm32cube
+custom_nanopb_options = --error-on-unmatched
+test_build_src = True
+[env:main_board]
+board = nucleo_h753zi
+build_src_filter = +<src/${this.__env__}/**/*.c>
+    +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/*.c>
+    +<components/main_board/**>
+    -<components/main_board/firmware/Drivers/**>
+    +<components/main_board/firmware/Drivers/BSP/**>
+custom_nanopb_protos = +<proto/${this.__env__}.proto>
+    +<proto/common.proto>
+lib_deps = ${extra.common_lib_deps}
+test_filter = common/*
+build_flags=
+    +<components/common/*/inc/**>
+    +<components/common/*>
+    +<components/main_board/**>
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=softfp
+    -Wl,-u,_printf_float
+    -D CONFIG_LOG_LEVEL=LOG_INFO
+
