@@ -10,6 +10,7 @@
 #include "rtwtypes.h"
 #include "string.h"
 
+
 #include "calculator.h"
 
 static char *TAG = "MAIN";
@@ -64,6 +65,7 @@ void init_board() {
   control_initialize();
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
+
   osKernelStart();
 
 
@@ -97,6 +99,8 @@ void pwm_test(){
   
     }
   }
+
+
 
 int main(void) { init_board(); }
 
