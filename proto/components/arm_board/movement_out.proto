@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+//Possible errors for the arm while moving
+//Message Out: feedback on movement
+message MovementFeedback {
+    enum ArmError {
+    POINT_NOT_IN_RANGE = 0;
+    OBSTRUCTION = 1;
+    MOTOR_MALFUNCTION = 2;
+    ALL_OK = 3;
+    }
+    bool point_reached = 1;
+    ArmError arm_error = 2;
+}
+
+//Message Out: control signals
+message ControlSignals {
+    //allegedly these will be in volts, but we will know once the controllers have been chosen
+    float control_wrist_rotation = 1;         
+    float control_gripper_pitch = 2;          
+    float control_base = 3;                
+    //the ENA is the signal that make it rotate, allegedly
+    //the REV is???
+    float stepper_top_ENA = 4;         
+    float stepper_top_REV = 5;     
+    float stepper_bottom_ENA = 6;           
+    float stepper_bottom_REV = 7;             
+}
