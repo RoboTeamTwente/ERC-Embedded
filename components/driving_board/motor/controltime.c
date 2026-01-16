@@ -25,3 +25,6 @@ void ControlGeneralTime(void *argument)
     }
 }
 
+//set priorities right
+//iinside shouldnt tke to much time
+//make wrapper does control step and returns control output input 
