@@ -25,11 +25,13 @@ void MPU_Config(void);
 void MX_GPIO_Init(void);
 void MX_DAC1_Init(void);
 void MX_TIM2_Init(void);
+void MX_TIM3_Init(void);
 
 COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
 DAC_HandleTypeDef hdac1;
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 uint16_t dac_value;
 void MainTask(void *argument);
@@ -47,7 +49,7 @@ void init_board() {
 
   osKernelInitialize();
   MX_GPIO_Init();
-  MX_DAC1_Init();
+  //MX_DAC1_Init();
   HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
   /* Initialize COM1 port */
@@ -131,8 +133,8 @@ void MainTask(void *argument) {
  rtU.steerang  = 1.0;
  
   while (1) {
-    
-    for(dac_value=0; dac_value<4095; dac_value++ ){
+    /**
+     * for(dac_value=0; dac_value<4095; dac_value++ ){
       HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
       osDelay(1);
     }
@@ -141,6 +143,8 @@ void MainTask(void *argument) {
       HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
       osDelay(1);
     }
+     */
+    
 
     //dac_value = 4095;
     //HAL_DAC_SetValue (&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);//12 bit resolution
@@ -149,7 +153,14 @@ void MainTask(void *argument) {
     //HAL_DAC_SetValue (&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
     //HAL_Delay(2000);
 
-    control_step();
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+
+    //control_step();
     rtU.dist2goal = 10.0; // meters
     rtU.steerang = 30.0;
     LOGI(TAG, "desspeed[0]   = %f, desspeed[1]   = %f, desspeed[2]   = %f, desspeed[3]   = %f, desspeed[4]   = %f, desspeed[5]   = %f\n", rtY.desspeed[0], rtY.desspeed[1], rtY.desspeed[2], rtY.desspeed[3], rtY.desspeed[4], rtY.desspeed[5]);

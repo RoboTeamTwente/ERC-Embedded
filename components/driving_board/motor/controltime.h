@@ -1,4 +1,4 @@
-/** 
+
 #ifndef CONTROLTIME_H
 #define CONTROLTIME_H
 
@@ -7,5 +7,5 @@
 void ControlGeneralTime(void *argument);
 
 #endif /* CONTROLTIME_H */
-//*/
+
 

@@ -1,9 +1,10 @@
-/**
+
 #include "controltime.h"
 #include "control.h"
 #include <stdio.h>
 #include "FreeRTOS.h"
 #include "task.h"
+#include "bldc.h"
 
 
 //static char *TAG = "MAIN";
@@ -18,7 +19,9 @@ void ControlGeneralTime(void *argument)
     {
         control_step();// from control.c
         //LOGI(TAG, "control step occured");
+        set_bldc_pwm();//this might also be done somewhere else im not sure
+        //set_stepper_pwm();
         vTaskDelayUntil(&xLastWakeTime, xPeriod); //fixed 1ms loop
     }
 }
- */
+
