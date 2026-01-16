@@ -46,8 +46,13 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
       pbuf_free(txBuf);
       return RESULT_ERR_COMMS;
     }
+    pbuf_free(txBuf);
   }
-  pbuf_free(txBuf);
+  else{
+    LOGE(TAG, "cannot allocate a pbuffer");
+    return RESULT_ERR_BUFF;
+  }
+  
   return RESULT_OK;
 }
 
