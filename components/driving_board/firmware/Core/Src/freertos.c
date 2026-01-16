@@ -22,7 +22,6 @@
 #include "task.h"
 #include "cubemx_main.h"
 #include "cmsis_os.h"
-#include "controltime.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */

@@ -10,7 +10,7 @@ extern ExtU rtU;
 extern ExtY rtY;// Simulink output
 extern TIM_HandleTypeDef htim2;//from main
 extern TIM_HandleTypeDef htim3;//from main
-#define MAX_BLDC_PWM 4095// 12-bit resolution
+#define MAX_BLDC_PWM 65535// 16-bit resolution
 #define MAX_BLDC_VOLTAGE 24.0
 
 void set_bldc_pwm(void){
