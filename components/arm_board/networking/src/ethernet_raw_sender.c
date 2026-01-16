@@ -41,12 +41,14 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
       if (err_default != ERR_OK) {
         LOGE(TAG, "Could not send the message: %s", lwip_strerr(err_default));
         free(frame);
+        pbuf_free(txBuf);
         return RESULT_FAIL;
       }
     } else {
       err = RESULT_ERR_COMMS;
       LOGE(TAG, "Connection is not up: %s \n", result_to_short_str(err));
       free(frame);
+      pbuf_free(txBuf);
       return err;
     }
     pbuf_free(txBuf);

@@ -47,6 +47,7 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
       return RESULT_ERR_COMMS;
     }
   }
+  pbuf_free(txBuf);
   return RESULT_OK;
 }
 
