@@ -36,6 +36,10 @@ result_t pb_contorl_initialize(uint16_t *packet_types,
                                packet_handler_t *handlers,
                                uint16_t num_packet_types);
 
+
+
+// 0x00 0x00 -> Protobuf 
+
 /**
  * @brief Process an incoming packet and dispatch to the registered handler.
  *
