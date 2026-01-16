@@ -75,7 +75,7 @@ void init_board() {
   }
 }
 
-void pwm_test(){
+void pwm_test(){//gradually increases decreases pwm duty cycle
   
   int32_t CH1_DC = 0;
 
@@ -94,7 +94,7 @@ void pwm_test(){
     }
     while(CH1_DC > 0)
     {
-        TIM2->CCR1 = CH1_DC;
+        TIM2->CCR1 = CH1_DC;//were writing directly to hardware register so method for updating pwm is not needed
         CH1_DC -= 70;
         HAL_Delay(1);
     }
