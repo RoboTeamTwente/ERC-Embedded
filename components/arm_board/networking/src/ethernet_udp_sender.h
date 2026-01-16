@@ -2,6 +2,7 @@
 #define ETHERNET_UDP_SENDER
 
 #include "err.h"
+#include "result.h"
 #include "udp.h"
 #include <stdint.h>
 
@@ -15,8 +16,8 @@
  *
  * @return error
  */
-err_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
-                      char *payload);
+result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
+                         char *payload);
 
 /**
  * @brief Initializes the udp client
@@ -26,6 +27,6 @@ err_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
  *
  * @return error
  */
-err_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4]);
+result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4]);
 
 #endif // !ETHERNET_UDP_SENDER

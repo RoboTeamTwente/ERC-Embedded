@@ -6,21 +6,20 @@
 #include "logging.h"
 #include "netif.h"
 #include "pbuf.h"
+#include "result.h"
 #include <stdint.h>
 #include <string.h>
-#include "result.h"
 
-#define TAG "stm32_eth_packet"
-
+#define TAG "stm32_raw_eth_packet"
 
 result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
-                      uint8_t mac_address[6], char *payload) {
+                         uint8_t mac_address[6], char *payload) {
   result_t err = RESULT_OK;
   size_t payload_len = strlen(payload);
   size_t data_size = sizeof(ethernet_frame_t) + strlen(payload);
 
   ethernet_frame_t *frame = malloc(data_size);
-  if (!frame){
+  if (!frame) {
     err = RESULT_ERR_NO_MEM;
     LOGE("Could not send the message: %s \n", result_to_short_str(err));
     return err;
@@ -39,21 +38,19 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
 
     if (netif_is_link_up(netif)) {
       err_t err_default = netif->linkoutput(netif, txBuf);
-      if(err_default != ERR_OK){
-        LOGE(TAG, "Could not send the message: RESULT_FAIL");
+      if (err_default != ERR_OK) {
+        LOGE(TAG, "Could not send the message: %s", lwip_strerr(err_default));
         free(frame);
         return RESULT_FAIL;
       }
-    }
-    else{
+    } else {
       err = RESULT_ERR_COMMS;
       LOGE(TAG, "Connection is not up: %s \n", result_to_short_str(err));
       free(frame);
       return err;
     }
     pbuf_free(txBuf);
-  }
-  else{
+  } else {
     err = RESULT_ERR_BUFF;
     LOGE(TAG, "Could not send the message: %s \n", result_to_short_str(err));
   }

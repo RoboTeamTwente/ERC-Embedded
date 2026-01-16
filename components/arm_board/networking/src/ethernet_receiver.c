@@ -2,12 +2,12 @@
 #include "cmsis_os2.h"
 #include "logging.h"
 #include "pbuf.h"
+#include "queue.h"
 #include "stm32h7xx_hal_eth.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "queue.h"
 
 #define TAG "etherent_receiver"
 #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
@@ -17,15 +17,13 @@ extern ETH_HandleTypeDef heth;
 receiver_callback r_callback;
 QueueHandle_t receiveQueue;
 
-
 u8_t eth_reader(struct netif *netif, struct pbuf *p) {
-    r_callback(p->payload, p->len);
-    //HAL_Delay(100);
-    //pbuf_free(p);
-    return 1; //not handled, we never handle it, because I have no clue what I am doing
+  r_callback(p->payload, p->len);
+  // HAL_Delay(100);
+  // pbuf_free(p);
+  return 1; // not handled, we never handle it, because I have no clue what I am
+            // doing
 }
-
-
 
 /**
  * @brief creates a hexstring from bytes
@@ -58,22 +56,10 @@ void ETH_receiver_callback_example(void *payload, size_t length) {
   free(data);
 }
 
-
 void ETH_set_receiver_callback(receiver_callback callback) {
-  if (callback != NULL){
+  if (callback != NULL) {
     r_callback = callback;
-  }else {
+  } else {
     r_callback = ETH_receiver_callback_example;
   }
-
-
 }
-
-
-
-
-
-
-
-
-
