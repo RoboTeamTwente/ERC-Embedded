@@ -4,7 +4,7 @@
 
 void LOG_init(void *arg) {}
 
-void LOG(LogLevel level, char *TAG, char *log_message, ...) {
+void LOG(LogLevel level, const char *TAG, const char *log_message, ...) {
   fprintf(stderr, "[%s] %s: ", TAG, log_level_to_string(level));
   va_list args;
   va_start(args, log_message);

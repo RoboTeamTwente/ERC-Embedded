@@ -38,7 +38,7 @@ void LOG_init(void *arg);
  * @param log_message The message to be send
  * @param ... The variables to be added to the log message
  */
-void LOG(LogLevel level, char *TAG, char *log_message, ...);
+void LOG(LogLevel level, const char *TAG, const char *log_message, ...);
 
 // if config_log_level not defined from the compiler, use log level info
 #ifndef CONFIG_LOG_LEVEL

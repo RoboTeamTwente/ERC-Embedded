@@ -36,7 +36,7 @@ void LOG_init(void *arg) {
   LOG(LOG_INFO, "LOGGING", "Logging Initialized");
 }
 
-void LOG(LogLevel level, char *TAG, char *log_message, ...) {
+void LOG(LogLevel level, const char *TAG, const char *log_message, ...) {
   if (initialized == 0) {
     // Early return in case huart_handler is not set;
     return;
