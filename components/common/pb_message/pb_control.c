@@ -2,6 +2,13 @@
 #include "result.h"
 #include <stdbool.h>
 
+#ifdef UNIT_TEST
+void pb_control_test_reset(void) {
+  memset(DispatchTable, 0, sizeof(DispatchTable));
+  DispachTableSize = 0;
+}
+#endif
+
 result_t pb_control_initialize(uint16_t *packet_types,
                                packet_handler_t *handlers,
                                uint16_t num_packet_types) {
@@ -78,3 +85,5 @@ result_t pb_control_process_incoming_packet(const uint8_t *packet_data,
   }
   return RESULT_ERR_NOT_FOUND;
 }
+
+bool pb_control_is_initialized(void) { return DispachTableSize > 0; }
