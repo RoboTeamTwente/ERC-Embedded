@@ -1,6 +1,8 @@
 #include "ethernet_receiver.h"
+#include "FreeRTOS.h"
 #include "cmsis_os2.h"
 #include "logging.h"
+#include "netif.h"
 #include "pbuf.h"
 #include "queue.h"
 #include "stm32h7xx_hal_eth.h"
@@ -8,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #define TAG "etherent_receiver"
 #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
 

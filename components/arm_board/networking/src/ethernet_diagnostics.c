@@ -1,12 +1,11 @@
 #include "ethernet_diagnostics.h"
 #include "ethernetif.h"
 #include "logging.h"
+#include "netif.h"
 #include <time.h>
-
 #define TAG "ethernet_diagnostics"
 
 extern struct netif gnetif;
-
 
 void ethernet_linkstatus_callback_default(struct netif *netif) {
   if (netif_is_up(netif)) {
@@ -16,10 +15,9 @@ void ethernet_linkstatus_callback_default(struct netif *netif) {
   }
 }
 
-void ETH_diagnostic_callback_init(struct netif *netif,
-                                  linkstatus_callback_t callback) {
+void ETH_diagnostic_callback_init(void *netif, linkstatus_callback_t callback) {
   if (callback != NULL) {
-    netif_set_link_callback(netif, callback);
+    netif_set_link_callback(netif, (void (*)(struct netif *netif))callback);
     return;
   }
 
