@@ -1,5 +1,5 @@
 [platformio]
-default_envs = arm_board
+default_envs = network_board
 src_dir = .
 lib_dir = lib
 
@@ -25,8 +25,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
-custom_nanopb_protos = +<proto/${this.__env__}.proto>
-    +<proto/common.proto>
+
 lib_deps = ${extra.common_lib_deps}
 build_flags=
     +<components/network_board/**>
