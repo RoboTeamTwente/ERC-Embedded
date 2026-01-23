@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+import "common.proto";
+
+// GPS fix information enum
+enum GPSFixQuality {
+  NO_FIX = 0;
+  GPS_FIX = 1;
+  DGPS_FIX = 2;
+  PPS_FIX = 3;
+  RTK_FIX = 4;
+  RTK_FLOAT = 5;
+}
+
+message GPSSensorInformation {
+  // GPS coordinates
+  double latitude = 1; // Degrees (positive = North, negative = South)
+  double longitude = 2; // Degrees (positive = East, negative = West)
+  float altitude = 3; // Meters above sea level
+  
+  // Velocity data
+  float speed = 4; // Speed in meters per second
+  float heading = 5; // Course over ground in degrees (0-360)
+  
+  // Position accuracy and quality
+  float hdop = 6; // Horizontal dilution of precision (lower is better)
+  float vdop = 7; // Vertical dilution of precision (lower is better)
+  int32 satellites = 8; // Number of satellites in view (GPS-310FS tracks up to 16)
+  
+  GPSFixQuality fix_quality = 9;
+  
+  SensorState state = 10;
+  string error_message = 11; // Description of error if state is SENSOR_ERROR
+  
+  // Timestamp from GPS (in terms of UTC)
+  int64 utc_timestamp = 12; // Unix timestamp in milliseconds
+}
