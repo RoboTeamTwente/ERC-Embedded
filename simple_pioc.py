@@ -49,7 +49,7 @@ def parse_pio_file(input_file_path, result_file_path):
         with open(output_file, "a") as outputf:
             while line := inputf.readline():
                 if(line.startswith(env_syntax[0])):
-                    board_folder = line.strip().lstrip(env_syntax[0]).rstrip(env_syntax[1])
+                    board_folder = line.strip().removeprefix(env_syntax[0]).removesuffix(env_syntax[1])
                 if(line.startswith(build_flags_tag)):
                     outputf.write(line)
                     patterns = []
