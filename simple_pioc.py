@@ -15,7 +15,7 @@ def return_paths(glob_patterns):
     added_path_lists = []
     print(glob_patterns)
     for glob_pattern in glob_patterns:
-        paths = [remove_slash(f) for f in glob.glob(glob_pattern[1:],recursive=True) if os.path.isdir(f)]
+        paths = [remove_slash(f).replace("\\","/") for f in glob.glob(glob_pattern[1:],recursive=True) if os.path.isdir(f)]
         if glob_pattern[0] == "+":
             added_path_lists.extend(paths)
         else:
