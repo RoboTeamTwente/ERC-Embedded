@@ -2,6 +2,7 @@ OS_TYPE=$(uname -s)
 MV_CMD="mv"
 set -euo pipefail
 BASE="../components"
+COMMON_COMPONENT="common"
 GENERATED_BOARDS=()
 # Rename files
 
@@ -31,29 +32,36 @@ done < <(find "$BASE" -type f)
 find "$BASE" -type d -name firmware_definitions | while read -r FW_DIR; do
     BOARD_DIR_PATH="$(dirname "$FW_DIR")"
     BOARD_DIR="${BOARD_DIR_PATH#"$BASE"/}"
-
-    if printf '%s\n' "${GENERATED_BOARDS[@]}" | grep -Fx "$BOARD_DIR" > /dev/null; then
-      CUBEMX_FILE="$BOARD_DIR_PATH/firmware/Core/Inc/cubemx_main.h"
-
-      # Skip if cubemx file does not exist
-      [[ -f "$CUBEMX_FILE" ]] || continue
-
-      echo "Appending firmware_definitions to: $CUBEMX_FILE"
-
-      TMP_FILE="$(mktemp)"
-
-      head -n -1 "$CUBEMX_FILE" >> "$TMP_FILE"
+    if printf '%s\n' "$COMMON_COMPONENT" "${GENERATED_BOARDS[@]}" | grep -Fx "$BOARD_DIR" > /dev/null; then
+      BOARD_DIR_PATHS=("$BOARD_DIR_PATH")
     
-      echo -e "\n/* ---- START firmware_definitions ---- */\n" >> "$TMP_FILE"
-      find "$FW_DIR" -type f -exec cat {} \; >> "$TMP_FILE"
-      echo -e "\n/* ---- END firmware_definitions ---- */\n" >> "$TMP_FILE"
+      if [[ "$BOARD_DIR" == "$COMMON_COMPONENT" ]]; then  
+        BOARD_DIR_PATHS=(${GENERATED_BOARDS[@]/#/"$BASE"/})
+      fi  
+      for BOARD_DIR_PATH in "${BOARD_DIR_PATHS[@]}"; do
+      
+        CUBEMX_FILE="$BOARD_DIR_PATH/firmware/Core/Inc/cubemx_main.h"
 
-      tail -n -1 "$CUBEMX_FILE" >> "$TMP_FILE"
+        # Skip if cubemx file does not exist
+        [[ -f "$CUBEMX_FILE" ]] || continue
+
+        echo "Appending firmware_definitions to: $CUBEMX_FILE"
+
+        TMP_FILE="$(mktemp)"
+
+        head -n -1 "$CUBEMX_FILE" >> "$TMP_FILE"
+    
+        echo -e "\n/* ---- START firmware_definitions ---- */\n" >> "$TMP_FILE"
+        find "$FW_DIR" -type f -exec cat {} \; >> "$TMP_FILE"
+        echo -e "\n/* ---- END firmware_definitions ---- */\n" >> "$TMP_FILE"
+
+        tail -n -1 "$CUBEMX_FILE" >> "$TMP_FILE"
 
 
 
-      # 3) Replace original file
-      mv "$TMP_FILE" "$CUBEMX_FILE"
+        # 3) Replace original file
+        mv "$TMP_FILE" "$CUBEMX_FILE"
+      done 
     fi
 done
 
