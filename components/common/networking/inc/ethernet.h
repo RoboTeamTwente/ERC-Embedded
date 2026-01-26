@@ -6,9 +6,6 @@
 #include "ethernet_diagnostics.h"
 #include "ethernet_receiver.h"
 
-
-
-
 /**
  * @brief Initializes ethernet
  *
@@ -34,7 +31,6 @@ void ETH_udp_init();
  * @param payload  payload of the message
  */
 void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload);
-
 
 /**
  * @brief Sets registers for perfect mac filtering

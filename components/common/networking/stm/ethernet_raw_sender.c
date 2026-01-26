@@ -12,6 +12,9 @@
 
 #define TAG "stm32_raw_eth_packet"
 
+
+
+
 result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
                          uint8_t mac_address[6], char *payload) {
   result_t err = RESULT_OK;
@@ -34,7 +37,12 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
   txBuf = pbuf_alloc(PBUF_RAW, data_size, PBUF_RAM);
 
   if (txBuf != NULL) {
-    memcpy(txBuf->payload, frame, data_size);
+    err = pbuf_take(txBuf, frame, data_size);
+    if (err != ERR_OK) {
+      LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
+      pbuf_free(txBuf);
+      return RESULT_ERR_BUFF;
+    }
 
     if (netif_is_link_up(netif)) {
       err_t err_default = netif->linkoutput(netif, txBuf);
@@ -52,6 +60,7 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
       return err;
     }
     pbuf_free(txBuf);
+    pbuf_free(txBuf);
   } else {
     err = RESULT_ERR_BUFF;
     LOGE(TAG, "Could not send the message: %s \n", result_to_short_str(err));
@@ -59,3 +68,5 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
   free(frame);
   return err;
 }
+
+
