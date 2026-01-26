@@ -1,12 +1,12 @@
 #ifndef UNIT_TEST
 #include "button_matrix_driver.h"
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
+#include "components/main_board/menu_driver/inc/menu_driver_conf.h"
+#include "components/main_board/menu_driver/inc/menu_driver_icons.h"
 #include "cubemx_main.h"
 #include "gpio.h"
 #include "ili9341.h"
 #include "ili9341_fonts.h"
-#include "components/main_board/menu_driver/inc/menu_driver_conf.h"
-#include "components/main_board/menu_driver/inc/menu_driver_icons.h"
 #include "logging.h"
 #include "main_board.pb.h"
 #include "menu_driver.h"
@@ -16,6 +16,10 @@
 #include "pb_message.h"
 #include "result.h"
 #include "string.h"
+
+#include "FreeRTOS.h"
+#include "bucketed_pqueue.h"
+#include "task.h"
 
 static char *TAG = "MAIN";
 
@@ -35,41 +39,106 @@ const osThreadAttr_t mainTask_attributes = {
     .stack_size = 1024 * 2,
     .priority = (osPriority_t)osPriorityNormal,
 };
+typedef struct {
+  uint32_t seq;
+  uint32_t tick;
+  uint32_t payload;
+} test_item_t;
 
-void main() {
-  SCB_EnableICache();
-  SCB_EnableDCache();
+#define BQ_NUM_BUCKETS (4U)
+#define BQ_BUCKET_LEN (8U) /* items per bucket */
+#define PRODUCER_PERIOD_MS (50U)
+#define CONSUMER_PERIOD_MS (10U) /* Static backing buffer for queue storage */
 
-  HAL_Init();
-  SystemClock_Config();
+typedef struct {
+  uint32_t seq;
+  uint8_t prio;
+  uint32_t tick;
+} bq_item_t;
 
-  MX_GPIO_Init();
-  MX_SPI1_Init();
+/* ---------- Globals ---------- */
 
-  HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_RESET); // CS OFF
+static QueueHandle_t g_buckets[BQ_NUM_BUCKETS];
+static bucketed_pqueue_t g_bq;
 
-  /* Initialize COM1 port */
+static void vBQProducerTask(void *arg) {
+  (void)arg;
 
-  BspCOMInit.BaudRate = 115200;
-  BspCOMInit.WordLength = COM_WORDLENGTH_8B;
-  BspCOMInit.StopBits = COM_STOPBITS_1;
-  BspCOMInit.Parity = COM_PARITY_NONE;
-  BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
+  uint32_t seq = 0U;
 
-  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
-    Error_Handler();
-  }
+  for (;;) {
+    bq_item_t item;
+    item.seq = seq++;
+    item.tick = (uint32_t)xTaskGetTickCount();
 
-  MX_USART3_Init(&huart_com, &BspCOMInit);
-  LOG_init(&huart_com);
+    /* Simple pattern: cycle priorities 0..(N-1) */
+    item.prio = (uint8_t)(item.seq % BQ_NUM_BUCKETS);
 
-  osKernelInitialize();
-  osThreadNew(MainTask, NULL, &mainTask_attributes);
-  osKernelStart();
+    /* Try enqueue; keep it non-blocking for interactive testing */
+    result_t r = bucketed_pqueue_push(&g_bq, item.prio, &item, 0U);
 
-  while (1) {
+    if (r == RESULT_OK) {
+      LOGI("push prio=%u seq=%lu tick=%lu", (unsigned)item.prio,
+           (unsigned long)item.seq, (unsigned long)item.tick);
+    } else if (r == RESULT_ERR_OVERFLOW) {
+      LOGE("push overflow prio=%u", (unsigned)item.prio);
+    } else {
+      LOGE("push err=%d", (int)r);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(PRODUCER_PERIOD_MS));
   }
 }
+
+static void vBQConsumerTask(void *arg) {
+  (void)arg;
+
+  uint32_t last_seq[BQ_NUM_BUCKETS] = {0U};
+  uint8_t seen[BQ_NUM_BUCKETS] = {0U};
+
+  for (;;) {
+    bq_item_t item;
+
+    result_t r = bucketed_pqueue_pop(&g_bq, &item);
+    if (r == RESULT_OK) {
+      /* Per-priority monotonic check (basic sanity) */
+      if (seen[item.prio] != 0U && item.seq <= last_seq[item.prio]) {
+        LOGE("order violation prio=%u seq=%lu last=%lu", (unsigned)item.prio,
+             (unsigned long)item.seq, (unsigned long)last_seq[item.prio]);
+      }
+      last_seq[item.prio] = item.seq;
+      seen[item.prio] = 1U;
+
+      LOGI("pop  prio=%u seq=%lu tick=%lu now=%lu", (unsigned)item.prio,
+           (unsigned long)item.seq, (unsigned long)item.tick,
+           (unsigned long)xTaskGetTickCount());
+    } else if (r != RESULT_ERR_NOT_FOUND) {
+      LOGE("pop err=%d", (int)r);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(CONSUMER_PERIOD_MS));
+  }
+}
+
+static void vBQNotifyConsumerTask(void *arg) {
+  (void)arg;
+
+  for (;;) {
+    /* Wait until at least one push notifies us */
+    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    for (;;) {
+      bq_item_t item;
+      result_t r = bucketed_pqueue_pop(&g_bq, &item);
+      if (r != RESULT_OK) {
+        break;
+      }
+      LOGI("pop(notify) prio=%u seq=%lu", (unsigned)item.prio,
+           (unsigned long)item.seq);
+    }
+  }
+}
+
 SPI_HandleTypeDef hspi1;
 static const uint8_t main_menu_icons[3][MENU_DRIVER_ICON_BYTE_SIZE] = {
     {0xff, 0xe3, 0xff, 0xff, 0xff, 0xc3, 0xff, 0xff, 0xff, 0xc3, 0xff, 0xff,
@@ -132,6 +201,7 @@ static menu_manager_t manager = {
     .pages = &pages,
     .get_input = 0,
 };
+
 void MainTask(void *argument) {
   LOGI(TAG, "Starting Main Task\n");
   LOGI(TAG, "Initializing ILI9341\n");
@@ -177,4 +247,64 @@ void MainTask(void *argument) {
   }
 }
 
+void main() {
+  SCB_EnableICache();
+  SCB_EnableDCache();
+
+  HAL_Init();
+
+  MX_GPIO_Init();
+  SystemClock_Config();
+  MX_SPI1_Init();
+
+  HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_RESET); // CS OFF
+
+  /* Initialize COM1 port */
+
+  BspCOMInit.BaudRate = 115200;
+  BspCOMInit.WordLength = COM_WORDLENGTH_8B;
+  BspCOMInit.StopBits = COM_STOPBITS_1;
+  BspCOMInit.Parity = COM_PARITY_NONE;
+  BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
+
+  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
+    Error_Handler();
+  }
+
+  MX_USART3_Init(&huart_com, &BspCOMInit);
+  LOG_init(&huart_com);
+
+  osKernelInitialize();
+  LOGI(TAG, "Kernel Initialized");
+  for (uint8_t i = 0U; i < BQ_NUM_BUCKETS; i++) {
+    g_buckets[i] = xQueueCreate(BQ_BUCKET_LEN, sizeof(bq_item_t));
+    if (g_buckets[i] == NULL) {
+      LOGE("xQueueCreate failed for bucket %u", (unsigned)i);
+      for (;;) {
+      }
+    }
+  }
+
+  /* Option A: polling consumer */
+  {
+    TaskHandle_t cons_handle = NULL;
+    (void)xTaskCreate(vBQNotifyConsumerTask, "bq_ncons", 512U, NULL, 2U,
+                      &cons_handle);
+
+    result_t r =
+        bucketed_pqueue_init(&g_bq, g_buckets, BQ_NUM_BUCKETS, cons_handle);
+    if (r != RESULT_OK) {
+      for (;;) {
+      }
+    }
+
+    (void)xTaskCreate(vBQProducerTask, "bq_prod", 512U, NULL, 1U, NULL);
+  }
+  osKernelStart();
+
+  while (1) {
+  }
+}
+
 #endif //! UNIT_TEST
+//
