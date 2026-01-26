@@ -163,7 +163,7 @@ void MainTask(void *argument) {
 
     
 
-    //control_step();
+    control_step();
     rtU.dist2goal = 10.0; // meters
     rtU.steerang = 30.0;
     /**
@@ -181,7 +181,7 @@ void MainTask(void *argument) {
 
     LOGI(TAG, "This is the driving board");
     osDelay(1000);
-    //pwm_test();
+    pwm_test();
   }
 }
 
