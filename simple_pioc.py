@@ -15,7 +15,7 @@ def return_paths(glob_patterns):
     added_path_lists = []
     print(glob_patterns)
     for glob_pattern in glob_patterns:
-        paths = [remove_slash(f) for f in glob.glob(glob_pattern[1:],recursive=True) if os.path.isdir(f)]
+        paths = [remove_slash(f).replace("\\","/") for f in glob.glob(glob_pattern[1:],recursive=True) if os.path.isdir(f)]
         if glob_pattern[0] == "+":
             added_path_lists.extend(paths)
         else:
@@ -49,7 +49,7 @@ def parse_pio_file(input_file_path, result_file_path):
         with open(output_file, "a") as outputf:
             while line := inputf.readline():
                 if(line.startswith(env_syntax[0])):
-                    board_folder = line.strip().lstrip(env_syntax[0]).rstrip(env_syntax[1])
+                    board_folder = line.strip().removeprefix(env_syntax[0]).removesuffix(env_syntax[1])
                 if(line.startswith(build_flags_tag)):
                     outputf.write(line)
                     patterns = []

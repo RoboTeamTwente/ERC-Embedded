@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+// Common sensor state enum used across all sensors
+enum SensorState {
+  SENSOR_IDLE = 0;
+  SENSOR_OPERATING = 1;
+  SENSOR_CALIBRATING = 2;
+  SENSOR_ERROR = 3;
+  SENSOR_NOT_CONNECTED = 4;
+}

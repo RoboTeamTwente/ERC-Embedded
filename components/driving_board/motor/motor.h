@@ -1,8 +1,9 @@
 #ifndef MOTOR_H
 #define MOTOR_H
+#include "result.h"
 
-#define NUM_MOTORS 10
-
+#define NUM_MOTORS_SPEED 6
+#define NUM_MOTORS_STEERING 4
 typedef struct {
     float motor_id;
     float actspeed;
@@ -27,17 +28,40 @@ typedef struct {
 /**
 @brief initializes the motor by setting all fields of the motor_t struct to 0
  */
-result_t motor_init(motor_t *motors);
+result_t driving_system_init(driving_system_t *driving_system);
+
+result_t motor_speed_init(motor_speed_t *motors);
+
+result_t motor_steering_init(motor_steering_t *motors);
 
 /**
 @brief for a specific motor defined by index sets all field in the motor_t struct in the motors array
 @param pointer to the motors array
 @param index of the motor
 */
-result_t motor_update(motor_t *motors, int index,
-                  float distance_to_go,
-                  float turning_radius,
-                  float turning_angle);
+result_t driving_system_update(driving_system_t *driving_system,
+                 float distance_to_go,
+                 float turning_radius,
+                 float turning_angle, float state);
+
+                  /**
+@brief for a specific motor defined by index sets all field in the motor_t struct in the motors array
+@param pointer to the motors array
+@param index of the motor
+*/
+result_t motor_steering_update(motor_steering_t *motors, int index,
+                 float actangle,
+                 float desang,
+                 float pwnenable, float pwmrev);
+
+                  /**
+@brief for a specific motor defined by index sets all field in the motor_t struct in the motors array
+@param pointer to the motors array
+@param index of the motor
+*/
+result_t motor_speed_update(motor_speed_t *motors, int index,
+                 float actspeed,
+                 float controlvar);
 typedef struct {
     float motor_id;
     float current;

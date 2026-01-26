@@ -20,7 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
 #include "task.h"
-#include "cubemx_main.h"
+#include "main.h"
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/

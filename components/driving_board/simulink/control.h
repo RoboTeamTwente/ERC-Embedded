@@ -63,7 +63,8 @@ typedef struct {
   real_T controlb[6];                  /* '<Root>/controlb' */
   real_T desang[4];                    /* '<Root>/desang' */
   real_T pwnenable[4];                 /* '<Root>/pwnenable' */
-  real_T pwmrev[4];                    /* '<Root>/pwmrev' */
+  real_T pwmrev[4];     
+               /* '<Root>/pwmrev' */
 } ExtY;
 
 /* Real-time Model Data Structure */

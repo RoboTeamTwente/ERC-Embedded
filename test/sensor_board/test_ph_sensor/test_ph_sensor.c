@@ -1,7 +1,15 @@
- #include "ph_sensor.h"
+/**
+ * Sensor used- PH meter SKU SEN0161
+ * @file test_ph_sensor.c
+ * @brief Unit tests for pH sensor functionality using Unity framework.
+ */
+
+#include "ph_sensor.h"
 #include "logging.h"
 #include <math.h>
 #include <unity.h>
+
+#define TAG "PH_TEST"
 
 static ph_sensor_t sensor;
 static const float reference_voltage = 3.3f;
@@ -14,6 +22,7 @@ void tearDown(void) {
 }
 
 void test_ph_sensor_init_sets_defaults(void) {
+    LOGI(TAG, "Starting test: %s", __func__);
     TEST_ASSERT_EQUAL_UINT16(0u, sensor.raw_value);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, sensor.voltage);
     TEST_ASSERT_EQUAL_FLOAT(7.0f, sensor.ph_value);
@@ -21,6 +30,7 @@ void test_ph_sensor_init_sets_defaults(void) {
 }
 
 void test_ph_sensor_update_converts_voltage_to_ph(void) {
+    LOGI(TAG, "Starting test: %s", __func__);
     // This ADC value should result in a pH around 4.0
     const uint16_t adc_value = 2150u; 
     const uint16_t adc_max = 4095u;
@@ -82,6 +92,7 @@ void test_ph_sensor_calibration_adjusts_measurement(void) {
 }
 
 int main(void) {
+    LOG_init(NULL);
     UNITY_BEGIN();
     RUN_TEST(test_ph_sensor_init_sets_defaults);
     RUN_TEST(test_ph_sensor_update_converts_voltage_to_ph);

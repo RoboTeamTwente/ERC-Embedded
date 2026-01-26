@@ -38,12 +38,10 @@ result_t validate_accelerometer_value(float accel_value) {
 
 // Validate all three axes of accelerometer data
 result_t validate_imu_data(float accel_x, float accel_y, float accel_z) {
-    if (validate_accelerometer_value(accel_x) == RESULT_OK &&
-        validate_accelerometer_value(accel_y) == RESULT_OK &&
-        validate_accelerometer_value(accel_z) == RESULT_OK) {
-        return RESULT_OK;
-    }
-    return RESULT_ERR_INVALID_DATA;
+    TRY(validate_accelerometer_value(accel_x));
+    TRY(validate_accelerometer_value(accel_y));
+    TRY(validate_accelerometer_value(accel_z));
+    return RESULT_OK;
 }
 
 // result_t bar_to_psi(float bar, float *psi) {

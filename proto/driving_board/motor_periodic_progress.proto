@@ -1,0 +1,3 @@
+message DrivingBoardMotorPeriodicProgress {
+  float distance_left = 1;
+}

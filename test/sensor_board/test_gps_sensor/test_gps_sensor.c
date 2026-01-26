@@ -6,9 +6,12 @@
 
 #include "gps_sensor.h"
 #include "sensor_basics.h"
+#include "logging.h"
 #include <unity.h>
 #include <math.h>
 #include <string.h>
+
+#define TAG "GPS_TEST"
 
 // Test GPS sensors
 static gps_data_t gps1, gps2;
@@ -23,8 +26,13 @@ void tearDown(void) {
 
 // Test GPS sensor initialization
 void test_gps_sensor_init_sets_defaults(void) {
+    LOGI(TAG, "Starting test: %s", __func__);
     gps_data_t gps;
     result_t result = gps_sensor_init(&gps);
+    
+    if (result != RESULT_OK) {
+        LOGE(TAG, "gps_sensor_init failed: %s", result_to_short_str(result));
+    }
     
     TEST_ASSERT_EQUAL(RESULT_OK, result);
     TEST_ASSERT_EQUAL_DOUBLE(0.0, gps.latitude);
@@ -41,6 +49,7 @@ void test_gps_sensor_init_sets_defaults(void) {
 
 // Test GPS sensor update with valid data
 void test_gps_sensor_update_valid_data(void) {
+    LOGI(TAG, "Starting test: %s", __func__);
     // Update with valid GPS data (Enschede, Netherlands coordinates)
     result_t result = gps_sensor_update(&gps1, 
                                        52.2215,    // latitude
@@ -54,6 +63,9 @@ void test_gps_sensor_update_valid_data(void) {
                                        GPS_GPS_FIX,
                                        1700000000000LL);
     
+    if (result != RESULT_OK) {
+        LOGE(TAG, "gps_sensor_update failed: %s", result_to_short_str(result));
+    }
     TEST_ASSERT_EQUAL(RESULT_OK, result);
     TEST_ASSERT_DOUBLE_WITHIN(0.0001, 52.2215, gps1.latitude);
     TEST_ASSERT_DOUBLE_WITHIN(0.0001, 6.8937, gps1.longitude);
@@ -226,6 +238,7 @@ void test_sensor_basics_gps_validation(void) {
 }
 
 int main(void) {
+    LOG_init(NULL);
     UNITY_BEGIN();
     
     RUN_TEST(test_gps_sensor_init_sets_defaults);

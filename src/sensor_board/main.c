@@ -10,7 +10,7 @@
 #include "gps_sensor.h"
 #include "sensor_basics.h"
 
-#define MAIN_TASK_DELAY_MS 1000
+#define MAIN_TASK_DELAY_MS 5000
 
 static char *TAG = "MAIN";
 
@@ -27,7 +27,7 @@ void MainTask(void *argument);
 // Task attributes for CMSIS-RTOS v2
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
-    .stack_size = 256 * 4,
+    .stack_size = 512 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
 
@@ -59,7 +59,7 @@ void init_board() {
 int main(void) { init_board(); }
 /**
  * @brief  Main application task
- * @param  argument: Not used
+ * @param  argument: Not used currently
  * @retval None
  */
 void MainTask(void *argument) {
@@ -76,38 +76,91 @@ void MainTask(void *argument) {
 
   gps_data_t gps_data;
   gps_sensor_init(&gps_data);
-  
 
   BSP_LED_Toggle(LED_GREEN);
+  
+  uint32_t loop_count = 0;
+  LOGI(TAG, "Starting main sensor loop...");
 
   while (1) {
+    loop_count++;
+    LOGI(TAG, "Loop iteration: %lu", loop_count);
     BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
     BSP_LED_Toggle(LED_RED);
 
-    // Example: Read pH sensor (simulated ADC value)
-    float ph_value;
+    LOGI(TAG, "========== Sensor Board Reading ==========");
+
+    // Read and log pH sensor
+    float ph_value, ph_voltage;
     poll_ph_sensor(&ph_sensor);
     if (ph_sensor_get_value(&ph_sensor, &ph_value) == RESULT_OK) {
+      ph_sensor_get_voltage(&ph_sensor, &ph_voltage);
       if (validate_ph_value(ph_value) == RESULT_OK) {
-        LOGI(TAG, "pH Value: %.2f", ph_value);
+        LOGI(TAG, "pH Sensor - Value: %.2f, Voltage: %.3fV", ph_value, ph_voltage);
+      } else {
+        LOGW(TAG, "pH Sensor - Invalid value: %.2f", ph_value);
       }
+    } else {
+      LOGE(TAG, "pH Sensor - Failed to read");
     }
 
-    // Example: Update and Log GPS data
+    // Read and log GPS data
     poll_gps_sensor(&gps_data);
     double lat, lon;
-    if (gps_sensor_get_coordinates(&gps_data, &lat, &lon) == RESULT_OK) {
-      LOGI(TAG, "GPS: Lat: %.6f, Lon: %.6f", lat, lon);
+    float altitude, speed, heading;
+    gps_fix_quality_t fix_quality;
+    int32_t satellites;
+    bool gps_valid;
+    
+    if (gps_sensor_is_valid(&gps_data, &gps_valid) == RESULT_OK && gps_valid) {
+      if (gps_sensor_get_coordinates(&gps_data, &lat, &lon) == RESULT_OK) {
+        LOGI(TAG, "GPS - Lat: %.6f°, Lon: %.6f°", lat, lon);
+      }
+      if (gps_sensor_get_altitude(&gps_data, &altitude) == RESULT_OK) {
+        LOGI(TAG, "GPS - Altitude: %.2f m", altitude);
+      }
+      if (gps_sensor_get_velocity(&gps_data, &speed, &heading) == RESULT_OK) {
+        LOGI(TAG, "GPS - Speed: %.2f m/s, Heading: %.1f°", speed, heading);
+      }
+      if (gps_sensor_get_fix_info(&gps_data, &fix_quality, &satellites) == RESULT_OK) {
+        LOGI(TAG, "GPS - Fix Quality: %d, Satellites: %ld", fix_quality, satellites);
+      }
+      LOGI(TAG, "GPS - HDOP: %.2f, VDOP: %.2f", gps_data.hdop, gps_data.vdop);
+    } else {
+      LOGW(TAG, "GPS - No valid values");
     }
     
-    // Example: Log IMU data
+    // Read and log IMU data
     poll_imu_sensor(&imu_data);
-    LOGI(TAG, "IMU Accel: [%.2f, %.2f, %.2f]", imu_data.accel[0],
-         imu_data.accel[1], imu_data.accel[2]);
+    LOGI(TAG, "IMU - Accel (m/s²): X=%.2f, Y=%.2f, Z=%.2f", 
+         imu_data.accel[0], imu_data.accel[1], imu_data.accel[2]);
+    LOGI(TAG, "IMU - Gyro (°/s): X=%.2f, Y=%.2f, Z=%.2f", 
+         imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2]);
+    LOGI(TAG, "IMU - Mag (µT): X=%.2f, Y=%.2f, Z=%.2f", 
+         imu_data.mag[0], imu_data.mag[1], imu_data.mag[2]);
+    
+    float pitch = imu_get_pitch(&imu_data);
+    float roll = imu_get_roll(&imu_data);
+    float accel_mag = imu_get_acceleration_magnitude(&imu_data);
+    LOGI(TAG, "IMU - Pitch: %.2f°, Roll: %.2f°, Accel Mag: %.2f m/s²", 
+         pitch, roll, accel_mag);
+    
+    if (!imu_validate_accelerometer_range(&imu_data)) {
+      LOGW(TAG, "IMU - Accelerometer out of range");
+    }
+    if (!imu_validate_gyroscope_range(&imu_data)) {
+      LOGW(TAG, "IMU - Gyroscope out of range");
+    }
+    if (!imu_validate_magnetometer_range(&imu_data)) {
+      LOGW(TAG, "IMU - Magnetometer out of range");
+    }
 
-    LOGI(TAG, "This is the sensor board");
+    LOGI(TAG, "==========================================");
+    // LOGI(TAG, "Delaying for 5 seconds...");
+    // LOGI(TAG, " ");
     osDelay(MAIN_TASK_DELAY_MS);
+    // LOGI(TAG, "Delay complete, continuing loop...");
   }
 }
 

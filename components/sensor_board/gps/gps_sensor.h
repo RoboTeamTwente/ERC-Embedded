@@ -7,6 +7,8 @@
  * Supports dual GPS module configuration for redundancy and accuracy.
  * 
  * @note Hardware: GY-NEO6MV2 NEO-6M GPS
+ * @note Default UART: 9600 baud, 8N1
+ * @note NMEA sentences supported: GGA, RMC, GSA
  */
 
 #ifndef GPS_SENSOR_H
@@ -15,6 +17,16 @@
 #include "result.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+/**
+ * @brief Maximum length of an NMEA sentence (including null terminator).
+ */
+#define NMEA_MAX_LENGTH 83
+
+/**
+ * @brief Size of the GPS receive buffer for UART data.
+ */
+#define GPS_RX_BUFFER_SIZE 256
 
 /**
  * @brief GPS fix quality enumeration.
@@ -54,6 +66,11 @@ typedef struct {
     bool is_valid;             /**< Whether the GPS data is valid. */
     uint32_t timestamp;        /**< System timestamp of the last sensor reading. */
     uint32_t last_timestamp;   /**< System timestamp of the previous sensor reading. */
+    
+    // NMEA parsing state
+    char rx_buffer[GPS_RX_BUFFER_SIZE];  /**< Receive buffer for UART data. */
+    uint16_t rx_index;                    /**< Current index in receive buffer. */
+    bool sentence_ready;                  /**< Flag indicating a complete sentence is ready. */
 } gps_data_t;
 
 /**
@@ -195,5 +212,38 @@ result_t gps_calculate_bearing(double lat1, double lon1, double lat2, double lon
  * @return RESULT_OK on success, or RESULT_ERR_INVALID_ARG if any pointer is NULL.
  */
 result_t gps_sensor_merge_dual(gps_data_t *gps1, gps_data_t *gps2, gps_data_t *merged);
+
+/**
+ * @brief Processes a single byte received from UART.
+ * 
+ * Call this function from UART RX interrupt or DMA callback.
+ * When a complete NMEA sentence is received, sentence_ready flag is set.
+ * 
+ * @param gps Pointer to the gps_data_t structure.
+ * @param byte The received byte.
+ * @return RESULT_OK on success, RESULT_ERR_OVERFLOW if buffer is full.
+ */
+result_t gps_receive_byte(gps_data_t *gps, uint8_t byte);
+
+/**
+ * @brief Parses a complete NMEA sentence and updates GPS data.
+ * 
+ * Supports GGA, RMC, and GSA sentences from NEO-6M.
+ * 
+ * @param gps Pointer to the gps_data_t structure.
+ * @param sentence The NMEA sentence to parse (null-terminated).
+ * @return RESULT_OK on success, RESULT_ERR_BAD_FORMAT if parsing fails.
+ */
+result_t gps_parse_nmea(gps_data_t *gps, const char *sentence);
+
+/**
+ * @brief Processes any complete NMEA sentences in the receive buffer.
+ * 
+ * Call this function periodically to process received data.
+ * 
+ * @param gps Pointer to the gps_data_t structure.
+ * @return RESULT_OK on success.
+ */
+result_t gps_process_buffer(gps_data_t *gps);
 
 #endif // GPS_SENSOR_H

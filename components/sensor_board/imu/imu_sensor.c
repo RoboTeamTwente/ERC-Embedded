@@ -60,18 +60,23 @@ result_t poll_imu_sensor(imu_data_t *imu) {
         return RESULT_ERR_INVALID_ARG;
     }
 
-    // TODO: Implement actual hardware communication to read from the IMU.
-    // This typically involves reading sensor registers via I2C or SPI.
+    // TODO soon: Implement SPI read once peripheral is configured in CubeMX.
+    // 
+    // Example for SPI with HAL <TO BE DISCUSSED>:
+    // extern SPI_HandleTypeDef hspi1;
+    // uint8_t tx_data = DATA_REG | 0x80;  // Set read bit
+    // uint8_t rx_data[14];
+    // 
+    // HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_RESET);
+    // HAL_SPI_Transmit(&hspi1, &tx_data, 1, 100);
+    // HAL_SPI_Receive(&hspi1, rx_data, 14, 100);
+    // HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
+    // 
+    // Parse accelerometer, gyroscope, magnetometer data from buffer
+    // return imu_sensor_update(imu, ax, ay, az, gx, gy, gz, mx, my, mz, HAL_GetTick());
 
-    // For now, we use hardcoded data for testing and development.
-    float ax = 1.0f, ay = 2.0f, az = 9.8f; // accel values
-    float gx = 0.1f, gy = 0.2f, gz = 0.3f; // gyro values
-    float mx = 10.0f, my = 20.0f, mz = 30.0f; // magnetometer values
-    uint32_t timestamp = 0; // Should be replaced with HAL_GetTick() or similar
-
-    return imu_sensor_update(imu, ax, ay, az, gx, gy, gz, mx, my, mz, timestamp);
+    return RESULT_ERR_UNIMPLEMENTED;
 }
-
 
 float imu_get_acceleration_magnitude(imu_data_t *imu) {
     if (imu == NULL) {
