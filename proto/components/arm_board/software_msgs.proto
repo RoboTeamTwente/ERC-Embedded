@@ -22,8 +22,8 @@ message Obstructions {
 //Message In: the actual positions of all the components of the arm
 message ActualPositions {
     Coordinates jaw_actual_position = 1;            
-    Coordinates gripper_rotation_actual_position = 2;
-    Coordinates gripper_pitch_actual_position = 3;   
+    float gripper_rotation_actual_position = 2; //This is an angle
+    float gripper_pitch_actual_position = 3;  //This is an angle 
     Coordinates base_actual_position = 4;           
     Coordinates stepper_top_actual_position = 5;     
     Coordinates stepper_bottom_actual_position = 6; 

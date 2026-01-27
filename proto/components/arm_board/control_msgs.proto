@@ -19,8 +19,11 @@ message ControlSignals {
     float control_wrist_rotation = 1;         
     float control_gripper_pitch = 2;          
     float control_base = 3;                
-    //the ENA is the signal that make it rotate, allegedly
-    //the REV is???
+    //Initiates a step each time the ENA port voltage rises above the Enable threshold voltage.
+    //If the voltage at the REV port is less than or equal to the Reverse threshold voltage, 
+    //the pulse is 90° ahead of the pulse. If the REV port voltage is greater than the Reverse 
+    //threshold voltage, the pulse will precede the pulse by 90° and the motor rotation direction 
+    //will be reversed.
     float stepper_top_ENA = 4;         
     float stepper_top_REV = 5;     
     float stepper_bottom_ENA = 6;           
