@@ -44,6 +44,10 @@ const char *result_to_short_str(result_t code) {
     return "Buffer too small";
   case RESULT_ERR_MUTEX:
     return "Mutex Error";
+  case RESULT_ERR_INVALID_DATA:
+    return "Invalid Data";
+  case RESULT_ERR_BUFF:
+    return "Buffer Error";
   default:
     return "Unknown Error";
   }
@@ -97,6 +101,10 @@ const char *result_to_desc_str(result_t code) {
     return "The provided buffer is too small for the required operation";
   case RESULT_ERR_MUTEX:
     return "A mutex operation (e.g., lock, unlock) failed.";
+  case RESULT_ERR_INVALID_DATA:
+    return "Data is invalid or out of range";
+  case RESULT_ERR_BUFF:
+    return "General Buffer Error";
   default:
     return "An unknown error code was encountered.";
   }

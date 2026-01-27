@@ -114,3 +114,26 @@ build_flags=
     -mfloat-abi=softfp
     -Wl,-u,_printf_float
     -D CONFIG_LOG_LEVEL=LOG_INFO
+
+[env:debugging_board]
+board = nucleo_h753zi
+build_src_filter = +<src/${this.__env__}/**/*.c>
+    +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/*.c>
+    +<components/debugging_board/**>
+    -<components/debugging_board/firmware/Drivers/**>
+    +<components/debugging_board/firmware/Drivers/BSP/**>
+custom_nanopb_protos = +<proto/${this.__env__}.proto>
+    +<proto/common.proto>
+lib_deps = ${extra.common_lib_deps}
+test_filter = common/*
+build_flags=
+    +<components/common/*/inc/**>
+    +<components/common/*>
+    +<components/debugging_board/**>
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=softfp
+    -Wl,-u,_printf_float
+    -D CONFIG_LOG_LEVEL=LOG_INFO
+
