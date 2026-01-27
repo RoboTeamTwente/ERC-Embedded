@@ -5,55 +5,52 @@
 #include "result.h"
 #include "stdint.h"
 
-
 /**
- * @brief The result of a nanopb decoding,the resulting void* message is
- * allocated and populated with the appropriate object
- * @param result result_t type, should be RESULT_OK if the decoding was
- * succesful
- * @param message void pointer to the decoded message struct
- */
-typedef struct {
-  result_t result;
-  void *message;
-} pb_message_t;
-
-/**
- * @brief The result of a nanopb encoding
- * @param result result_t type, should eb RESULT_OK if the encoding was
- * succesful
- * @param buffer bytearray of the resulting encoding
- * @param buffer_length size of buffer
- */
-typedef struct {
-  result_t result;
-  uint8_t *data;
-  size_t length;
-} pb_encoding_t;
-
-/**
- * @brief Encodes any nanopb message struct into a heap allocated buffer
+ * @brief Encode a nanopb message into a newly allocated byte buffer.
  *
- * This function performs a "dry run" of the encoding to calculate the exact
- * buffer size needed, allocates memory, and then performs the actual encoding.
+ * This function first computes the encoded size, then allocates an output
+ * buffer and encodes the message into it.
  *
- * @param src_struct Pointer to the message struct to be encoded (e.g.,
- * &my_message).
- * @param fields The message's _fields array (e.g. MyMessage_fields).
- * @return A pb_encoding_t struct, on success the result fields will be
- * RESULT_OK and the data field will be a heap allocated byte array. On failure,
- * the data field is NULL.
+ * @param[in]  src_struct   Pointer to the populated nanopb message struct.
+ * @param[in]  fields       Nanopb field descriptor array for the message type.
+ * @param[out] out_data     On success, receives a pointer to a heap-allocated
+ *                          buffer containing the encoded message.
+ * @param[out] out_length   On success, receives the number of valid bytes in
+ *                          @p out_data.
+ *
+ * @return RESULT_OK on success.
+ * @return RESULT_ERR_BAD_FORMAT if size computation fails.
+ * @return RESULT_ERR_NO_MEM if allocation fails.
+ * @return RESULT_FAIL if encoding fails.
+ *
+ * @note The caller owns @p out_data and must free() it when done.
  */
-pb_encoding_t pb_message_encode(const void *src_struct,
-                                              const pb_field_t fields[]);
+result_t pb_message_encode(const void *src_struct, const pb_field_t fields[],
+                           uint8_t **out_data, size_t *out_length);
 
 /**
- * @brief Decodes any nanopb message struct into a heap allocated struct
+ * @brief Decode a nanopb message from a byte buffer into a newly allocated
+ * struct.
  *
- * @param buffer Pointer to the byte array of the serialized message
- * @param size Size of the provided buffer
- * @param fields The message's _fields array (e.g., MyMessage_fields)
- * @param struct_size the size of the target struct (e.g., sizeof(MyMessage))
+ * This function allocates a zeroed struct buffer of @p struct_size bytes and
+ * decodes the nanopb message from @p byte_buffer into it.
+ *
+ * @param[in]  byte_buffer   Pointer to input buffer containing the encoded
+ * message.
+ * @param[in]  size          Size of @p byte_buffer in bytes.
+ * @param[in]  fields        Nanopb field descriptor array for the message type.
+ * @param[in]  struct_size   Size (in bytes) of the destination message struct
+ * type.
+ * @param[out] out_struct    On success, receives a pointer to a heap-allocated
+ *                           decoded message struct.
+ *
+ * @return RESULT_OK on success.
+ * @return RESULT_ERR_NO_MEM if allocation fails.
+ * @return RESULT_FAIL if decoding fails.
+ *
+ * @note The caller owns @p out_struct and must free() it when done.
  */
-pb_message_t pb_message_decode(const uint8_t*buffer, size_t size, const pb_field_t fields[], size_t struct_size);
+result_t pb_message_decode(const uint8_t *byte_buffer, size_t size,
+                           const pb_field_t *fields, size_t struct_size,
+                           void **out_struct);
 #endif
