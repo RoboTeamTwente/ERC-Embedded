@@ -13,7 +13,8 @@ message TargetMovement {
     Coordinates target_location = 1;
     //Rotation
     Coordinates target_rotation = 2;
-}
+} // NOTE: I would create a positional message that has x,y,z and also theta_x, theta_y, theta_z
+  // But for now this is fine
 
 message Obstructions {
     float obstructions_list = 1; //lists? //Maybe we will hardcode them (probably not)

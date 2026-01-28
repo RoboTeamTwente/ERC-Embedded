@@ -8,10 +8,13 @@ message ArmMotorInformation {
         OPERATING = 1;
         CALIBRATING = 2;
         ERROR = 3;
-    }
+    } // NOTE:
+      // Are these things that actually exist or is this something that we would need to do?
+      // Like would we need to calibrate them?
+      // How do we detect errors?
 
     State state = 1;
-    int32 motor_id = 2;
+    int32 motor_id = 2; // NOTE: this sould probably be int8 (no way we have more than 256 motors)
     float rpm = 3;
     float voltage = 4;
     float current = 5;
@@ -22,7 +25,7 @@ message ArmMotorInformation {
 //Message Out: States of all motors
 //(If im correct theres 6 on the arm + gripper)
 message ArmMotorDiagnostics {
-    ArmMotorInformation motor1 = 1;
+    ArmMotorInformation motor1 = 1; 
     ArmMotorInformation motor2 = 2;
     ArmMotorInformation motor3 = 3;
     ArmMotorInformation motor4 = 4;
@@ -35,7 +38,7 @@ message ArmDiagnostics {
     enum State {
         OPERATIONAL = 0;
         ERRORED = 1;
-    }
+    } // NOTE: Do we need specifric error codes for specific errors? ERROR_MOTOR_1, etc etc
     State state = 1;
     ArmMotorDiagnostics motor_diagnostics = 4;
 }

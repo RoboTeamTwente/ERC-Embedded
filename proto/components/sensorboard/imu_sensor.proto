@@ -16,13 +16,15 @@ message IMUSensorInformation {
   // 3-Axis Magnetometer data (only present in 9-axis IMU)
   float mag_x = 7;
   float mag_y = 8;
-  float mag_z = 9;
+  float mag_z = 9; // NOTE: You can turn all of these into 3D Vectors with x,y,z coordinates and hae an accel, gyro and mag vector
   
   SensorState state = 10;
   string error_message = 11; // Description of error if state is SENSOR_ERROR
+                             //NOTE: Have more descriptive enum rather than string error message. These are too arbitrary to be useful
+
 
   // Orientation (derived values calculated from raw IMU sensor data)
-  float roll = 12;
+  float roll = 12; // NOTE: These are also just a 3D rotation vector no?
   float pitch = 13;
   float yaw = 14;
 }

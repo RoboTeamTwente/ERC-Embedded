@@ -8,4 +8,5 @@ message PHSensorInformation {
   float temperature_compensated_ph = 3;
   SensorState state = 4;
   string error_message = 5; // Description of error if state is SENSOR_ERROR
+                            // NOTE: Same as in IMU dont use strings for error messages, just make descriptive enums
 }

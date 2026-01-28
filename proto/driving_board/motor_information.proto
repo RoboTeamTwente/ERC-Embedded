@@ -1,0 +1,6 @@
+message DrivingBoardMotorInformation {
+  float motor_id = 1;
+  float current = 2;
+  float rpm = 3;
+  float back_emf = 4;
+  } // NOTE: Motor ID should be a byte (int8) considering we wont have any more than 256 motors, also I doubt we would have a motor ID of 1.642
