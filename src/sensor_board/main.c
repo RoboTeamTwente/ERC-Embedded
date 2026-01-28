@@ -50,6 +50,10 @@ void init_board() {
   MX_USART3_Init(&huart_com, &BspCOMInit);
   LOG_init(&huart_com);
 
+  // Direct UART check to verify hardware/handle state before RTOS starts
+  char *boot_msg = "\r\n[BOOT] System Initialized. Starting Kernel...\r\n";
+  HAL_UART_Transmit(&huart_com, (uint8_t*)boot_msg, strlen(boot_msg), 100);
+
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
 
@@ -67,14 +71,19 @@ void MainTask(void *argument) {
   BSP_LED_Init(LED_BLUE);
   BSP_LED_Init(LED_RED);
 
+  LOGI(TAG, "Sensor board taking off...");
+
   // Initialize sensors
   imu_data_t imu_data;
+  LOGI(TAG, "Initializing IMU...");
   imu_sensor_init(&imu_data);
 
   ph_sensor_t ph_sensor;
+  LOGI(TAG, "Initializing pH Sensor...");
   ph_sensor_init(&ph_sensor, 3.3f); // 3.3V reference voltage
 
   gps_data_t gps_data;
+  LOGI(TAG, "Initializing GPS...");
   gps_sensor_init(&gps_data);
 
   BSP_LED_Toggle(LED_GREEN);
@@ -128,7 +137,7 @@ void MainTask(void *argument) {
       }
       LOGI(TAG, "GPS - HDOP: %.2f, VDOP: %.2f", gps_data.hdop, gps_data.vdop);
     } else {
-      LOGW(TAG, "GPS - No valid values");
+      LOGW(TAG, "GPS - No valid values...cooked");
     }
     
     // Read and log IMU data
@@ -147,20 +156,19 @@ void MainTask(void *argument) {
          pitch, roll, accel_mag);
     
     if (!imu_validate_accelerometer_range(&imu_data)) {
-      LOGW(TAG, "IMU - Accelerometer out of range");
+      LOGW(TAG, "IMU - Accelerometer is out of range");
     }
     if (!imu_validate_gyroscope_range(&imu_data)) {
-      LOGW(TAG, "IMU - Gyroscope out of range");
+      LOGW(TAG, "IMU - Gyroscope is out of range");
     }
     if (!imu_validate_magnetometer_range(&imu_data)) {
-      LOGW(TAG, "IMU - Magnetometer out of range");
+      LOGW(TAG, "IMU - Magnetometer is out of range");
     }
 
     LOGI(TAG, "==========================================");
-    // LOGI(TAG, "Delaying for 5 seconds...");
-    // LOGI(TAG, " ");
+    LOGI(TAG, "Delaying for 5 seconds...");
+    LOGI(TAG, " ");
     osDelay(MAIN_TASK_DELAY_MS);
-    // LOGI(TAG, "Delay complete, continuing loop...");
   }
 }
 
