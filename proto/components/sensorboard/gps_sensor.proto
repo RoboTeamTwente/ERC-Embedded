@@ -33,5 +33,5 @@ message GPSSensorInformation {
   string error_message = 11; // Description of error if state is SENSOR_ERROR
   
   // Timestamp from GPS (in terms of UTC)
-  int64 utc_timestamp = 12; // Unix timestamp in milliseconds
+  int64 utc_timestamp = 12; // Unix timestamp in milliseconds NOTE: Is that something the GPS sensor gives you? Because the board doesn't know Unix time
 }

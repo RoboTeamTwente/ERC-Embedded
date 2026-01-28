@@ -8,7 +8,7 @@ message MovementFeedback {
     OBSTRUCTION = 1;
     MOTOR_MALFUNCTION = 2;
     ALL_OK = 3;
-    }
+    } // NOTE: These errors are much better than the ones in diagnostics
     bool point_reached = 1;
     ArmError arm_error = 2;
 }

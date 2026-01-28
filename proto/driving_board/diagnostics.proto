@@ -15,5 +15,6 @@ message DrivingBoardDiagnostics {
     DrivingBoardMotorInformation motor_information7 = 8;
     DrivingBoardMotorInformation motor_information8 = 9;
     DrivingBoardMotorInformation motor_information9 = 10;
-    DrivingBoardMotorInformation motor_information10 = 11;
+    DrivingBoardMotorInformation motor_information10 = 11; //NOTE: Yeah this is a lot, I get what is going on but there are ways of making it at least better
+                                                           // For example, either have a repeated field (with specified size) or by giving them more descriptive names (front_left_motor, front_right_motor, etc)
 }
