@@ -25,8 +25,8 @@ void set_bldc_pwm(void){
         }
         switch(i)
         {
-            case 0: __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_value); break;
-            case 1: __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pwm_value); break;
+            case 0: __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, MAX_BLDC_PWM); break;
+            case 1: __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 0); break;
             case 2: __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, pwm_value); break;
             case 3: __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pwm_value); break;
             case 4: __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, pwm_value); break;

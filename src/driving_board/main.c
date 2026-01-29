@@ -12,7 +12,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "bldc.h"
-#include "parser.h"
+//#include "parser.h"
 
 
 #include "calculator.h"
@@ -204,7 +204,7 @@ for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
 }
 
 void PwmTask(void *argument){
-   const uint32_t period_ms = 1;
+   const uint32_t period_ms = 10;
 
    for(;;)
    {
