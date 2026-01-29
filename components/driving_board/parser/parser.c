@@ -3,10 +3,10 @@
 //will use that type in the future right now it assumes I got drivingboard msg
 #include "logging.h"
 #include "string.h"
-#include "logging.h"
 #include "driving_board.pb.h"
 #include "pb_message.h"
 #include <stdint.h>
+#include "logging.h"
 
 static char *TAG = "MAIN";
 
@@ -28,6 +28,8 @@ result_t DBMMsgEncode(float distance_to_go, float turning_angle, float turning_r
    message.turning_angle = turning_angle;
    message.turning_radius = turning_radius;
    *encoding_out = pb_message_encode((void *)&message, DrivingBoardMotorMsg_fields);
+
+
    if (encoding_out->result != RESULT_OK) {
      LOGE(TAG, "Encoding error: %s", result_to_short_str(encoding_out->result));
      return RESULT_FAIL;

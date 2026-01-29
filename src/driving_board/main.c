@@ -9,6 +9,10 @@
 #include "pb_message.h"
 #include "rtwtypes.h"
 #include "string.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "bldc.h"
+#include "parser.h"
 
 
 #include "calculator.h"
@@ -35,10 +39,25 @@ TIM_HandleTypeDef htim3;
 
 //uint16_t dac_value;
 void MainTask(void *argument);
+void PwmTask(void *argument);
+void DrivingSensorTask(void *argument);
+
 
 // Task attributes for CMSIS-RTOS v2
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
+    .stack_size = 256 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+
+const osThreadAttr_t pwmTask_attributes = {
+    .name = "pwmTask",
+    .stack_size = 256 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+
+const osThreadAttr_t drivingSensorTask_attributes = {
+    .name = "pwmTask",
     .stack_size = 256 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
@@ -67,6 +86,16 @@ void init_board() {
   control_initialize();
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
+  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
+  osThreadNew(DrivingSensorTask, NULL, &drivingSensorTask_attributes);
+
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
 
   osKernelStart();
 
@@ -74,6 +103,8 @@ void init_board() {
   while (1) {
   }
 }
+
+/**
 
 void pwm_test(){//gradually increases decreases pwm duty cycle
   
@@ -102,7 +133,8 @@ void pwm_test(){//gradually increases decreases pwm duty cycle
     }
   }
 
-
+ * 
+ */
 
 int main(void) { init_board(); }
 
@@ -111,16 +143,16 @@ int main(void) { init_board(); }
  * @param  argument: Not used
  * @retval None
  */
-void MainTask(void *argument) {
+void MainTask(void *argument) {//send messages calculates actual values from reallife sensors
 
-  BSP_LED_Init(LED_GREEN);
-  BSP_LED_Init(LED_BLUE);
-  BSP_LED_Init(LED_RED);
+  //BSP_LED_Init(LED_GREEN);
+  //BSP_LED_Init(LED_BLUE);
+  //BSP_LED_Init(LED_RED);
+
 
   //BSP_LED_Toggle(LED_GREEN);
 
-
-    for (size_t i = 0; i < 4; i++)
+for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
    {
       rtU.actang[i] = rtY.desang[i];
    }
@@ -131,39 +163,25 @@ void MainTask(void *argument) {
    }
  rtU.dist2goal = 30.0;  // meters
  rtU.steerang  = 1.0;
+
+
  
   while (1) {
-    /**
-     * for(dac_value=0; dac_value<4095; dac_value++ ){
-      HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
-      osDelay(1);
+/**
+ *  pb_encoding_t enc;
+
+    result_t res = DBMMsgEncode(10.0f, 30.0f, 2.5f, &enc);
+
+    if (res != RESULT_OK)
+    {
+    //error msg
+    free(enc.data);
     }
+    //Ethsend(enc.data, enc.length);
+    free(enc.data);
+ */
 
-        for(dac_value=4095; dac_value>0; dac_value-- ){
-      HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
-      osDelay(1);
-    }
-     */
-    
 
-    //dac_value = 4095;
-    //HAL_DAC_SetValue (&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);//12 bit resolution
-    //HAL_Delay(2000);
-    //dac_value = 0;
-    //HAL_DAC_SetValue (&hdacl, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
-    //HAL_Delay(2000);
-
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
-
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
-
-    
-
-    control_step();
     rtU.dist2goal = 10.0; // meters
     rtU.steerang = 30.0;
     /**
@@ -181,8 +199,25 @@ void MainTask(void *argument) {
 
     LOGI(TAG, "This is the driving board");
     osDelay(1000);
-    pwm_test();
+    
   }
+}
+
+void PwmTask(void *argument){
+   const uint32_t period_ms = 1;
+
+   for(;;)
+   {
+       control_step();// from control.c
+       //LOGI(TAG, "control step occured");
+       set_bldc_pwm();//this might also be done somewhere else im not sure
+       //set_stepper_pwm();
+       osDelay(period_ms); //fixed 1ms loop
+   }
+}
+
+void DrivingSensorTask(void *argument){
+    osDelay(999999);
 }
 
 #endif //! PIO_UNIT_TESTS
