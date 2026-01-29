@@ -1,13 +1,19 @@
 message DrivingBoardDiagnostics {
   enum State {
-    IDLE = 0;
-    OPERATING = 1;
-    NOOP_MOTOR = 2;
-  }
-  State state = 1;
+      IDLE = 0;
+      OPERATING = 1;
+      ERROR = 2;
+      }
 
-  DrivingBoardMotorInformation motor_information1 = 2;
-  DrivingBoardMotorInformation motor_information2 = 3;
-  DrivingBoardMotorInformation motor_information3 = 4;
-  DrivingBoardMotorInformation motor_information4 = 5;
+  State state = 1;
+    DrivingBoardMotorInformation motor_information1 = 2;
+    DrivingBoardMotorInformation motor_information2 = 3;
+    DrivingBoardMotorInformation motor_information3 = 4;
+    DrivingBoardMotorInformation motor_information4 = 5;
+    DrivingBoardMotorInformation motor_information5 = 6;
+    DrivingBoardMotorInformation motor_information6 = 7;
+    DrivingBoardMotorInformation motor_information7 = 8;
+    DrivingBoardMotorInformation motor_information8 = 9;
+    DrivingBoardMotorInformation motor_information9 = 10;
+    DrivingBoardMotorInformation motor_information10 = 11;
 }

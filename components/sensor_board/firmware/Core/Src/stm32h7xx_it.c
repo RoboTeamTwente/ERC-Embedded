@@ -18,7 +18,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "cubemx_main.h"
+#include "main.h"
 #include "stm32h7xx_it.h"
 #include "FreeRTOS.h"
 #include "task.h"
