@@ -96,6 +96,7 @@ board = nucleo_h753zi
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*.c>
+    +<components/common/*/stm/**/*.c>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
