@@ -2,10 +2,21 @@ syntax = "proto3";
 
 import "common.proto";
 
+// PH sensor error codes
+enum PHErrorCode {
+  PH_NO_ERROR = 0;
+  PH_COMMUNICATION_FAILURE = 1;
+  PH_OUT_OF_RANGE = 2;
+  PH_CALIBRATION_REQUIRED = 3;
+  PH_INVALID_DATA = 4;
+  PH_PROBE_FAULT = 5;
+  PH_TEMPERATURE_SENSOR_ERROR = 6;
+}
+
 message PHSensorInformation {
-  float ph_value = 1;
-  float voltage = 2;
-  float temperature_compensated_ph = 3;
-  SensorState state = 4;
-  string error_message = 5; // Description of error if state is SENSOR_ERROR
+  float ph_value = 1; // Raw pH measurement (0-14 scale, 7 is neutral)
+  float voltage = 2; // Voltage reading from pH sensor in millivolts
+  float temperature = 3; // Temperature reading in Celsius (if external sensor available)
+  SensorState state = 4; // Current state of the pH sensor
+  PHErrorCode error_code = 5; // Error code if state is SENSOR_ERROR
 }

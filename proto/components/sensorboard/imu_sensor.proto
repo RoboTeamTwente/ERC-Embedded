@@ -2,6 +2,19 @@ syntax = "proto3";
 
 import "common.proto";
 
+// IMU error codes
+enum IMUErrorCode {
+  IMU_NO_ERROR = 0;
+  IMU_COMMUNICATION_FAILURE = 1;
+  IMU_CALIBRATION_REQUIRED = 2;
+  IMU_CALIBRATION_FAILED = 3;
+  IMU_INVALID_DATA = 4;
+  IMU_SENSOR_FAULT = 5;
+  IMU_GYROSCOPE_ERROR = 6;
+  IMU_MAGNETOMETER_ERROR = 7;
+  IMU_ACCELEROMETER_ERROR = 8;
+}
+
 message IMUSensorInformation {
   // 3-Axis Accelerometer data
   float accel_x = 1;
@@ -17,12 +30,9 @@ message IMUSensorInformation {
   float mag_x = 7;
   float mag_y = 8;
   float mag_z = 9;
-  
-  SensorState state = 10;
-  string error_message = 11; // Description of error if state is SENSOR_ERROR
 
-  // Orientation (derived values calculated from raw IMU sensor data)
-  float roll = 12;
-  float pitch = 13;
-  float yaw = 14;
+  bool is_calibrated = 13; // Calibration status --> True if IMU has been calibrated on level surface
+  
+  SensorState state = 14;
+  IMUErrorCode error_code = 15; // Error code if state is SENSOR_ERROR
 }
