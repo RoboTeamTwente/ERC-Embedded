@@ -1,4 +1,5 @@
 #include "ethernet.h"
+#include "api_msg.h"
 #include "ethernet_diagnostics.h"
 #include "ethernet_raw_sender.h"
 #include "ethernet_receiver.h"
@@ -8,6 +9,7 @@
 #include "tim.h"
 #include "udp.h"
 #include <stdint.h>
+
 #define TAG "MAIN"
 
 extern ETH_HandleTypeDef heth;

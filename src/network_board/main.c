@@ -93,17 +93,20 @@ void MainTask(void *argument) {
   uint8_t ip[4] = {0, 0, 0, 0};
   uint8_t mac[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   uint8_t mac_other[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
-  // ETH_udp_init();
+  //ETH_udp_init();
   while (1) {
     // ETH_udp_send(ip, 7, "udp message");
-    // osDelay(100);
+     //osDelay(100);
     ETH_raw_send(mac_other,
                  "long ass raw message looooong looooooonger "
                  "loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
                  "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
                  "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-                 "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-                 "oooooooooooooooooooooooooooooooooooongest");
-    osDelay(200);
+                 "ooooooooooooooooooooooooooooooooooooooooooo000000000000000000ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooonger"
+                 );
+                 
+    osDelay(100);
+    //ETH_raw_send(mac_other, "-");
+    //osDelay(200);
   }
 }
