@@ -25,14 +25,12 @@
 #define STEPS_PER_REV 200 //In steps / rev
 #define RPM 100 
 
-//The angles from where to where the stepper is allowed to move
-//For example, the wrist could probably not move fully where the arm is
-const uint32_t START_ANGLE_CW = 315; //Place in the CW system where the stepper can only move forwards
-const uint32_t START_ANGLE_CW = 270; //Place in the CW system where the stepper can only move backwards
-const uint32_t START_ANGLE_CCW = START_ANGLE_CW % 360;
-const uint32_t STOP_ANGLE_CCW = START_ANGLE_CW % 360;
-
-
+// //The angles from where to where the stepper is allowed to move
+// //For example, the wrist could probably not move fully where the arm is
+// const uint32_t START_ANGLE_CW = 315; //Place in the CW system where the stepper can only move forwards
+// const uint32_t START_ANGLE_CW = 270; //Place in the CW system where the stepper can only move backwards
+// const uint32_t START_ANGLE_CCW = START_ANGLE_CW % 360;
+// const uint32_t STOP_ANGLE_CCW = START_ANGLE_CW % 360;
 
 const uint32_t WAVE_DRIVE[4][4] = {
     {1, 0, 0, 0},
@@ -84,7 +82,6 @@ stepper_t stepper;
 result_t init_stepper() {
     set_pin(ENA_PIN, "HIGH");
     stepper.current_angle = 0;
-    stepper.dir = 1; 
     stepper.pwm = 0;
 }
 
@@ -113,7 +110,7 @@ result_t stepper_make_steps(uint32_t angle, bool direction) {
     }
 }
 
-result_t rotate_stepper(uint32_t target_angle) { //Target angle is in CW system
+result_t rotate_stepper(uint32_t target_angle) { //NOTE: Target angle is in CW system
     uint32_t current_angle = stepper.current_angle;
     uint32_t CW_angle = target_angle - current_angle;
     uint32_t CCW_angle = 360 - CW_angle;

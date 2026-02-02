@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 //A message with (x,y,z) coordinates to be reused between messages
-message Coordinates {
+message Location {
     float x = 1;
     float y = 2;
     float z = 3;
@@ -10,9 +10,11 @@ message Coordinates {
 //Message In: (x,y,z) coordinates for moving and rotating
 message TargetMovement {
     //Movement
-    Coordinates target_location = 1;
+    Location target_location = 1;
     //Rotation
-    Coordinates target_rotation = 2;
+    float theta_x = 2;
+    float theta_y = 3;
+    float theta_z = 4;
 }
 
 message Obstructions {
@@ -21,10 +23,10 @@ message Obstructions {
 
 //Message In: the actual positions of all the components of the arm
 message ActualPositions {
-    Coordinates jaw_actual_position = 1;            
-    float gripper_rotation_actual_position = 2; //This is an angle
-    float gripper_pitch_actual_position = 3;  //This is an angle 
-    Coordinates base_actual_position = 4;           
-    Coordinates stepper_top_actual_position = 5;     
-    Coordinates stepper_bottom_actual_position = 6; 
+    Location jaw_actual_position = 1;  
+    Location base_actual_position = 2;           
+    Location stepper_top_actual_position = 3;     
+    Location stepper_bottom_actual_position = 4;           
+    float gripper_rotation_actual_position = 5; //This is an angle
+    float gripper_pitch_actual_position = 6;  //This is an angle 
 }
