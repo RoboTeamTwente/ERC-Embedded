@@ -5,9 +5,9 @@
  * @note Target Hardware: DFRobot Analog pH Meter (SKU: SEN0161)
  * @see https://wiki.dfrobot.com/PH_meter_SKU__SEN0161_
  * 
- * The pH calculation uses the formula from DFRobot:
+ * The pH calculation uses the formula from DFRobot website(for the SEN0161 sensor brand):
  *   pH = slope * voltage + offset
- * where slope = 3.5 (default) and offset is calibrated.
+ * where slope = 3.5 (default, usually correct) and offset is calibrated.
  */
 
 #include "ph_sensor.h"
@@ -162,7 +162,7 @@ result_t ph_sensor_reset_calibration(ph_sensor_t *sensor) {
         return RESULT_ERR_INVALID_ARG;
     }
     sensor->calibration.offset = 0.0f;  // No offset by default
-    sensor->calibration.slope = PH_DEFAULT_SLOPE;  // 3.5 for DFRobot SEN0161
+    sensor->calibration.slope = PH_DEFAULT_SLOPE;  // Default slope
     return RESULT_OK;
 }
 
