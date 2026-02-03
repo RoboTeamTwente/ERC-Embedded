@@ -8,10 +8,13 @@ message ArmMotorInformation {
         OPERATING = 1;
         CALIBRATING = 2;
         ERROR = 3;
-    }
+    } // NOTE:
+      // Are these things that actually exist or is this something that we would need to do?
+      // Like would we need to calibrate them?
+      // How do we detect errors?
 
     State state = 1;
-    int32 motor_id = 2;
+    int32 motor_id = 2; // NOTE: this sould probably be int8 (no way we have more than 256 motors)
     float rpm = 3;
     float voltage = 4;
     float current = 5;
@@ -42,4 +45,3 @@ message ArmDiagnostics {
     State state = 1;
     ArmMotorDiagnostics motor_diagnostics = 4;
 }
-

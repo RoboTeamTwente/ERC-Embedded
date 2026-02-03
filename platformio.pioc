@@ -46,6 +46,7 @@ lib_deps = ${extra.common_lib_deps}
 test_filter = sensor_board/*
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/stm/**/*.c>
     +<components/common/*.c>
     +<components/sensor_board/**>
     -<components/sensor_board/firmware/Drivers/**>

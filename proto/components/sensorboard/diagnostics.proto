@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "ph_sensor.proto";
+import "ph_sensor.proto"; //NOTE: Have you tested imports? I haven't gotten them to work personally
 import "imu_sensor.proto";
 import "gps_sensor.proto";
 
