@@ -96,7 +96,7 @@ void init_board() {
 
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
 
   osKernelStart();
 
@@ -105,37 +105,37 @@ void init_board() {
   }
 }
 
-/**
 
-void pwm_test(){//gradually increases decreases pwm duty cycle
+/**
+ * void pwm_test(){//gradually increases decreases pwm duty cycle
   
   int32_t CH1_DC = 0;
 
   HAL_Init();
   SystemClock_Config();
   MX_GPIO_Init();
-  MX_TIM2_Init();
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  MX_TIM1_Init();
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   while (1)
   {
     while(CH1_DC < 65535)
     {
-    	  TIM2->CCR1 = CH1_DC;
+    	  TIM1->CCR1 = CH1_DC;
     	  CH1_DC += 70;
     	  HAL_Delay(1);
     }
     while(CH1_DC > 0)
     {
-        TIM2->CCR1 = CH1_DC;//were writing directly to hardware register so method for updating pwm is not needed
+        TIM1->CCR1 = CH1_DC;//were writing directly to hardware register so method for updating pwm is not needed
         CH1_DC -= 70;
         HAL_Delay(1);
     }
   
     }
   }
-
- * 
  */
+
+
 
 int main(void) { init_board(); }
 
@@ -185,14 +185,14 @@ for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
 
     rtU.dist2goal = 10.0; // meters
     rtU.steerang = 30.0;
-    /**
+ 
     LOGI(TAG, "desspeed[0]   = %f, desspeed[1]   = %f, desspeed[2]   = %f, desspeed[3]   = %f, desspeed[4]   = %f, desspeed[5]   = %f\n", rtY.desspeed[0], rtY.desspeed[1], rtY.desspeed[2], rtY.desspeed[3], rtY.desspeed[4], rtY.desspeed[5]);
     LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
     LOGI(TAG, "desang[0]     = %f, desang[1]     = %f, desang[2]     = %f, desang[3]     = %f\n", rtY.desang[0], rtY.desang[1], rtY.desang[2], rtY.desang[3]);
     LOGI(TAG, "pwnenable[0]  = %f, pwnenable[1]  = %f, pwnenable[2]  = %f, pwnenable[3]  = %f\n", rtY.pwnenable[0], rtY.pwnenable[1], rtY.pwnenable[2], rtY.pwnenable[3]);
     LOGI(TAG, "pwmrev[0]     = %f, pwmrev[1]     = %f, pwmrev[2]     = %f, pwmrev[3]     = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3]);
   
-     */
+     
     //BSP_LED_Toggle(LED_GREEN);
     //BSP_LED_Toggle(LED_BLUE);
     //BSP_LED_Toggle(LED_RED);
