@@ -12,6 +12,15 @@ enum GPSFixQuality {
   RTK_FLOAT = 5;
 }
 
+// GPS error codes
+enum GPSErrorCode {
+  GPS_NO_ERROR = 0;
+  GPS_COMMUNICATION_FAILURE = 1;
+  GPS_INVALID_DATA = 2;
+  GPS_ANTENNA_FAULT = 3;
+  GPS_LOW_SIGNAL_QUALITY = 4;
+}
+
 message GPSSensorInformation {
   // GPS coordinates
   double latitude = 1; // Degrees (positive = North, negative = South)
@@ -30,8 +39,8 @@ message GPSSensorInformation {
   GPSFixQuality fix_quality = 9;
   
   SensorState state = 10;
-  string error_message = 11; // Description of error if state is SENSOR_ERROR
+  GPSErrorCode error_code = 11; // Error code if state is SENSOR_ERROR
   
   // Timestamp from GPS (in terms of UTC)
-  int64 utc_timestamp = 12; // Unix timestamp in milliseconds NOTE: Is that something the GPS sensor gives you? Because the board doesn't know Unix time
+  int64 utc_timestamp = 12; // Unix timestamp in milliseconds
 }
