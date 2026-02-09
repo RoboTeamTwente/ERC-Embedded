@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+//Possible errors for the arm while moving
+//Message Out: Embedded -> Software, feedback on movement
+message MovementFeedback {
+    enum ArmError {
+    POINT_NOT_IN_RANGE = 0;
+    OBSTRUCTION = 1;
+    CALIBRATION = 2; //Arm unavailable during calibration phase
+    MOTOR_MALFUNCTION = 3;
+    ALL_OK = 4;
+    }
+    ArmError arm_error = 1;
+}
+
+//Feedback: Embedded -> Software, the actual positions of all the components of the arm
+message ActualPositions {
+    bool jaw_open = 1;
+    //These are all ANGLES of the rotation of the motor
+    float jaw_actual_position = 2;  
+    float base_actual_position = 3;           
+    float stepper_top_actual_position = 4;     
+    float stepper_bottom_actual_position = 5;           
+    float gripper_rotation_actual_position = 6;
+    float gripper_pitch_actual_position = 7;  
+}
