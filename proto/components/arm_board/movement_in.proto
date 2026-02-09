@@ -1,31 +1,20 @@
 syntax = "proto3";
 
-//A message with (x,y,z) coordinates to be reused between messages
-message Coordinates {
-    float x = 1;
-    float y = 2;
-    float z = 3;
+//Message In: Software -> Control, Place to move to
+//Target is the point of the TIP of the GRIPPER
+message TargetMovement {
+    //(x,y,z) coordinates for moving
+    float target_x = 1;
+    float target_y = 2;
+    float target_z = 3;
+    //Rotation (NOT a quarternion)
+    float rotation_angle = 4;
+    //Jaw position, degree of "openness" is calculated by control(?)
+    bool open_jaw = 5;
 }
 
-//Message In: (x,y,z) coordinates for moving and rotating
-message TargetMovement {
-    //Movement
-    Coordinates target_location = 1;
-    //Rotation
-    Coordinates target_rotation = 2;
-} // NOTE: I would create a positional message that has x,y,z and also theta_x, theta_y, theta_z
-  // But for now this is fine
-
+//Placeholder
 message Obstructions {
     float obstructions_list = 1; //lists? //Maybe we will hardcode them (probably not)
 }
 
-//Message In: the actual positions of all the components of the arm
-message ActualPositions {
-    Coordinates jaw_actual_position = 1;            
-    Coordinates gripper_rotation_actual_position = 2;
-    Coordinates gripper_pitch_actual_position = 3;   
-    Coordinates base_actual_position = 4;           
-    Coordinates stepper_top_actual_position = 5;     
-    Coordinates stepper_bottom_actual_position = 6; 
-}
