@@ -4,6 +4,7 @@
 #include "control.h"
 #include "cubemx_main.h"
 #include "driving_board.pb.h"
+#include "ethernet.h"
 #include "gpio.h"
 #include "logging.h"
 #include "pb_message.h"
@@ -12,6 +13,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "bldc.h"
+#include <stdint.h>
 //#include "parser.h"
 
 
@@ -22,9 +24,11 @@ static char *TAG = "MAIN";
 extern ExtU rtU;
 extern ExtY rtY;
 
+extern void MX_FREERTOS_Init(void);
 void Error_Handler(void);
 void cubemx_main(void);
 void SystemClock_Config(void);
+extern void MPU_Config_wrapper(void);
 void MPU_Config(void);
 void MX_GPIO_Init(void);
 //void MX_DAC1_Init(void);
@@ -63,6 +67,14 @@ const osThreadAttr_t drivingSensorTask_attributes = {
 };
 
 void init_board() {
+
+  MPU_Config_wrapper();
+
+  SCB_EnableICache();
+
+  /* Enable D-Cache---------------------------------------------------------*/
+  SCB_EnableDCache();
+
   HAL_Init();
   SystemClock_Config();
 
@@ -85,6 +97,14 @@ void init_board() {
   MX_TIM1_Init();
   MX_TIM3_Init();
   control_initialize();
+
+  //ethernet
+  uart_setup();
+  ETH_init(NULL, NULL);
+  int mac1[6] = {0x11,0x22,0x33,0x44,0x55,0x66};
+  int mac2[6] = {0x12,0x23,0x34,0x45,0x56,0x67};
+  int mac3[6] = {0x13,0x24,0x35,0x46,0x57,0x68};
+  ETH_setup_MAC_address_filtering(mac1,mac2,mac3);
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
@@ -165,9 +185,15 @@ for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
  rtU.dist2goal = 30.0;  // meters
  rtU.steerang  = 1.0;
 
-
+  uint8_t ip[4] = {0, 0, 0, 0};
+  uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
+  ETH_udp_init();
  
   while (1) {
+    ETH_udp_send(ip, 7, "udp message");
+    osDelay(100);
+    ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
+    osDelay(100); 
 /**
  *  pb_encoding_t enc;
 
