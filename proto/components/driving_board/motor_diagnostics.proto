@@ -1,3 +1,5 @@
+syntax = "proto3";
+
 message DrivingBoardMotorInformation {
     enum State {
         IDLE = 0;
