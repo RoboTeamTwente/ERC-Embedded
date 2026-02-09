@@ -1,19 +1,6 @@
 syntax = "proto3";
 
-message DrivingBoardMotorInformation {
-    enum State {
-        IDLE = 0;
-        OPERATING = 1;
-        CALIBRATING = 2;
-        ERROR = 3;
-    }
-
-    State state = 1;
-    int8 motor_id = 2; 
-    float rpm = 3;
-    float voltage = 4;
-    float encoder_angle = 5; //Include full rotations
-}
+import "proto/components/common/motor.proto";
 
 message DrivingBoardDiagnostics {
   enum State {
@@ -24,15 +11,15 @@ message DrivingBoardDiagnostics {
       }
 
   State state = 1;
-    DrivingBoardMotorInformation front_left_motor = 2;
-    DrivingBoardMotorInformation middle_left_motor = 3;
-    DrivingBoardMotorInformation back_left_motor = 4;
-    DrivingBoardMotorInformation front_right_motor = 5;
-    DrivingBoardMotorInformation middle_right_motor = 6;
-    DrivingBoardMotorInformation back_right_motor = 7;
-    DrivingBoardMotorInformation steering_front_left_motor = 8;
-    DrivingBoardMotorInformation steering_back_left_motor = 9;
-    DrivingBoardMotorInformation steering_front_right_motor = 10;
-    DrivingBoardMotorInformation steering_back_right_motor = 11; //NOTE: Yeah this is a lot, I get what is going on but there are ways of making it at least better
+    MotorInformation front_left_motor = 2;
+    MotorInformation middle_left_motor = 3;
+    MotorInformation back_left_motor = 4;
+    MotorInformation front_right_motor = 5;
+    MotorInformation middle_right_motor = 6;
+    MotorInformation back_right_motor = 7;
+    MotorInformation steering_front_left_motor = 8;
+    MotorInformation steering_back_left_motor = 9;
+    MotorInformation steering_front_right_motor = 10;
+    MotorInformation steering_back_right_motor = 11; //NOTE: Yeah this is a lot, I get what is going on but there are ways of making it at least better
                                                            // For example, either have a repeated field (with specified size) or by giving them more descriptive names (front_left_motor, front_right_motor, etc)
 }

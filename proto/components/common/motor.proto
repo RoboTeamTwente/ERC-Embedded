@@ -1,0 +1,16 @@
+syntax="proto3";
+
+message MotorInformation {
+    enum State {
+        IDLE = 0;
+        OPERATING = 1;
+        CALIBRATING = 2;
+        ERROR = 3;
+    }
+
+    State state = 1;
+    int32 motor_id = 2; 
+    float rpm = 3;
+    float voltage = 4;
+    float encoder_angle = 5; //Include full rotations
+}
