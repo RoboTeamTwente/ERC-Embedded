@@ -14,6 +14,7 @@
 #include "task.h"
 #include "bldc.h"
 #include <stdint.h>
+#include "result.h"
 //#include "parser.h"
 
 
@@ -99,7 +100,6 @@ void init_board() {
   control_initialize();
 
   //ethernet
-  uart_setup();
   ETH_init(NULL, NULL);
   int mac1[6] = {0x11,0x22,0x33,0x44,0x55,0x66};
   int mac2[6] = {0x12,0x23,0x34,0x45,0x56,0x67};
