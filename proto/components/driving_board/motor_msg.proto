@@ -1,4 +1,5 @@
 syntax = "proto3";
+
 message DrivingBoardMotorMsg {
   float distance_to_go = 1;
   float turning_radius = 2;

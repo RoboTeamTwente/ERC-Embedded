@@ -13,8 +13,8 @@ message ControlSignals {
     float control_gripper_pitch = 2;          
     float control_base = 3;    
     float control_jaw = 4;            
-    bool stepper_top_ENA = 5;         
-    bool stepper_top_REV = 6;     
-    bool stepper_bottom_ENA = 7;           
-    bool stepper_bottom_REV = 8;             
+    bool stepper_top_ena = 5;         
+    bool stepper_top_rev = 6;     
+    bool stepper_bottom_ena = 7;           
+    bool stepper_bottom_rev = 8;             
 }
