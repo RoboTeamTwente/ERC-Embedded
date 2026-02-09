@@ -17,10 +17,7 @@ message ArmMotorInformation {
     int32 motor_id = 2; // NOTE: this sould probably be int8 (no way we have more than 256 motors)
     float rpm = 3;
     float voltage = 4;
-    float current = 5;
-    float torque = 6;
-    float power_consumption = 7;
-    float current_rotation = 8; //Include full rotations
+    float current_rotation = 5; //Include full rotations
 }
 
 //Message Out: Arm board -> Debug, States of ALL motors
