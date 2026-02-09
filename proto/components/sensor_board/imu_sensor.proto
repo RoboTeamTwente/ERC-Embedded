@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "common.proto";
+import "proto/components/sensor_board/sensor_state.proto";
 
 // IMU error codes
 enum IMUErrorCode {
