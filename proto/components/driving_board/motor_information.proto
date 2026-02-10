@@ -1,7 +1,6 @@
 message DrivingBoardMotorInformation {
-  float torque = 1;
-  float power_consumption = 2;
+  float motor_id = 1;
+  float current = 2;
   float rpm = 3;
-  float voltage = 4;
-  float current = 5;
-}
+  float back_emf = 4;
+  }
