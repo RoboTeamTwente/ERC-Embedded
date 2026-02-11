@@ -51,10 +51,9 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/sensor_board/**>
     -<components/sensor_board/firmware/Drivers/**>
     +<components/sensor_board/firmware/Drivers/BSP/**>
-custom_nanopb_protos = +<proto/components/${this.__env__}/**.proto>
-    +<proto/${this.__env__}.proto>
-    +<proto/common/**.proto>
-    +<proto/common.proto>
+custom_nanopb_protos = +<proto/components/common/**.proto>
+	+<proto/${this.__env__}.proto>
+	+<proto/components/${this.__env__}/**.proto>
 build_flags = 
     +<components/common/*/inc>
     +<components/common/*>
@@ -78,10 +77,10 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
-custom_nanopb_protos = +<proto/components/${this.__env__}/**.proto>
-    +<proto/${this.__env__}.proto>
-    +<proto/common/**.proto>
-    +<proto/common.proto>
+custom_nanopb_protos = +<proto/components/common/**.proto>
+	+<proto/${this.__env__}.proto>
+	+<proto/components/${this.__env__}/**.proto>
+custom_nanopb_project_dir = ${PROJECT_DIR}/proto
 lib_deps = ${extra.common_lib_deps}
 build_flags=
     +<components/arm_board/**>
@@ -104,10 +103,9 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
-custom_nanopb_protos = +<proto/components/${this.__env__}/**.proto>
-    +<proto/${this.__env__}.proto>
-    +<proto/common/**.proto>
-    +<proto/common.proto>
+custom_nanopb_protos = +<proto/components/common/**.proto>
+	+<proto/${this.__env__}.proto>
+	+<proto/components/${this.__env__}/**.proto>
 test_filter = driving_board/*
 lib_deps = ${extra.common_lib_deps}
 build_flags=
@@ -130,10 +128,9 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/debugging_board/**>
     -<components/debugging_board/firmware/Drivers/**>
     +<components/debugging_board/firmware/Drivers/BSP/**>
-custom_nanopb_protos = +<proto/components/${this.__env__}/**.proto>
-    +<proto/${this.__env__}.proto>
-    +<proto/common/**.proto>
-    +<proto/common.proto>
+custom_nanopb_protos = +<proto/components/common/**.proto>
+	+<proto/${this.__env__}.proto>
+	+<proto/components/${this.__env__}/**.proto>
 lib_deps = ${extra.common_lib_deps}
 test_filter = common/*
 build_flags=
