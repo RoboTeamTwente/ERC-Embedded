@@ -25,28 +25,33 @@
 
 #define TAG "MAIN"
 
+TIM_HandleTypeDef htim2;
+
+void SystemClock_Config(void);
 void MX_GPIO_Init(void);
 void MX_TIM2_Init(void);
 
 int main(void) {
+    int32_t CH1_DC = 0;
 
-  BSP_LED_Init(LED_GREEN);
-  BSP_LED_Init(LED_BLUE);
-  BSP_LED_Init(LED_RED);
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_TIM2_Init();
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
-  HAL_Init();
-
-  // SystemClock_Config();
-  // LOG_init(&huart_com);
-  
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-  while (1) {
-    //Blinking the LED B)
-    HAL_GPIO_TogglePin(LED1_GPIO_PORT, LED1_PIN);
-    HAL_Delay(500);
-
-    //PWM
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 105); //50% duty cycle
-  }
+    while (1) {
+    	while(CH1_DC < 65535)
+    	{
+    	    TIM2->CCR1 = CH1_DC;
+    	    CH1_DC += 70;
+    	    HAL_Delay(1);
+    	}
+    	while(CH1_DC > 0)
+    	{
+    	    TIM2->CCR1 = CH1_DC;
+    	    CH1_DC -= 70;
+    	    HAL_Delay(1);
+    	}
+    }
 }
