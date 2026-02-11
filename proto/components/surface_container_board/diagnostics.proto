@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+// Weight sensor error codes
+enum WeightErrorCode {
+  WEIGHT_NO_ERROR = 0;
+  WEIGHT_COMMUNICATION_FAILURE = 1;
+  WEIGHT_OUT_OF_RANGE = 2;
+  WEIGHT_CALIBRATION_REQUIRED = 3;
+  WEIGHT_INVALID_DATA = 4;
+  WEIGHT_SENSOR_FAULT = 5;
+  WEIGHT_OVERLOAD = 6;
+}
+
+// Weight sensor state
+enum WeightSensorState {
+  WEIGHT_SENSOR_IDLE = 0;
+  WEIGHT_SENSOR_OPERATING = 1;
+  WEIGHT_SENSOR_CALIBRATING = 2;
+  WEIGHT_SENSOR_ERROR = 3;
+  WEIGHT_SENSOR_NOT_CONNECTED = 4;
+}
