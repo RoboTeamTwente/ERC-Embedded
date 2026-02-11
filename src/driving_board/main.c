@@ -187,12 +187,13 @@ for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
 
   uint8_t ip[4] = {0, 0, 0, 0};
   uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
-  ETH_udp_init();
+  //ETH_udp_init();
  
   while (1) {
-    ETH_udp_send(ip, 7, "udp message");
+    //ETH_udp_send(ip, 7, "udp message");
     osDelay(100);
-    ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
+    ETH_raw_send(mac, "ggg");
+    //ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
     osDelay(100); 
 /**
  *  pb_encoding_t enc;
