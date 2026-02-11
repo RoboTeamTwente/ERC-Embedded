@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "proto/components/common/motor.proto";
+import "motor.proto";
 
 //Message Out: Arm board -> Debug, States of ALL motors
 //(If im correct theres 6 on the arm + gripper)

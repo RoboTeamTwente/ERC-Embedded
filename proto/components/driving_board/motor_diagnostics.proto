@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "proto/components/common/motor.proto";
+import "motor.proto";
 
 message DrivingBoardDiagnostics {
   enum State {
