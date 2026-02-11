@@ -21,7 +21,6 @@
 #include "gpio.h"
 // #include "logging.h"
 #include "tim.h"
-#include "usart.h"
 #include <stdint.h>
 
 #define TAG "MAIN"
