@@ -173,18 +173,31 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
 
   //BSP_LED_Toggle(LED_GREEN);
-
-for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
+  /**
+   * for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
    {
-      rtU.actang[i] = rtY.desang[i];
+      rtU.actang[i] = rtY.desang[i]*0.96;
    }
   
  for (size_t i = 0; i < 4; i++)
    {
       rtU.actspeed[i] = rtY.desspeed[i]*0.8;
    }
- rtU.dist2goal = 30.0;  // meters
- rtU.steerang  = 1.0;
+   */
+  rtU.actspeed[0] =7.15;
+  rtU.actspeed[1] =7.12;
+  rtU.actspeed[2] =7.15;
+  rtU.actspeed[3] =6.75;
+  rtU.actspeed[4] =6.72;
+  rtU.actspeed[5] =6.75;
+
+  rtU.actang[0]=0.078;
+  rtU.actang[1]=-0.078;
+  rtU.actang[2]=0.109;
+  rtU.actang[3]=-0.109;
+
+  rtU.dist2goal = 2.0;  // meters
+  rtU.steerang  = 1.0;
 
   uint8_t ip[4] = {0, 0, 0, 0};
   uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
@@ -209,24 +222,26 @@ for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
     //Ethsend(enc.data, enc.length);
     free(enc.data);
  */
-
-
-    rtU.dist2goal = 10.0; // meters
-    rtU.steerang = 30.0;
- 
-    LOGI(TAG, "desspeed[0]   = %f, desspeed[1]   = %f, desspeed[2]   = %f, desspeed[3]   = %f, desspeed[4]   = %f, desspeed[5]   = %f\n", rtY.desspeed[0], rtY.desspeed[1], rtY.desspeed[2], rtY.desspeed[3], rtY.desspeed[4], rtY.desspeed[5]);
-    LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
-    LOGI(TAG, "desang[0]     = %f, desang[1]     = %f, desang[2]     = %f, desang[3]     = %f\n", rtY.desang[0], rtY.desang[1], rtY.desang[2], rtY.desang[3]);
-    LOGI(TAG, "pwnenable[0]  = %f, pwnenable[1]  = %f, pwnenable[2]  = %f, pwnenable[3]  = %f\n", rtY.pwnenable[0], rtY.pwnenable[1], rtY.pwnenable[2], rtY.pwnenable[3]);
-    LOGI(TAG, "pwmrev[0]     = %f, pwmrev[1]     = %f, pwmrev[2]     = %f, pwmrev[3]     = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3]);
+/**
+ * LOGI(TAG, "desspeed[0]   = %f, desspeed[1]   = %f, desspeed[2]   = %f, desspeed[3]   = %f, desspeed[4]   = %f, desspeed[5]   = %f\n", rtY.desspeed[0], rtY.desspeed[1], rtY.desspeed[2], rtY.desspeed[3], rtY.desspeed[4], rtY.desspeed[5]);
+  LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
+  LOGI(TAG, "desang[0]     = %f, desang[1]     = %f, desang[2]     = %f, desang[3]     = %f\n", rtY.desang[0], rtY.desang[1], rtY.desang[2], rtY.desang[3]);
+  LOGI(TAG, "pwnenable[0]  = %f, pwnenable[1]  = %f, pwnenable[2]  = %f, pwnenable[3]  = %f\n", rtY.pwnenable[0], rtY.pwnenable[1], rtY.pwnenable[2], rtY.pwnenable[3]);
+  LOGI(TAG, "pwmrev[0]     = %f, pwmrev[1]     = %f, pwmrev[2]     = %f, pwmrev[3]     = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3]);
   
+ */
+  
+
+  
+  
+    
      
     //BSP_LED_Toggle(LED_GREEN);
     //BSP_LED_Toggle(LED_BLUE);
     //BSP_LED_Toggle(LED_RED);
     //LOGI(TAG, "%d + %d = %d", 5, 2, add(5, 2));
 
-    LOGI(TAG, "This is the driving board");
+   // LOGI(TAG, "This is the driving board");
     osDelay(1000);
     
   }
@@ -238,7 +253,9 @@ void PwmTask(void *argument){
    for(;;)
    {
        control_step();// from control.c
+       //LOGI(TAG, "actang[0]     = %f, actang[1]     = %f, actang[2]     = %f, actang[3]     = %f\n", rtU.actang[0], rtU.actang[1], rtU.actang[2], rtU.actang[3]);
        //LOGI(TAG, "control step occured");
+       //LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
        set_bldc_pwm();//this might also be done somewhere else im not sure
        //set_stepper_pwm();
        osDelay(period_ms); //fixed 1ms loop
