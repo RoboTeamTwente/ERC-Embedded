@@ -26,19 +26,19 @@ extern ExtU rtU;
 extern ExtY rtY;
 
 extern void MX_FREERTOS_Init(void);
-void Error_Handler(void);
-void cubemx_main(void);
+
+//void cubemx_main(void);
 void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
+void Error_Handler(void);
 void MPU_Config(void);
+
 void MX_GPIO_Init(void);
-//void MX_DAC1_Init(void);
 void MX_TIM1_Init(void);
 void MX_TIM3_Init(void);
 
 COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
-//DAC_HandleTypeDef hdac1;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 
@@ -51,7 +51,7 @@ void DrivingSensorTask(void *argument);
 // Task attributes for CMSIS-RTOS v2
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
-    .stack_size = 256 * 4,
+    .stack_size = 1024 * 8,
     .priority = (osPriority_t)osPriorityNormal,
 };
 
@@ -67,6 +67,7 @@ const osThreadAttr_t drivingSensorTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
+
 void init_board() {
 
   MPU_Config_wrapper();
@@ -74,13 +75,13 @@ void init_board() {
   SCB_EnableICache();
 
   /* Enable D-Cache---------------------------------------------------------*/
-  SCB_EnableDCache();
+  //SCB_EnableDCache();
 
   HAL_Init();
   SystemClock_Config();
-
-  osKernelInitialize();
   MX_GPIO_Init();
+  osKernelInitialize();
+  
   //MX_DAC1_Init();
   //HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
@@ -187,17 +188,17 @@ for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
 
   uint8_t ip[4] = {0, 0, 0, 0};
   uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
-  //ETH_udp_init();
+  ETH_udp_init();
  
   while (1) {
-    //ETH_udp_send(ip, 7, "udp message");
+    ETH_udp_send(ip, 7, "udp message");
     osDelay(100);
     ETH_raw_send(mac, "ggg");
-    //ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
+    ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
     osDelay(100); 
 /**
  *  pb_encoding_t enc;
-
+1
     result_t res = DBMMsgEncode(10.0f, 30.0f, 2.5f, &enc);
 
     if (res != RESULT_OK)
