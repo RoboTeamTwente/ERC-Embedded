@@ -19,9 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "ethernet.h"
 #include "gpio.h"
-#include "logging.h"
 #include "tim.h"
-#include "usart.h"
 #include <stdint.h>
 
 #define TAG "MAIN"
@@ -56,17 +54,9 @@ int main(void) {
   MX_GPIO_Init();
   MX_TIM1_Init();
   uart_setup();
-  LOG_init(&huart_com);
   MX_TIM1_Init();
-  ETH_init(&htim1, NULL, NULL);
-  ETH_udp_init();
 
-  uint8_t ip[4] = {0, 0, 0, 0};
-  uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
   while (1) {
-    ETH_udp_send(ip, 7, "udp message");
-    HAL_Delay(100);
-    ETH_raw_send(mac, "raw message");
-    HAL_Delay(100);
+
   }
 }
