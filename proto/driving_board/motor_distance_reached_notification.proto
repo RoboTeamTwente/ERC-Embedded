@@ -1,3 +1,0 @@
-message DrivingBoardMotorDistanceReachedNotification {
-  float distance_reached = 1;
-}

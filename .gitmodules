@@ -1,0 +1,5 @@
+[submodule "protobufs"]
+	path = ERC-Protobufs
+	url = git@github.com:RoboTeamTwente/ERC-Protobufs.git
+[submodule "ERC-Protobufs"]
+	url = git@github.com:RoboTeamTwente/ERC-Protobufs.git
