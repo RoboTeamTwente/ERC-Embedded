@@ -25,13 +25,6 @@
 #define STEPS_PER_REV 200 //In steps / rev
 #define RPM 100 
 
-// //The angles from where to where the stepper is allowed to move
-// //For example, the wrist could probably not move fully where the arm is
-// const uint32_t START_ANGLE_CW = 315; //Place in the CW system where the stepper can only move forwards
-// const uint32_t START_ANGLE_CW = 270; //Place in the CW system where the stepper can only move backwards
-// const uint32_t START_ANGLE_CCW = START_ANGLE_CW % 360;
-// const uint32_t STOP_ANGLE_CCW = START_ANGLE_CW % 360;
-
 const uint32_t WAVE_DRIVE[4][4] = {
     {1, 0, 0, 0},
     {0, 1, 0, 0},
@@ -58,27 +51,6 @@ const uint32_t FULL_DRIVE[4][4] = {
 };
 
 
-//1:1 recration of protobuf
-typedef struct {
-    uint32_t current_angle;
-    uint32_t pwm;
-} stepper_t;
-
-//1:1 recration of protobuf
-typedef struct {
-    float control_wrist_rotation;         
-    float control_gripper_pitch;          
-    float control_base;
-    //Enable signals                
-    float stepper_top_ENA;         
-    float stepper_bottom_ENA;
-    //Revolution           
-    float stepper_top_REV;     
-    float stepper_bottom_REV;             
-} control_signals_t;
-
-stepper_t stepper;
-
 result_t init_stepper() {
     set_pin(ENA_PIN, "HIGH");
     stepper.current_angle = 0;
@@ -93,7 +65,7 @@ result_t stepper_make_steps(uint32_t angle, bool direction) {
     angle = angle % 360;
     uint32_t steps_for_angle = STEPS_PER_REV * (angle / 360);
     
-    set_pin(DIR_PIN, direction); //1 for clockwise, 0 for counterclockwise
+    // set_pin(DIR_PIN, direction); //1 for clockwise, 0 for counterclockwise
     
     int seq_len = len(HALF_DRIVE);
     for (int x = 0; x < steps_for_angle; x++) {
@@ -105,7 +77,7 @@ result_t stepper_make_steps(uint32_t angle, bool direction) {
         } else {
             //THROW ERROR 
         }
-        sequence(step_index);
+        sequence_placeholder(step_index);
         delay_by_rpm();
     }
 }
@@ -133,6 +105,11 @@ void delayMicroseconds (uint32_t ms){
 void delay_by_rpm() {
     int ms_in_minute = 60000000;
     delayMicroseconds(ms_in_minute/STEPS_PER_REV/RPM);
+}
+
+//NOTE: for sequence half drive
+void sequence_placeholder(int step){
+    return HALF_DRIVE[step][0], HALF_DRIVE[step][1];
 }
 
 //NOTE: for sequence half drive

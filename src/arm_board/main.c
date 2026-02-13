@@ -19,20 +19,22 @@
 /* Includes ------------------------------------------------------------------*/
 #include "ethernet.h"
 #include "gpio.h"
-// #include "logging.h"
+#include "logging.h"
 #include "tim.h"
 #include <stdint.h>
+#include "stepper.h"
 
 #define TAG "MAIN"
 
 TIM_HandleTypeDef htim2;
+
+int32_t ARR = 65535;
 
 void SystemClock_Config(void);
 void MX_GPIO_Init(void);
 void MX_TIM2_Init(void);
 
 int main(void) {
-    int32_t CH1_DC = 0;
 
     HAL_Init();
     SystemClock_Config();
@@ -40,18 +42,13 @@ int main(void) {
     MX_TIM2_Init();
     HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
+	stepper_make_steps(300, -1);
+
+	float DutyCycle = 0.25;
+	int32_t CH1_DC = DutyCycle * ARR;
+
     while (1) {
-    	while(CH1_DC < 65535)
-    	{
-    	    TIM2->CCR1 = CH1_DC;
-    	    CH1_DC += 70;
-    	    HAL_Delay(1);
-    	}
-    	while(CH1_DC > 0)
-    	{
-    	    TIM2->CCR1 = CH1_DC;
-    	    CH1_DC -= 70;
-    	    HAL_Delay(1);
-    	}
+    	TIM2->CCR1 = CH1_DC;
+    	HAL_Delay(1);
     }
 }
