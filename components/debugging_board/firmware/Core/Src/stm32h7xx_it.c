@@ -55,7 +55,9 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern TIM_HandleTypeDef htim6;
+extern ETH_HandleTypeDef heth;
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN EV */
 
@@ -160,6 +162,34 @@ void DebugMon_Handler(void)
 /******************************************************************************/
 
 /**
+  * @brief This function handles TIM1 update interrupt.
+  */
+void TIM1_UP_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_UP_IRQn 0 */
+
+  /* USER CODE END TIM1_UP_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_UP_IRQn 1 */
+
+  /* USER CODE END TIM1_UP_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM2 global interrupt.
+  */
+void TIM2_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM2_IRQn 0 */
+
+  /* USER CODE END TIM2_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim2);
+  /* USER CODE BEGIN TIM2_IRQn 1 */
+
+  /* USER CODE END TIM2_IRQn 1 */
+}
+
+/**
   * @brief This function handles EXTI line[15:10] interrupts.
   */
 void EXTI15_10_IRQHandler(void)
@@ -174,17 +204,17 @@ void EXTI15_10_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles TIM6 global interrupt, DAC1_CH1 and DAC1_CH2 underrun error interrupts.
+  * @brief This function handles Ethernet global interrupt.
   */
-void TIM6_DAC_IRQHandler(void)
+void ETH_IRQHandler(void)
 {
-  /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
+  /* USER CODE BEGIN ETH_IRQn 0 */
 
-  /* USER CODE END TIM6_DAC_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim6);
-  /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
+  /* USER CODE END ETH_IRQn 0 */
+  HAL_ETH_IRQHandler(&heth);
+  /* USER CODE BEGIN ETH_IRQn 1 */
 
-  /* USER CODE END TIM6_DAC_IRQn 1 */
+  /* USER CODE END ETH_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

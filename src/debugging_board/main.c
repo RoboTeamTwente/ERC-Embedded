@@ -1,5 +1,4 @@
 #ifndef UNIT_TEST
-#include "button_matrix_driver.h"
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
 #include "cubemx_main.h"
 #include "gpio.h"
@@ -36,106 +35,6 @@ const osThreadAttr_t mainTask_attributes = {
     .stack_size = 1024 * 2,
     .priority = (osPriority_t)osPriorityNormal,
 };
-typedef struct {
-  uint32_t seq;
-  uint32_t tick;
-  uint32_t payload;
-} test_item_t;
-
-#define BQ_NUM_BUCKETS (4U)
-#define BQ_BUCKET_LEN (8U) /* items per bucket */
-#define PRODUCER_PERIOD_MS (50U)
-#define CONSUMER_PERIOD_MS (10U) /* Static backing buffer for queue storage */
-
-typedef struct {
-  uint32_t seq;
-  uint8_t prio;
-  uint32_t tick;
-} bq_item_t;
-
-/* ---------- Globals ---------- */
-
-static QueueHandle_t g_buckets[BQ_NUM_BUCKETS];
-static bucketed_pqueue_t g_bq;
-
-static void vBQProducerTask(void *arg) {
-  (void)arg;
-
-  uint32_t seq = 0U;
-
-  for (;;) {
-    bq_item_t item;
-    item.seq = seq++;
-    item.tick = (uint32_t)xTaskGetTickCount();
-
-    /* Simple pattern: cycle priorities 0..(N-1) */
-    item.prio = (uint8_t)(item.seq % BQ_NUM_BUCKETS);
-
-    /* Try enqueue; keep it non-blocking for interactive testing */
-    result_t r = bucketed_pqueue_push(&g_bq, item.prio, &item, 0U);
-
-    if (r == RESULT_OK) {
-      LOGI("push prio=%u seq=%lu tick=%lu", (unsigned)item.prio,
-           (unsigned long)item.seq, (unsigned long)item.tick);
-    } else if (r == RESULT_ERR_OVERFLOW) {
-      LOGE("push overflow prio=%u", (unsigned)item.prio);
-    } else {
-      LOGE("push err=%d", (int)r);
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(PRODUCER_PERIOD_MS));
-  }
-}
-
-static void vBQConsumerTask(void *arg) {
-  (void)arg;
-
-  uint32_t last_seq[BQ_NUM_BUCKETS] = {0U};
-  uint8_t seen[BQ_NUM_BUCKETS] = {0U};
-
-  for (;;) {
-    bq_item_t item;
-
-    result_t r = bucketed_pqueue_pop(&g_bq, &item);
-    if (r == RESULT_OK) {
-      /* Per-priority monotonic check (basic sanity) */
-      if (seen[item.prio] != 0U && item.seq <= last_seq[item.prio]) {
-        LOGE("order violation prio=%u seq=%lu last=%lu", (unsigned)item.prio,
-             (unsigned long)item.seq, (unsigned long)last_seq[item.prio]);
-      }
-      last_seq[item.prio] = item.seq;
-      seen[item.prio] = 1U;
-
-      LOGI("pop  prio=%u seq=%lu tick=%lu now=%lu", (unsigned)item.prio,
-           (unsigned long)item.seq, (unsigned long)item.tick,
-           (unsigned long)xTaskGetTickCount());
-    } else if (r != RESULT_ERR_NOT_FOUND) {
-      LOGE("pop err=%d", (int)r);
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(CONSUMER_PERIOD_MS));
-  }
-}
-
-static void vBQNotifyConsumerTask(void *arg) {
-  (void)arg;
-
-  for (;;) {
-    /* Wait until at least one push notifies us */
-    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-    for (;;) {
-      bq_item_t item;
-      result_t r = bucketed_pqueue_pop(&g_bq, &item);
-      if (r != RESULT_OK) {
-        break;
-      }
-      LOGI("pop(notify) prio=%u seq=%lu", (unsigned)item.prio,
-           (unsigned long)item.seq);
-    }
-  }
-}
-
 SPI_HandleTypeDef hspi1;
 static const uint8_t main_menu_icons[3][MENU_DRIVER_ICON_BYTE_SIZE] = {
     {0xff, 0xe3, 0xff, 0xff, 0xff, 0xc3, 0xff, 0xff, 0xff, 0xc3, 0xff, 0xff,
@@ -203,44 +102,29 @@ void MainTask(void *argument) {
   LOGI(TAG, "Starting Main Task\n");
   LOGI(TAG, "Initializing ILI9341\n");
 
-  HAL_GPIO_WritePin(MATRIX_COL_A_GPIO_Port, MATRIX_COL_A_Pin, GPIO_PIN_RESET);
-  while (1) {
-    osDelay(1000);
-  }
   ILI9341_Init();
   ILI9341_Set_Rotation(SCREEN_HORIZONTAL_1);
-  // ILI9341_Set_Address(40, 0, ILI9341_SCREEN_WIDTH - 1,
-  //                     ILI9341_SCREEN_HEIGHT - 1);
-  // ILI9341_Draw_Colour_Array(menu_driver_img_ludwig_1, 280 * 240);
-
-  // // menu_page_t active_page = manager.pages[manager.active_page_id];
-  // // active_page.init(active_page.state);
-  // // LOGI(TAG, "Rendering Active Page\n");
-  // // active_page.render(&manager);
-  // // LOGI(TAG, "Active Page Rendered\n");
+  ILI9341_Set_Address(40, 0, ILI9341_SCREEN_WIDTH - 1,
+                      ILI9341_SCREEN_HEIGHT - 1);
+  ILI9341_Draw_Colour_Array(menu_driver_img_ludwig_1, 280 * 240);
+  // ILI9341_Fill_Screen(BLACK);
+  // menu_driver_draw_ribbon();
   //
-  // // ILI9341_Fill_Screen(BLACK);
-  menu_driver_draw_ribbon();
-  // ILI9341_WriteString(65, 200, "Oopsie, rover dead :D", ILI9341_Font_11x18,
-  //                     MENU_DRIVER_FOREGROUND_COLOR,
-  //                     MENU_DRIVER_BACKGROUND_COLOR);
-  menu_page_render_list(&manager);
+  ILI9341_WriteString(65, 200, "Oopsie, rover dead :D", ILI9341_Font_11x18,
+                      MENU_DRIVER_FOREGROUND_COLOR,
+                      MENU_DRIVER_BACKGROUND_COLOR);
+  // menu_page_t active_page = manager.pages[manager.active_page_id];
+  // active_page.init(active_page.state);
+  LOGI(TAG, "Rendering Active Page\n");
+  // active_page.render(&manager);
+  osDelay(100);
+  // ILI9341_Fill_Screen(BLACK);
+  osDelay(100);
+  // osDelay(100);
+  // menu_page_render_list(&manager);
   while (1) {
-    if (pages[0].needs_render) {
-      menu_page_render_list(&manager);
-      pages[0].needs_render = false;
-    }
-
-    button_matrix_input_t input = ButtonMatrixDriver_Scan();
-    if (input.row != 0 && input.col != 0) {
-      LOGI(TAG, "Button Pressed at Row: %d, Col: %d\n", input.row, input.col);
-      main_menu_state.list.selected_index =
-          (main_menu_state.list.selected_index + 1) %
-          main_menu_state.list.num_entries;
-      pages[0].needs_render = true;
-    }
-    // LOGI(TAG, "ILI9341 Initialized and Running\n");
-    osDelay(80);
+    LOGI(TAG, "ILI9341 Initialized and Running\n");
+    osDelay(1000);
   }
 }
 
@@ -273,35 +157,8 @@ void main() {
 
   osKernelInitialize();
   LOGI(TAG, "Kernel Initialized");
-  while(1) {
-    osDelay(100);
-  }
-  for (uint8_t i = 0U; i < BQ_NUM_BUCKETS; i++) {
-    g_buckets[i] = xQueueCreate(BQ_BUCKET_LEN, sizeof(bq_item_t));
-    if (g_buckets[i] == NULL) {
-      LOGE("xQueueCreate failed for bucket %u", (unsigned)i);
-      for (;;) {
-      }
-    }
-  }
-
-  /* Option A: polling consumer */
-  {
-    TaskHandle_t cons_handle = NULL;
-    (void)xTaskCreate(vBQNotifyConsumerTask, "bq_ncons", 512U, NULL, 2U,
-                      &cons_handle);
-
-    result_t r =
-        bucketed_pqueue_init(&g_bq, g_buckets, BQ_NUM_BUCKETS, cons_handle);
-    if (r != RESULT_OK) {
-      for (;;) {
-      }
-    }
-
-    (void)xTaskCreate(vBQProducerTask, "bq_prod", 512U, NULL, 1U, NULL);
-  }
+  osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
-
   while (1) {
   }
 }
