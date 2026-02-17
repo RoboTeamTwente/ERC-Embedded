@@ -95,6 +95,7 @@ void menu_driver_task(void* arg) {
   LOGI(TAG, "Rendered list");
   int id = manager.active_page_id;
   page_list_state* state = &(manager.pages[id].state->list);
+  state->first_render = true;
   while (1) {
     LOGI(TAG, "In loop");
     state->selected_index += 1;

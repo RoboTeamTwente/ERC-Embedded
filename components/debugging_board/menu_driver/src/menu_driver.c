@@ -3,12 +3,6 @@
 #include "menu_driver_conf.h"
 #include "menu_driver_icons.h"
 #include <stdbool.h>
-#include "cmsis_os2.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "logging.h"
-#include "stm32h7xx_nucleo.h"
-
 
 static char *TAG = "MENU DRIVER";
 
