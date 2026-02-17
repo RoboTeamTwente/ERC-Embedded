@@ -1,8 +1,10 @@
 #ifndef MENU_DRIVER_CONF_H
+#include "ili9341_fonts.h"
 #define MENU_DRIVER_CONF_H
 
 #define MENU_DRIVER_BACKGROUND_COLOR 0x0000 // Black
 #define MENU_DRIVER_FOREGROUND_COLOR 0xFFFF // White
+
 
 #define MENU_SIDEBAR_WIDTH 38
 
