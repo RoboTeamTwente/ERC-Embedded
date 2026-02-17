@@ -19,8 +19,8 @@ volatile uint16_t LCD_WIDTH = ILI9341_SCREEN_WIDTH;
 
 /* Initialize SPI */
 void ILI9341_SPI_Init(void) {
-  MX_SPI1_Init(); // SPI INIT
-  MX_GPIO_Init(); // GPIO INIT
+  // MX_SPI1_Init(); // SPI INIT
+  // MX_GPIO_Init(); // GPIO INIT
 }
 
 /*Send data (char) to LCD*/

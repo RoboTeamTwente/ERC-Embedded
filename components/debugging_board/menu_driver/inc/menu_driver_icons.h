@@ -68,6 +68,7 @@ static unsigned char menu_driver_icon_roboteam[MENU_DRIVER_ICON_BYTE_SIZE] = {
 #define MENU_DRIVER_RIBBON_BYTE_SIZE                                           \
   (MENU_DRIVER_RIBBON_SIZE / sizeof(unsigned char) +                           \
    ((MENU_DRIVER_RIBBON_SIZE % sizeof(unsigned char)) ? 1 : 0))
+
 static unsigned char menu_driver_ui_ribbon[MENU_DRIVER_RIBBON_BYTE_SIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00,
     0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
