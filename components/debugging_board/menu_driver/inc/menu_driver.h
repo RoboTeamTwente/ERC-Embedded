@@ -68,4 +68,6 @@ void menu_manager_init(menu_manager_t *manager,
                        menu_input (*get_input_func)(void));
 void menu_manager_switch_page(menu_manager_t *manager,
                               unsigned char new_page_id);
+
+void menu_manager_init_display();
 #endif // !MENU_DRIVER_H
