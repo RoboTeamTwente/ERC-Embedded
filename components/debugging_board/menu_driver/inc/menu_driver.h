@@ -20,6 +20,7 @@ typedef struct {
   uint8_t selected_index;
   uint8_t entry_ids[MAX_LIST_ENTRIES];
   const uint8_t (*entry_icons)[MENU_DRIVER_ICON_BYTE_SIZE];
+  bool first_render;
 } page_list_state;
 
 typedef struct {
