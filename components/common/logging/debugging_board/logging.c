@@ -33,6 +33,7 @@ int _write(int file, char *ptr, int len) {
 void LOG_init(void *arg) {
   huart_handler = *(UART_HandleTypeDef *)arg;
   initialized = 1;
+  _write(1, "[BOOT] ########========--------\n",32);
   LOG(LOG_INFO, "LOGGING", "Logging Initialized");
 }
 
