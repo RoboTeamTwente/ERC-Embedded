@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-// Common sensor state enum used across all sensor types
-enum SensorState {
-  SENSOR_IDLE = 0; // Sensor is idle/not currently sampling
-  SENSOR_OPERATING = 1; // Sensor is actively sampling/operating normally
-  SENSOR_CALIBRATING = 2; // Sensor is in calibration mode
-  SENSOR_ERROR = 3; // Sensor has encountered an error
-}
