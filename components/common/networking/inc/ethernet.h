@@ -53,4 +53,13 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]);
  */
 void ETH_raw_send(uint8_t mac[6], char *payload);
 
+/**
+ * @brief Send a raw ethernet frame with binary data
+ *
+ * @param mac[6] Destination mac address
+ * @param payload pointer to binary data
+ * @param length length of payload in bytes
+ */
+void ETH_raw_send_binary(uint8_t mac[6], void *payload, size_t length);
+
 #endif

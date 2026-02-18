@@ -31,6 +31,10 @@ void ETH_raw_send(uint8_t *mac, char *payload) {
   raw_packet_send(&gnetif, &heth, mac, payload);
 }
 
+void ETH_raw_send_binary(uint8_t mac[6], void *payload, size_t length) {
+  raw_packet_send_binary(&gnetif, &heth, mac, payload, length);
+}
+
 
 void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]){
   ETH_MACFilterConfigTypeDef macfilterconfig;
