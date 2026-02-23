@@ -9,6 +9,7 @@
 #include "tim.h"
 #include "udp.h"
 #include <stdint.h>
+#include <string.h>
 
 #define TAG "MAIN"
 
@@ -57,6 +58,24 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]) {
   }
 }
 
+result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]) {
+  ip4_addr_t ipaddr;
+  struct eth_addr macaddr;
+
+  IP4_ADDR(&ipaddr, ip[0], ip[1], ip[2], ip[3]);
+  memcpy(macaddr.addr, mac, 6);
+
+  err_t err = etharp_add_static_entry(&ipaddr, &macaddr);
+  if (err == ERR_OK) {
+    LOGI(TAG, "Static ARP entry added successfully with IP: %u.%u.%u.%u",
+         (uint8_t)ipaddr.addr, (uint8_t)(ipaddr.addr >> 8),
+         (uint8_t)(ipaddr.addr >> 16), (uint8_t)(ipaddr.addr >> 24));
+    return RESULT_OK;
+  } else {
+    LOGE(TAG, "Failed to add static ARP entry: %d\n", result_to_short_str(err));
+    return RESULT_ERR_COMMS;
+  }
+}
 void ETH_init(
     receiver_callback receiver_callback,
     linkstatus_callback_t link_state_change_callback) { // TODO: return an error

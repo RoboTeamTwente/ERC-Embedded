@@ -1,5 +1,6 @@
 
 #include "ethernet_udp_sender.h"
+#include "ip4_addr.h"
 #include "logging.h"
 #include "result.h"
 #include "udp.h"
@@ -47,12 +48,11 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
       return RESULT_ERR_COMMS;
     }
     pbuf_free(txBuf);
-  }
-  else{
+  } else {
     LOGE(TAG, "cannot allocate a pbuffer");
     return RESULT_ERR_BUFF;
   }
-  
+
   return RESULT_OK;
 }
 
@@ -67,14 +67,14 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
 result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4]) {
 
   *upcb = udp_new(); // TODO: return error if this is NULL
-  if (upcb == NULL){
+  if (upcb == NULL) {
     LOGE(TAG, "Cannot create new udp handler");
     return RESULT_FAIL;
   }
   ip_addr_t myIPaddr;
   IP_ADDR4(&myIPaddr, 192, 168, 0, 111);
   err_t err = udp_bind(*upcb, &myIPaddr, 8);
-  if(err != ERR_OK){
+  if (err != ERR_OK) {
     LOGE(TAG, "Cannot bind the udp: %s", lwip_strerr(err));
     return RESULT_FAIL;
   }

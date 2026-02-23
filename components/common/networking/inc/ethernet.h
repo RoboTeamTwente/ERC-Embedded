@@ -3,8 +3,9 @@
 
 #include <stdint.h>
 
-#include "ethernet_diagnostics.h"
-#include "ethernet_receiver.h"
+#include "result.h"
+#include "stm/ethernet_diagnostics.h"
+#include "stm/ethernet_receiver.h"
 
 /**
  * @brief Initializes ethernet
@@ -40,6 +41,16 @@ void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload);
  * @param[in] mac3 mac to filter, can be NULL
  */
 void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]);
+
+/**
+ * @brief Add an IP to the arp table
+ *
+ * @param ip  the ip
+ * @param mac the mac
+ * @return RESULT_OK if the element is succesfully added,
+ *         RESULT_ERR_COMMS if it is not succesfully added.
+ */
+result_t ETH_add_arp(int ip[4], int mac[6]);
 
 /**
  * @brief Send a raw ethernet frame
