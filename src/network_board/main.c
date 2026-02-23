@@ -20,6 +20,7 @@
 #include "cmsis_os2.h"
 #include "ethernet.h"
 #include "gpio.h"
+#include "ip_mac_constants.h"
 #include "logging.h"
 #include "tim.h"
 #include <stdint.h>
@@ -90,8 +91,8 @@ int main(void) {
 void set_mac(int mac[6]) {}
 void MainTask(void *argument) {
 
-  uint8_t ip[4] = {192, 168, 0, 50};
-  uint8_t mac[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
+  uint8_t ip[4] = SAMPLE_BOARD_IP;
+  uint8_t mac[6] = SAMPEL_BOARD_MAC;
   ETH_udp_init();
   ETH_add_arp(ip, mac);
   while (1) {
