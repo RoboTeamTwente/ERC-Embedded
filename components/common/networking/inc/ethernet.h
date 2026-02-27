@@ -60,4 +60,6 @@ result_t ETH_add_arp(int ip[4], int mac[6]);
  */
 void ETH_raw_send(uint8_t mac[6], char *payload);
 
+
+
 #endif

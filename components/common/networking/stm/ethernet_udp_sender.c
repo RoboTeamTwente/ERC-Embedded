@@ -3,6 +3,7 @@
 #include "ip4_addr.h"
 #include "logging.h"
 #include "result.h"
+#include "stm/ethernet_receiver.h"
 #include "udp.h"
 #include <lwip.h>
 #include <stdint.h>
@@ -78,5 +79,6 @@ result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4]) {
     LOGE(TAG, "Cannot bind the udp: %s", lwip_strerr(err));
     return RESULT_FAIL;
   }
+  ETH_udp_receiver_init(*upcb);
   return RESULT_OK;
 }

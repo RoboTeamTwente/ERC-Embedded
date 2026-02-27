@@ -10,6 +10,7 @@
 #include "queue.h"
 #include "result.h"
 #include "stm32h7xx_hal_eth.h"
+#include "udp.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,30 +21,9 @@
 extern ETH_HandleTypeDef heth;
 
 receiver_callback r_callback;
-// bucketed_pqueue_t ETH_receiver_queue;
-// static StaticQueue_t xStaticQueue;
-// uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
-
-// #define STACK_SIZE 200
-// StaticTask_t xTaskBuffer;
-// StackType_t xStack[STACK_SIZE];
 
 u8_t eth_reader(struct netif *netif, struct pbuf *p) {
-  // result_t err = RESULT_OK;
-  // struct pbuf *copy_pbuf = pbuf_alloc(PBUF_RAW, p->tot_len, PBUF_RAM);
-  // if (copy_pbuf != NULL) {
-  //   if (pbuf_take(copy_pbuf, p->payload, p->tot_len) == ERR_OK) {
-  //     err = bucketed_pqueue_push(&ETH_receiver_queue, 0, copy_pbuf, 0U);
-  //   } else {
-  //     pbuf_free(copy_pbuf);
-  //     err = RESULT_ERR_BUFF;
-  //   }
-  // } else {
-  //   err = RESULT_ERR_BUFF;
-  // }
-  // if (err != RESULT_OK) {
-  //   LOGE(TAG, "Could not push incomming message to queue");
-  // }
+  r_callback(p->payload, p->len);
   return 1; // not handled, we never handle it, because I have no clue what I am
             // doing
 }
@@ -87,50 +67,21 @@ void ETH_set_receiver_callback(receiver_callback callback) {
   }
 }
 
-// void ETH_receiver_task(void *pvParameters) {
+void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
+                  const ip_addr_t *addr, u16_t port) {
+  r_callback(p->payload, p->len);
+  pbuf_free(p);
 
-//   configASSERT((uint32_t)pvParameters == 1UL);
+}
 
-//   for (;;) {
-//     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-//     for (;;) {
-//       struct pbuf p;
-//       result_t r = bucketed_pqueue_pop(&ETH_receiver_queue, &p);
-//       r_callback(p.payload, p.len);
-//       if (r != RESULT_OK) {
-//         break;
-//       }
-//     }
-//   }
-// }
+result_t ETH_udp_receiver_init(struct udp_pcb *pcb) {
+  udp_recv(pcb, udp_receiver, NULL);
+  return RESULT_OK;
+}
+
 result_t ETH_receiver_init(receiver_callback callback) {
 
-  // QueueHandle_t queue =
-  //     xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_RQ_ITEM_SIZE,
-  //                        ucQueueStorageArea, &xStaticQueue);
-
-  // TaskHandle_t xHandle = NULL;
-  // xHandle = xTaskCreateStatic(
-
-  //     ETH_receiver_task, /* Function that implements the task. */
-
-  //     "Ethernet receiver task", /* Text name for the task. */
-
-  //     STACK_SIZE, /* Number of indexes in the xStack array. */
-
-  //     (void *)1, /* Parameter passed into the task. */
-
-  //     tskIDLE_PRIORITY, /* Priority at which the task is created. */
-
-  //     xStack, /* Array to use as the task's stack. */
-
-  //     &xTaskBuffer); /* Variable to hold the task's data structure. */
-
-  // if (queue == NULL || xHandle == NULL) {
-  //   return RESULT_ERR_BUFF;
-  // }
   ETH_set_receiver_callback(callback);
-  // result_t err = bucketed_pqueue_init(&ETH_receiver_queue, &queue,
-  //                                     ETHERNET_RQ_PRIORITY_BUFFERS, xHandle);
-  return RESULT_OK;// err;
+
+  return RESULT_OK; // err;
 }

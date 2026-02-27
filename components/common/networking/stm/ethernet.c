@@ -76,6 +76,7 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]) {
     return RESULT_ERR_COMMS;
   }
 }
+
 void ETH_init(
     receiver_callback receiver_callback,
     linkstatus_callback_t link_state_change_callback) { // TODO: return an error
@@ -83,7 +84,7 @@ void ETH_init(
   MX_LWIP_Init();
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
   HAL_ETH_Start_IT(&heth);
-  ETH_set_receiver_callback(receiver_callback);
+  ETH_receiver_init(receiver_callback);
 
   LOGI(TAG, "Ethernet is set up!\n");
 }
