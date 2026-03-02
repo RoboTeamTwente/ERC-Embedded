@@ -24,6 +24,7 @@
 #include "logging.h"
 #include "tim.h"
 #include <stdint.h>
+#include <time.h>
 #define TAG "MAIN"
 
 extern void MX_FREERTOS_Init(void);
@@ -77,6 +78,7 @@ int main(void) {
   uart_setup();
   LOG_init(&huart_com);
   ETH_init(NULL, NULL);
+  ETH_raw_init(NULL);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
@@ -93,7 +95,7 @@ void MainTask(void *argument) {
 
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  ETH_udp_init();
+  ETH_udp_init(NULL);
   ETH_add_arp(ip, mac);
   while (1) {
     ETH_udp_send(ip, 7, "udp message");

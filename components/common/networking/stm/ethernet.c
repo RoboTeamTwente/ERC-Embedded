@@ -1,9 +1,8 @@
 #include "ethernet.h"
 #include "api_msg.h"
 #include "ethernet_diagnostics.h"
-#include "ethernet_raw_sender.h"
-#include "ethernet_receiver.h"
-#include "ethernet_udp_sender.h"
+#include "ethernet_raw.h"
+#include "ethernet_udp.h"
 #include "logging.h"
 #include "lwip.h"
 #include "tim.h"
@@ -17,15 +16,14 @@ extern ETH_HandleTypeDef heth;
 extern struct netif gnetif;
 extern uint8_t IP_ADDRESS[4];
 
-receiver_callback r_callback;
 struct udp_pcb *upcb;
 
-void ETH_udp_init() {
-  udp_client_init(&upcb, IP_ADDRESS);
+void ETH_udp_init(udp_receiver_callback callback) {
+  udp_client_init(&upcb, IP_ADDRESS, callback);
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
 }
-
+void ETH_raw_init(raw_receiver_callback callback) { raw_init(callback); }
 void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload) {
   udp_client_send(upcb, ip, port, payload);
 }
@@ -78,13 +76,11 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]) {
 }
 
 void ETH_init(
-    receiver_callback receiver_callback,
     linkstatus_callback_t link_state_change_callback) { // TODO: return an error
   LOGI(TAG, "Setting up ethernet...\n");
   MX_LWIP_Init();
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
   HAL_ETH_Start_IT(&heth);
-  ETH_receiver_init(receiver_callback);
 
   LOGI(TAG, "Ethernet is set up!\n");
 }

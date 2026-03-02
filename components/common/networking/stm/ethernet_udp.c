@@ -1,26 +1,18 @@
 
-#include "ethernet_udp_sender.h"
+#include "ethernet_udp.h"
 #include "ip4_addr.h"
+#include "ip_addr.h"
 #include "logging.h"
 #include "result.h"
-#include "stm/ethernet_receiver.h"
 #include "udp.h"
 #include <lwip.h>
 #include <stdint.h>
 #include <string.h>
 #define TAG "UDP"
 
-/**
- * @brief sends a udp packet, it tries to resolve the mac adress first
- *
- * @param[in] upcb pointer to a udp handler
- * @param[in] dest_ip pointer to an int list of 4 ints that make up the
- * destination IP
- * @param[in] length dest_ip length. Should be always 4
- * @param[in] port destination port address
- * @param[in] payload String with the payload
- * @return err_t
- */
+udp_receiver_callback r_callback;
+extern ETH_HandleTypeDef heth;
+
 result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
                          char *payload) {
   err_t err = ERR_OK;
@@ -58,14 +50,48 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
 }
 
 /**
- * @brief initializes a udp_handler
+ * @brief UDP receiver initializer
  *
- * @param[out] upcb pointer to a UDP handler
- * @param[in] src_ip pointer to an array with the source ip of length 4
- * @param[in] len lenght of the ip. Should always be 4
- * @return result_t
+ * @param[in] pcb The udp pcb
+ * @return RESULT_OK if it initialized correctly
  */
-result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4]) {
+void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
+                  const ip_addr_t *addr, u16_t port) {
+  r_callback(p->payload, p->len, addr, port);
+  pbuf_free(p);
+}
+
+void udp_receiver_callback_example(void *payload, size_t length,
+                                   const ip_addr_t *addr, u16_t port) {
+
+  uint8_t *bytes = (uint8_t *)payload;
+  // Each byte becomes two hex characters, plus null terminator
+  char *hex_str = malloc(length * 2 + 1);
+  if (!hex_str)
+    return;
+
+  for (size_t i = 0; i < length; ++i) {
+    sprintf(&hex_str[i * 2], "%02X", bytes[i]);
+  }
+
+  LOGI(TAG, "DATA RECEIVED: %s\n", hex_str);
+  LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
+  LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
+  free(hex_str);
+}
+
+result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
+                               udp_receiver_callback udp_callback) {
+  if (udp_callback != NULL) {
+    r_callback = udp_callback;
+  } else {
+    r_callback = udp_receiver_callback_example;
+  }
+  udp_recv(pcb, udp_receiver, NULL);
+  return RESULT_OK;
+}
+result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
+                         udp_receiver_callback udp_callback) {
 
   *upcb = udp_new(); // TODO: return error if this is NULL
   if (upcb == NULL) {
@@ -79,6 +105,6 @@ result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4]) {
     LOGE(TAG, "Cannot bind the udp: %s", lwip_strerr(err));
     return RESULT_FAIL;
   }
-  ETH_udp_receiver_init(*upcb);
+  ETH_udp_receiver_init(*upcb, udp_callback);
   return RESULT_OK;
 }

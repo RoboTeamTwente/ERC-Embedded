@@ -5,7 +5,7 @@
 
 #include "result.h"
 #include "stm/ethernet_diagnostics.h"
-#include "stm/ethernet_receiver.h"
+#include "stm/ethernet_raw.h"
 
 /**
  * @brief Initializes ethernet
@@ -60,6 +60,10 @@ result_t ETH_add_arp(int ip[4], int mac[6]);
  */
 void ETH_raw_send(uint8_t mac[6], char *payload);
 
-
-
+/**
+ * @brief initilaizes raw ethernet
+ *
+ * @param callback receiver callback function
+ */
+void ETH_raw_init(raw_receiver_callback callback);
 #endif

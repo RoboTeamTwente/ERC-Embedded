@@ -1,18 +1,18 @@
 
-#include "ethernet_raw_sender.h"
+#include "ethernet_raw.h"
 #include "err.h"
 #include "ethernet_diagnostics.h"
-#include "ethernet_receiver.h"
 #include "logging.h"
 #include "netif.h"
 #include "pbuf.h"
 #include "result.h"
 #include <stdint.h>
 #include <string.h>
-
-
-
+#define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
 #define TAG "stm32_raw_eth_packet"
+
+raw_receiver_callback r_callback;
+extern ETH_HandleTypeDef heth;
 
 result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
                          uint8_t mac_address[6], char *payload) {
@@ -50,7 +50,7 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
       if (err_default != ERR_OK) {
         LOGE(TAG, "Could not send the message: %s", lwip_strerr(err_default));
         err = RESULT_FAIL;
-      } 
+      }
     } else {
       err = RESULT_ERR_COMMS;
       LOGE(TAG, "Connection is not up: %s \n", result_to_short_str(err));
@@ -68,4 +68,34 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
   return err;
 }
 
+u8_t eth_reader(struct netif *netif, struct pbuf *p) {
+  r_callback(p->payload, p->len);
+  return 1; // not handled, we never handle it, because I have no clue what I am
+            // doing
+}
 
+void raw_receiver_callback_example(void *payload, size_t length) {
+
+  uint8_t *bytes = (uint8_t *)payload;
+  // Each byte becomes two hex characters, plus null terminator
+  char *hex_str = malloc(length * 2 + 1);
+  if (!hex_str)
+    return;
+
+  for (size_t i = 0; i < length; ++i) {
+    sprintf(&hex_str[i * 2], "%02X", bytes[i]);
+  }
+
+  LOGI(TAG, "DATA RECEIVED: %s\n", hex_str);
+  LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
+  LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
+  free(hex_str);
+}
+
+void raw_init(raw_receiver_callback callback) {
+  if (callback != NULL) {
+    r_callback = callback;
+  } else {
+    r_callback = raw_receiver_callback_example;
+  }
+}
