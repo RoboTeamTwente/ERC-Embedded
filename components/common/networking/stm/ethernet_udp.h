@@ -7,6 +7,13 @@
 #include "udp.h"
 #include <stdint.h>
 
+
+
+typedef struct {
+    void* payload;
+    uint16_t len;
+} receive_frame;
+
 /**
  * @brief The typedef of the callback function for receiving a message
  *

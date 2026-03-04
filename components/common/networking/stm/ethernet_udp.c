@@ -70,17 +70,18 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
 
   result_t err = RESULT_OK;
-  int8_t* buffer = malloc(p->len);
-  memcpy(buffer, (int8_t*) (p->payload), p->len);
-  if (buffer != NULL) {
-      err = bucketed_pqueue_push(&udp_receiver_queue, 0, buffer, 0U);
+  uint8_t* payload_buf = malloc(p->len);
+  receive_frame buffer = {.payload = payload_buf, .len = p->len};
+  memcpy((buffer.payload), (int8_t*) (p->payload), p->len);
+  if (buffer.payload != NULL) {
+      err = bucketed_pqueue_push(&udp_receiver_queue, 0, &buffer, 0U);
   } else {
     err = RESULT_ERR_BUFF;
   }
   if (err != RESULT_OK) {
     LOGE(TAG, "Could not push incomming message to queue");
   }
-  free(buffer);
+  free(payload_buf);
   pbuf_free(p);
 }
 
@@ -110,12 +111,16 @@ void udp_receiver_task(void *pvParameters) {
   for (;;) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     for (;;) {
-      struct pbuf p;
-      result_t r = bucketed_pqueue_pop(&udp_receiver_queue, &p);
-      r_callback(p.payload, p.len, NULL, NULL);
+      uint8_t* payload_buf = malloc(MAX_ETH_PAYLOAD_SIZE);
+      receive_frame frame = {payload_buf,0};
+      result_t r = bucketed_pqueue_pop(&udp_receiver_queue, &frame);
       if (r != RESULT_OK) {
+        free(payload_buf);
         break;
       }
+      r_callback(frame.payload, frame.len, NULL, NULL);
+      free(payload_buf);
+
     }
   }
 }
