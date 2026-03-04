@@ -1,8 +1,10 @@
 
 #include "ethernet_udp.h"
+#include "bucketed_pqueue.h"
 #include "ip4_addr.h"
 #include "ip_addr.h"
 #include "logging.h"
+#include "networking_constants.h"
 #include "result.h"
 #include "udp.h"
 #include <lwip.h>
@@ -12,6 +14,15 @@
 
 udp_receiver_callback r_callback;
 extern ETH_HandleTypeDef heth;
+
+bucketed_pqueue_t udp_receiver_queue;
+static StaticQueue_t xStaticQueue;
+QueueHandle_t udp_queue;
+uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
+
+#define STACK_SIZE 200
+StaticTask_t xTaskBuffer;
+StackType_t xStack[STACK_SIZE];
 
 result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
                          char *payload) {
@@ -57,7 +68,19 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
  */
 void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
-  r_callback(p->payload, p->len, addr, port);
+
+  result_t err = RESULT_OK;
+  int8_t* buffer = malloc(p->len);
+  memcpy(buffer, (int8_t*) (p->payload), p->len);
+  if (buffer != NULL) {
+      err = bucketed_pqueue_push(&udp_receiver_queue, 0, buffer, 0U);
+  } else {
+    err = RESULT_ERR_BUFF;
+  }
+  if (err != RESULT_OK) {
+    LOGE(TAG, "Could not push incomming message to queue");
+  }
+  free(buffer);
   pbuf_free(p);
 }
 
@@ -80,14 +103,64 @@ void udp_receiver_callback_example(void *payload, size_t length,
   free(hex_str);
 }
 
+void udp_receiver_task(void *pvParameters) {
+
+  configASSERT((uint32_t)pvParameters == 1UL);
+
+  for (;;) {
+    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    for (;;) {
+      struct pbuf p;
+      result_t r = bucketed_pqueue_pop(&udp_receiver_queue, &p);
+      r_callback(p.payload, p.len, NULL, NULL);
+      if (r != RESULT_OK) {
+        break;
+      }
+    }
+  }
+}
+
 result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
                                udp_receiver_callback udp_callback) {
+
+  udp_queue =
+      xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_RQ_ITEM_SIZE,
+                         ucQueueStorageArea, &xStaticQueue);
+
+  TaskHandle_t xHandle = NULL;
+  xHandle = xTaskCreateStatic(
+
+      udp_receiver_task, /* Function that implements the task. */
+
+      "udp receiver task", /* Text name for the task. */
+
+      STACK_SIZE, /* Number of indexes in the xStack array. */
+
+      (void *)1, /* Parameter passed into the task. */
+
+      tskIDLE_PRIORITY, /* Priority at which the task is created. */
+
+      xStack, /* Array to use as the task's stack. */
+
+      &xTaskBuffer); /* Variable to hold the task's data structure. */
+
+  if (udp_queue == NULL || xHandle == NULL) {
+    return RESULT_ERR_BUFF;
+  }
+
+  result_t err = bucketed_pqueue_init(&udp_receiver_queue, &udp_queue,
+                                      ETHERNET_RQ_PRIORITY_BUFFERS, xHandle);
+  if (err != RESULT_OK) {
+    LOGE(TAG, "pbuffer failed to initialize with error code: %s",
+         result_to_short_str(err));
+  }
   if (udp_callback != NULL) {
     r_callback = udp_callback;
   } else {
     r_callback = udp_receiver_callback_example;
   }
   udp_recv(pcb, udp_receiver, NULL);
+
   return RESULT_OK;
 }
 result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
