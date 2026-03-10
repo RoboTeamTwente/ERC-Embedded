@@ -7,11 +7,12 @@
 #include "udp.h"
 #include <stdint.h>
 
-
-
 typedef struct {
-    void* payload;
-    uint16_t len;
+  ip_addr_t addr;
+  void *payload;
+  u16_t port;
+  uint16_t len;
+
 } receive_frame;
 
 /**
