@@ -209,6 +209,23 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
     ETH_raw_send(mac, "ggg");
     ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
     osDelay(100); 
+
+    uint8_t *encoded_data = NULL;
+    size_t encoded_length = 0;
+
+    float distance_to_go = 10.5f;
+    float turning_angle = 45.0f;
+    float turning_radius = 2.0f;
+
+    result_t res = DBMMsgEncode(distance_to_go, turning_angle, turning_radius, &encoded_data, &encoded_length);
+    if (res != RESULT_OK) {
+      LOGI(TAG, "Encoding failed");
+    }
+    else{
+      LOGI(TAG, "Encoding successful");
+    }
+    
+
 /**
  *  pb_encoding_t enc;
 1
