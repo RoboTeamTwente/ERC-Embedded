@@ -32,16 +32,11 @@ void ETH_raw_send(uint8_t *mac, char *payload) {
   raw_packet_send(&gnetif, &heth, mac, payload);
 }
 
-<<<<<<< HEAD
 void ETH_raw_send_binary(uint8_t mac[6], void *payload, size_t length) {
   raw_packet_send_binary(&gnetif, &heth, mac, payload, length);
 }
 
-
-void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]){
-=======
 void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]) {
->>>>>>> c73b268c0017db262db906a609c204af54beebb7
   ETH_MACFilterConfigTypeDef macfilterconfig;
   HAL_ETH_GetMACFilterConfig(&heth, &macfilterconfig);
   macfilterconfig.HachOrPerfectFilter = DISABLE;

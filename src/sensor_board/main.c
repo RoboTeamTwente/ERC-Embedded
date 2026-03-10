@@ -94,7 +94,7 @@ void init_board() {
   HAL_UART_Transmit(&huart_com, (uint8_t*)boot_msg, strlen(boot_msg), 100);
 
   // Initialize Ethernet with MAC address filtering
-  ETH_init(NULL, NULL);
+  ETH_init(NULL);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};

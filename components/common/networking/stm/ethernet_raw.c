@@ -68,6 +68,60 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
   return err;
 }
 
+result_t raw_packet_send_binary(struct netif *netif, ETH_HandleTypeDef *heth,
+                                uint8_t mac_address[6], void *payload, size_t length) {
+  result_t err = RESULT_OK;
+  err_t err_default;
+  size_t data_size = sizeof(ethernet_frame_t) + length;
+
+  ethernet_frame_t *frame = malloc(data_size);
+  if (!frame) {
+    err = RESULT_ERR_NO_MEM;
+    LOGE(TAG, "Could not allocate memory for frame\n");
+    return err;
+  }
+
+  memcpy(frame->dest_mac, mac_address, 6);
+  memcpy(frame->src_mac, heth->Init.MACAddr, 6);
+  frame->ethertype = htons(ETHERTYPE_SENSOR_DATA);  // Convert to network byte order
+  memcpy(frame->payload, payload, length);
+
+  struct pbuf *txBuf;
+
+  txBuf = pbuf_alloc(PBUF_RAW, data_size, PBUF_RAM);
+
+  if (txBuf != NULL) {
+    err_default = pbuf_take(txBuf, frame, data_size);
+    if (err_default != ERR_OK) {
+      LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err_default));
+      pbuf_free(txBuf);
+      free(frame);
+      return RESULT_ERR_BUFF;
+    }
+    if (netif_is_link_up(netif)) {
+      err_default = netif->linkoutput(netif, txBuf);
+
+      if (err_default != ERR_OK) {
+        LOGE(TAG, "Could not send the message: %s", lwip_strerr(err_default));
+        err = RESULT_FAIL;
+      }
+    } else {
+      err = RESULT_ERR_COMMS;
+      LOGE(TAG, "Connection is not up\n");
+    }
+  } else {
+    err = RESULT_ERR_BUFF;
+    LOGE(TAG, "Could not allocate pbuffer\n");
+    free(frame);
+    return err;
+  }
+
+  pbuf_free(txBuf);
+
+  free(frame);
+  return err;
+}
+
 u8_t eth_reader(struct netif *netif, struct pbuf *p) {
   r_callback(p->payload, p->len);
   return 1; // not handled, we never handle it, because I have no clue what I am

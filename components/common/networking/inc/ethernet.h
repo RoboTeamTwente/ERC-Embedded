@@ -10,14 +10,11 @@
 /**
  * @brief Initializes ethernet
  *
- *
- * @param[in] receiver_callback callback function for receiving a message
  * @param[in] link_state_change_callback callback function for when the physical
  *                                       Ethernet link state changes
  *                                       I.e. cable connects/disconnects
  */
-void ETH_init(receiver_callback receiver_callback,
-              linkstatus_callback_t link_state_change_callback);
+void ETH_init(linkstatus_callback_t link_state_change_callback);
 
 /**
  * @brief Initializes the udp stack, such that messages can be send.
@@ -50,7 +47,7 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]);
  * @return RESULT_OK if the element is succesfully added,
  *         RESULT_ERR_COMMS if it is not succesfully added.
  */
-result_t ETH_add_arp(int ip[4], int mac[6]);
+result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]);
 
 /**
  * @brief Send a raw ethernet frame
@@ -61,7 +58,6 @@ result_t ETH_add_arp(int ip[4], int mac[6]);
 void ETH_raw_send(uint8_t mac[6], char *payload);
 
 /**
-<<<<<<< HEAD
  * @brief Send a raw ethernet frame with binary data
  *
  * @param mac[6] Destination mac address
@@ -70,11 +66,10 @@ void ETH_raw_send(uint8_t mac[6], char *payload);
  */
 void ETH_raw_send_binary(uint8_t mac[6], void *payload, size_t length);
 
-=======
+/**
  * @brief initilaizes raw ethernet
  *
  * @param callback receiver callback function
  */
 void ETH_raw_init(raw_receiver_callback callback);
->>>>>>> c73b268c0017db262db906a609c204af54beebb7
 #endif

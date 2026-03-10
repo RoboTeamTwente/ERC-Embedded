@@ -1,8 +1,7 @@
 
-#include "ethernet_raw_sender.h"
+#include "ethernet_raw.h"
 #include "err.h"
 #include "ethernet_diagnostics.h"
-#include "ethernet_receiver.h"
 #include "logging.h"
 #include "netif.h"
 #include "pbuf.h"
