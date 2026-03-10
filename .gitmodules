@@ -1,4 +1,3 @@
 [submodule "ERC-Protobufs"]
     path = ERC-Protobufs
     url = https://github.com/RoboTeamTwente/ERC-Protobufs
-    branch = sensor_board/ssn
