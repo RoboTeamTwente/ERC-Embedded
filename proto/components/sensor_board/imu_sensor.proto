@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+import "common.proto";
+
+// IMU error codes
+enum IMUErrorCode {
+  IMU_NO_ERROR = 0;
+  IMU_COMMUNICATION_FAILURE = 1;
+  IMU_CALIBRATION_REQUIRED = 2;
+  IMU_CALIBRATION_FAILED = 3;
+  IMU_INVALID_DATA = 4;
+  IMU_SENSOR_FAULT = 5;
+  IMU_GYROSCOPE_ERROR = 6;
+  IMU_MAGNETOMETER_ERROR = 7;
+  IMU_ACCELEROMETER_ERROR = 8;
+}
+
+message IMUSensorInformation {
+  // 3-Axis Accelerometer data
+  float accel_x = 1;
+  float accel_y = 2;
+  float accel_z = 3;
+  
+  // 3-Axis Gyroscope data
+  float gyro_x = 4;
+  float gyro_y = 5;
+  float gyro_z = 6;
+  
+  // 3-Axis Magnetometer data (only present in 9-axis IMU)
+  float mag_x = 7;
+  float mag_y = 8;
+  float mag_z = 9;
+
+  bool is_calibrated = 13; // Calibration status --> True if IMU has been calibrated on level surface
+  
+  SensorState state = 14;
+  IMUErrorCode error_code = 15; // Error code if state is SENSOR_ERROR
+}

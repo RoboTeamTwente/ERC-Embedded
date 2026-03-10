@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+import "diagnostics.proto";
+
+// Weight information for a single compartment
+message CompartmentWeight {
+  float weight = 1; // Weight in kilograms
+  float raw_value = 2; // Raw ADC or sensor reading - need to check with Sasha on how to implement it
+  WeightSensorState state = 3; // Current state of the weight sensor
+  WeightErrorCode error_code = 4; // Error code if state is WEIGHT_SENSOR_ERROR
+}
+
+// Weight sensor information for the surface container board
+// Contains weight data for BOTH compartments
+message WeightSensorInformation {
+  CompartmentWeight compartment_1 = 1; // Weight data for first compartment
+  CompartmentWeight compartment_2 = 2; // Weight data for second compartment
+  float total_weight = 3; // Combined weight of both compartments in kilograms
+  // int64 timestamp = 4; // Unix timestamp in milliseconds when measurement was taken
+}
