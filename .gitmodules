@@ -1,3 +1,6 @@
 [submodule "ERC-Protobufs"]
     path = ERC-Protobufs
     url = https://github.com/RoboTeamTwente/ERC-Protobufs
+	url = git@github.com:RoboTeamTwente/ERC-Protobufs.git
+[submodule "sensor_board/ssn/ERC-Protobufs"]
+	branch = master
