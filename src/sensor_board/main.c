@@ -34,11 +34,11 @@
 
 // Protobuf includes
 #include "pb_message.h"
-#include "diagnostics.pb.h"
-#include "ph_sensor.pb.h"
-#include "imu_sensor.pb.h"
-#include "gps_sensor.pb.h"
-#include "sensor.pb.h"
+#include "components/sensorboard/diagnostics.pb.h"
+#include "components/sensorboard/ph_sensor.pb.h"
+#include "components/sensorboard/imu_sensor.pb.h"
+#include "components/sensorboard/gps_sensor.pb.h"
+#include "components/common/sensor.pb.h"
 
 #define TAG "MAIN"
 #define MAIN_TASK_DELAY_MS 5000

@@ -56,7 +56,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/sensor_board/firmware/Drivers/BSP/**>
 custom_nanopb_protos = +<components/common/**.proto>
 	+<${this.__env__}.proto>
-	+<components/${this.__env__}/**.proto>
+	+<components/sensorboard/**.proto>
 build_flags = 
     +<components/common/*/inc>
     +<components/common/*>
