@@ -1,0 +1,3 @@
+[submodule "ERC-Protobufs"]
+	path = ERC-Protobufs
+	url = https://github.com/RoboTeamTwente/ERC-Protobufs.git
