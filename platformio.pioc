@@ -11,7 +11,7 @@ common_lib_deps = https://github.com/nanopb/nanopb.git#d68cd4e954ae1d376275d9fce
 platform = ststm32
 framework = stm32cube
 custom_nanopb_preserve_directory_hierarchy = true
-custom_nanopb_project_dir = /home/nikanel/roboteam/erc/ERC-Protobufs
+custom_nanopb_project_dir = ${{project_absolute_path}}$/ERC-Protobufs
 custom_nanopb_options = 
     --error-on-unmatched
 
