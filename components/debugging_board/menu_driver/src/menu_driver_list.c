@@ -93,6 +93,7 @@ void menu_page_update_list(struct menu_manager_t *manager_str) {
 #define MENU_DRIVER_LIST_TEXT_OFFSET (MENU_DRIVER_LIST_ICON_OFFSET + 20 + MENU_DRIVER_ICON_WIDTH)
 
 static uint16_t last_text_widths[3] = {0};
+
 void menu_driver_list_render_item(uint8_t index, uint16_t x_offset, uint16_t y_offset,
                                   const uint8_t *icon, char *name) {
   uint16_t current_width = strlen(name)*ILI9341_Font_11x18.width;
@@ -112,6 +113,12 @@ void menu_driver_list_render_item(uint8_t index, uint16_t x_offset, uint16_t y_o
                       MENU_DRIVER_BACKGROUND_COLOR);
   last_text_widths[index] = current_width;
 }
+
+
+#define MENU_DRIVER_LIST_ROUNDNESS (12)
+
+static uint8_t corners[512];
+
 void menu_page_render_list(struct menu_manager_t *manager_str) {
   // Needed to go out of struct menu_manager_t to avoid circular dependency
   menu_manager_t *manager = (menu_manager_t *)manager_str;
@@ -131,16 +138,14 @@ void menu_page_render_list(struct menu_manager_t *manager_str) {
   if (state->first_render) {
     state->first_render=false;
     // draw outline double stroke
-    ILI9341_Draw_Rectangle(50, 88, MENU_LIST_ITEM_WIDTH, 2,
-                         MENU_DRIVER_FOREGROUND_COLOR);
-    ILI9341_Draw_Rectangle(50, 88 + MENU_LIST_ITEM_HEIGHT - 2,
-                         MENU_LIST_ITEM_WIDTH, 2, MENU_DRIVER_FOREGROUND_COLOR);
-    ILI9341_Draw_Rectangle(50, 88, 2, MENU_LIST_ITEM_HEIGHT,
-                         MENU_DRIVER_FOREGROUND_COLOR);
-    ILI9341_Draw_Rectangle(50 + MENU_LIST_ITEM_WIDTH - 2, 88, 2,
-                         MENU_LIST_ITEM_HEIGHT, MENU_DRIVER_FOREGROUND_COLOR);
-  }
 
+    // ILI9341_Draw_Bitmap(50,88, MENU_LIST_ITEM_WIDTH, MENU_LIST_ITEM_HEIGHT+2, &menu_driver_list_ribbon, MENU_DRIVER_FOREGROUND_COLOR, MENU_DRIVER_BACKGROUND_COLOR);
+    result_t res = ILI9341_Draw_Rectangle_Rounded_Corner(50,88, MENU_LIST_ITEM_WIDTH, MENU_LIST_ITEM_HEIGHT+2, 3, MENU_DRIVER_LIST_ROUNDNESS, &corners, 512, MENU_DRIVER_FOREGROUND_COLOR, MENU_DRIVER_BACKGROUND_COLOR );
+    
+    if (res!= RESULT_OK) {
+      LOGE(TAG, "Error drawing rectangle: %s", result_to_short_str(res));
+    }
+  }
   uint8_t previous_index =
       (current_index == 0) ? (state->num_entries - 1) : (current_index - 1);
 
