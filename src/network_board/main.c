@@ -20,10 +20,11 @@
 #include "cmsis_os2.h"
 #include "ethernet.h"
 #include "gpio.h"
+#include "ip_mac_constants.h"
 #include "logging.h"
 #include "tim.h"
 #include <stdint.h>
-
+#include <time.h>
 #define TAG "MAIN"
 
 extern void MX_FREERTOS_Init(void);
@@ -57,7 +58,6 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-
 int main(void) {
 
   MPU_Config_wrapper();
@@ -66,7 +66,6 @@ int main(void) {
 
   /* Enable D-Cache---------------------------------------------------------*/
   SCB_EnableDCache();
-
 
   HAL_Init();
 
@@ -79,29 +78,38 @@ int main(void) {
   uart_setup();
   LOG_init(&huart_com);
   ETH_init(NULL, NULL);
-  int mac1[6] = {0x11,0x22,0x33,0x44,0x55,0x66};
-  int mac2[6] = {0x12,0x23,0x34,0x45,0x56,0x67};
-  int mac3[6] = {0x13,0x24,0x35,0x46,0x57,0x68};
-  ETH_setup_MAC_address_filtering(mac1,mac2,mac3);
+  ETH_raw_init(NULL);
+  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
+  int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
+  // ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
   while (1) {
   }
 }
 
-
-
-
-
+void set_mac(int mac[6]) {}
 void MainTask(void *argument) {
 
-  uint8_t ip[4] = {0, 0, 0, 0};
-  uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
-  ETH_udp_init();
+  uint8_t ip[4] = SAMPLE_BOARD_IP;
+  uint8_t mac[6] = SAMPEL_BOARD_MAC;
+  ETH_udp_init(NULL);
+  ETH_add_arp(ip, mac);
   while (1) {
     ETH_udp_send(ip, 7, "udp message");
     osDelay(100);
-    ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
-    osDelay(100);
+    // ETH_raw_send(mac_other,
+    //              "long ass raw message looooong looooooonger "
+    //              "loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+    //              "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+    //              "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+    //              "ooooooooooooooooooooooooooooooooooooooooooo000000000000000000ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooonger"
+    //              );
+
+    // osDelay(100);
+    // ETH_raw_send(mac_other, "-");
+    // osDelay(200);
   }
 }
