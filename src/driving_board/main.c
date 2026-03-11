@@ -45,7 +45,7 @@ TIM_HandleTypeDef htim3;
 //uint16_t dac_value;
 void MainTask(void *argument);
 void PwmTask(void *argument);
-void DrivingSensorTask(void *argument);
+void DrivingEncoderTask(void *argument);
 
 
 // Task attributes for CMSIS-RTOS v2
@@ -61,7 +61,7 @@ const osThreadAttr_t pwmTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-const osThreadAttr_t drivingSensorTask_attributes = {
+const osThreadAttr_t drivingEncoderTask_attributes = {
     .name = "pwmTask",
     .stack_size = 256 * 4,
     .priority = (osPriority_t)osPriorityNormal,
@@ -109,7 +109,7 @@ void init_board() {
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
-  osThreadNew(DrivingSensorTask, NULL, &drivingSensorTask_attributes);
+  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
 
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
@@ -165,7 +165,7 @@ int main(void) { init_board(); }
  * @param  argument: Not used
  * @retval None
  */
-void MainTask(void *argument) {//send messages calculates actual values from reallife sensors
+void MainTask(void *argument) {//send messages calculates actual values from reallife hall sensors(encoders)
 
   //BSP_LED_Init(LED_GREEN);
   //BSP_LED_Init(LED_BLUE);
@@ -225,6 +225,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
       LOGI(TAG, "Encoding successful");
     }
     
+    
 
 /**
  *  pb_encoding_t enc;
@@ -279,7 +280,7 @@ void PwmTask(void *argument){
    }
 }
 
-void DrivingSensorTask(void *argument){
+void DrivingEncoderTask(void *argument){
     osDelay(999999);
 }
 
