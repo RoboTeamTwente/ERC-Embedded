@@ -36,11 +36,13 @@ void MPU_Config(void);
 void MX_GPIO_Init(void);
 void MX_TIM1_Init(void);
 void MX_TIM3_Init(void);
+void MX_TIM4_Init(void);
 
 COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 //uint16_t dac_value;
 void MainTask(void *argument);
@@ -98,6 +100,7 @@ void init_board() {
   LOG_init(&huart_com);
   MX_TIM1_Init();
   MX_TIM3_Init();
+  MX_TIM4_Init();
   control_initialize();
 
   //ethernet
@@ -118,6 +121,7 @@ void init_board() {
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
 
   osKernelStart();
 
@@ -213,11 +217,9 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
     uint8_t *encoded_data = NULL;
     size_t encoded_length = 0;
 
-    float distance_to_go = 10.5f;
-    float turning_angle = 45.0f;
-    float turning_radius = 2.0f;
+    float distance_left = 10.5f;
 
-    result_t res = DBMMsgEncode(distance_to_go, turning_angle, turning_radius, &encoded_data, &encoded_length);
+    result_t res = DBMPProgressEncode(distance_left, &encoded_data, &encoded_length);
     if (res != RESULT_OK) {
       LOGI(TAG, "Encoding failed");
     }
@@ -225,7 +227,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
       LOGI(TAG, "Encoding successful");
     }
     
-    
+
 
 /**
  *  pb_encoding_t enc;
@@ -281,7 +283,22 @@ void PwmTask(void *argument){
 }
 
 void DrivingEncoderTask(void *argument){
-    osDelay(999999);
+  int16_t counter = 0;
+  int16_t count = 0;
+  for(;;)
+  {
+    counter = __HAL_TIM_GET_COUNTER(&htim4);
+    count = count/4;
+    // For a 20 PPR encoder
+    float revolutions = count / 80.0f;
+    float degrees = count / 80.0f * 360.0f;
+
+    // For a 600 PPR encoder
+    //float revolutions = count / 2400.0f;
+    //float degrees = count / 2400.0f * 360.0f;
+    LOGI(TAG, "encoder revolutions: %f \n", revolutions);
+    LOGI(TAG, "encoder degrees: %f \n", degrees);
+  }
 }
 
 #endif //! PIO_UNIT_TESTS
