@@ -6,6 +6,7 @@
 
 static char *TAG = "MENU DRIVER";
 
+
 void menu_manager_switch_page(menu_manager_t *manager,
                               unsigned char new_page_id) {
   manager->pages[manager->active_page_id].destruct(
@@ -20,4 +21,11 @@ void menu_driver_draw_ribbon() {
   ILI9341_Draw_Bitmap(0, 0, MENU_DRIVER_RIBBON_WIDTH, MENU_DRIVER_RIBBON_HEIGHT,
                       menu_driver_ui_ribbon, MENU_DRIVER_FOREGROUND_COLOR,
                       MENU_DRIVER_BACKGROUND_COLOR);
+}
+
+
+void menu_manager_init_display() {
+  ILI9341_Init();
+  ILI9341_Set_Rotation(SCREEN_HORIZONTAL_1);
+  ILI9341_Fill_Screen(MENU_DRIVER_BACKGROUND_COLOR);
 }

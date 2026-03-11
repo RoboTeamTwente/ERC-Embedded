@@ -20,6 +20,7 @@ typedef struct {
   uint8_t selected_index;
   uint8_t entry_ids[MAX_LIST_ENTRIES];
   const uint8_t (*entry_icons)[MENU_DRIVER_ICON_BYTE_SIZE];
+  bool first_render;
 } page_list_state;
 
 typedef struct {
@@ -68,4 +69,6 @@ void menu_manager_init(menu_manager_t *manager,
                        menu_input (*get_input_func)(void));
 void menu_manager_switch_page(menu_manager_t *manager,
                               unsigned char new_page_id);
+
+void menu_manager_init_display();
 #endif // !MENU_DRIVER_H

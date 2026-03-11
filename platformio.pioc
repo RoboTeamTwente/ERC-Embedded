@@ -12,6 +12,7 @@ platform = ststm32
 framework = stm32cube
 custom_nanopb_options = --error-on-unmatched
 test_build_src = True
+monitor_speed = 115200
 
 [env:network_board]
 board = nucleo_h753zi

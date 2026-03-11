@@ -60,24 +60,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define TFT_DC_Pin GPIO_PIN_5
-#define TFT_DC_GPIO_Port GPIOC
-#define MATRIX_COL_C_Pin GPIO_PIN_8
-#define MATRIX_COL_C_GPIO_Port GPIOE
-#define MATRIX_COL_A_Pin GPIO_PIN_11
-#define MATRIX_COL_A_GPIO_Port GPIOB
-#define MATRIX_ROW_C_Pin GPIO_PIN_12
-#define MATRIX_ROW_C_GPIO_Port GPIOB
 #define TFT_RESET_Pin GPIO_PIN_6
 #define TFT_RESET_GPIO_Port GPIOC
-#define MATRIX_COL_B_Pin GPIO_PIN_7
-#define MATRIX_COL_B_GPIO_Port GPIOC
+#define TFT_DC_Pin GPIO_PIN_7
+#define TFT_DC_GPIO_Port GPIOC
 #define TFT_CS_Pin GPIO_PIN_8
 #define TFT_CS_GPIO_Port GPIOC
-#define MATRIX_ROW_A_Pin GPIO_PIN_8
-#define MATRIX_ROW_A_GPIO_Port GPIOB
-#define MATRIX_ROW_B_Pin GPIO_PIN_9
-#define MATRIX_ROW_B_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
@@ -86,5 +74,11 @@ void Error_Handler(void);
 #ifdef __cplusplus
 }
 #endif
+
+
+/* ---- START firmware_definitions ---- */
+
+#define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
+/* ---- END firmware_definitions ---- */
 
 #endif /* __MAIN_H */
