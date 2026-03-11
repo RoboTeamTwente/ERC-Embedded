@@ -100,21 +100,7 @@ void MainTask(void *argument) {
   while (1) {
     ETH_udp_send(ip, 7, "udp message");
     osDelay(100);
-<<<<<<< HEAD
     ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest WASAAPPPPPPPP SHISHIR HERE AND THERE AND EVERYWHERE");
     osDelay(100);
-=======
-    // ETH_raw_send(mac_other,
-    //              "long ass raw message looooong looooooonger "
-    //              "loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-    //              "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-    //              "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-    //              "ooooooooooooooooooooooooooooooooooooooooooo000000000000000000ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooonger"
-    //              );
-
-    // osDelay(100);
-    // ETH_raw_send(mac_other, "-");
-    // osDelay(200);
->>>>>>> c73b268c0017db262db906a609c204af54beebb7
   }
 }
