@@ -24,67 +24,6 @@ uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
 StaticTask_t xTaskBuffer;
 StackType_t xStack[STACK_SIZE];
 
-result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
-                         char *payload) {
-  err_t err = ERR_OK;
-
-  size_t payload_len = strlen(payload);
-  struct pbuf *txBuf;
-  char data[payload_len];
-
-  int len = sprintf(data, "%s", payload);
-  txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
-
-  if (txBuf != NULL) {
-    err = pbuf_take(txBuf, data, len);
-    if (err != ERR_OK) {
-      LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
-      pbuf_free(txBuf);
-      return RESULT_ERR_BUFF;
-    }
-
-    ip_addr_t destIPaddr;
-    IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
-    err = udp_sendto(upcb, txBuf, &destIPaddr, port);
-    if (err != ERR_OK) {
-      LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
-      pbuf_free(txBuf);
-      return RESULT_ERR_COMMS;
-    }
-    pbuf_free(txBuf);
-  } else {
-    LOGE(TAG, "cannot allocate a pbuffer");
-    return RESULT_ERR_BUFF;
-  }
-
-  return RESULT_OK;
-}
-
-/**
- * @brief UDP receiver initializer
- *
- * @param[in] pcb The udp pcb
- * @return RESULT_OK if it initialized correctly
- */
-void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
-                  const ip_addr_t *addr, u16_t port) {
-
-  result_t err = RESULT_OK;
-  uint8_t* payload_buf = malloc(p->len);
-  receive_frame buffer = {.payload = payload_buf, .len = p->len};
-  memcpy((buffer.payload), (int8_t*) (p->payload), p->len);
-  if (buffer.payload != NULL) {
-      err = bucketed_pqueue_push(&udp_receiver_queue, 0, &buffer, 0U);
-  } else {
-    err = RESULT_ERR_BUFF;
-  }
-  if (err != RESULT_OK) {
-    LOGE(TAG, "Could not push incomming message to queue");
-  }
-  free(payload_buf);
-  pbuf_free(p);
-}
-
 void udp_receiver_callback_example(void *payload, size_t length,
                                    const ip_addr_t *addr, u16_t port) {
 
@@ -99,9 +38,43 @@ void udp_receiver_callback_example(void *payload, size_t length,
   }
 
   LOGI(TAG, "DATA RECEIVED: %s\n", hex_str);
+  LOGI(TAG, "Address: %d.%d.%d.%d - Port: %d", (uint8_t)(addr->addr),
+       (uint8_t)((addr->addr) >> 8), (uint8_t)(addr->addr >> 16),
+       (uint8_t)(addr->addr >> 24), port);
   LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
   LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
   free(hex_str);
+}
+
+/**
+ * @brief UDP receiver function
+ * @note When polling from  the used queue, free the payload.
+ *
+ * @param arg Arguments given to the receiver
+ * @param pcb The current upd handler
+ * @param p   The pbuf
+ * @param addr The sender address
+ * @param port The sender port
+ */
+void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
+                  const ip_addr_t *addr, u16_t port) {
+  LOGI(TAG, "Port: %d", port);
+  result_t err = RESULT_OK;
+  receive_frame buffer = { .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
+  if((&buffer)->payload == NULL){
+    LOGE(TAG, "Couldn't allocate receive buffer");
+    return; 
+  }
+  memcpy(((&buffer)->payload), (int8_t *)(p->payload), p->len);
+  if ((&buffer)->payload != NULL) {
+    err = bucketed_pqueue_push(&udp_receiver_queue, 0, &buffer, 0U);
+  } else {
+    LOGE(TAG, "Buffer copy failed");
+  }
+  if (err != RESULT_OK) {
+    LOGE(TAG, "Could not push incomming message to queue");
+  }
+  pbuf_free(p);
 }
 
 void udp_receiver_task(void *pvParameters) {
@@ -111,16 +84,14 @@ void udp_receiver_task(void *pvParameters) {
   for (;;) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     for (;;) {
-      uint8_t* payload_buf = malloc(MAX_ETH_PAYLOAD_SIZE);
-      receive_frame frame = {payload_buf,0};
+      receive_frame frame;
       result_t r = bucketed_pqueue_pop(&udp_receiver_queue, &frame);
       if (r != RESULT_OK) {
-        free(payload_buf);
+        free(frame.payload);
         break;
       }
-      r_callback(frame.payload, frame.len, NULL, NULL);
-      free(payload_buf);
-
+      r_callback(frame.payload, frame.len, &(frame.addr), frame.port);
+      free(frame.payload);
     }
   }
 }
@@ -128,9 +99,8 @@ void udp_receiver_task(void *pvParameters) {
 result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
                                udp_receiver_callback udp_callback) {
 
-  udp_queue =
-      xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_RQ_ITEM_SIZE,
-                         ucQueueStorageArea, &xStaticQueue);
+  udp_queue = xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_RQ_ITEM_SIZE,
+                                 ucQueueStorageArea, &xStaticQueue);
 
   TaskHandle_t xHandle = NULL;
   xHandle = xTaskCreateStatic(
@@ -168,6 +138,7 @@ result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
 
   return RESULT_OK;
 }
+
 result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
                          udp_receiver_callback udp_callback) {
 
@@ -184,5 +155,41 @@ result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
     return RESULT_FAIL;
   }
   ETH_udp_receiver_init(*upcb, udp_callback);
+  return RESULT_OK;
+}
+
+result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
+                         char *payload) {
+  err_t err = ERR_OK;
+
+  size_t payload_len = strlen(payload);
+  struct pbuf *txBuf;
+  char data[payload_len];
+
+  int len = sprintf(data, "%s", payload);
+  txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
+
+  if (txBuf != NULL) {
+    err = pbuf_take(txBuf, data, len);
+    if (err != ERR_OK) {
+      LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
+      pbuf_free(txBuf);
+      return RESULT_ERR_BUFF;
+    }
+
+    ip_addr_t destIPaddr;
+    IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
+    err = udp_sendto(upcb, txBuf, &destIPaddr, port);
+    if (err != ERR_OK) {
+      LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
+      pbuf_free(txBuf);
+      return RESULT_ERR_COMMS;
+    }
+    pbuf_free(txBuf);
+  } else {
+    LOGE(TAG, "cannot allocate a pbuffer");
+    return RESULT_ERR_BUFF;
+  }
+
   return RESULT_OK;
 }
