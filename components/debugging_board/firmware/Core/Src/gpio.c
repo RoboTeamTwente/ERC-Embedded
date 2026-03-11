@@ -47,51 +47,19 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, TFT_DC_Pin|TFT_RESET_Pin|MATRIX_COL_B_Pin|TFT_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, TFT_RESET_Pin|TFT_DC_Pin|TFT_CS_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MATRIX_COL_C_GPIO_Port, MATRIX_COL_C_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MATRIX_COL_A_GPIO_Port, MATRIX_COL_A_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : TFT_DC_Pin TFT_RESET_Pin TFT_CS_Pin */
-  GPIO_InitStruct.Pin = TFT_DC_Pin|TFT_RESET_Pin|TFT_CS_Pin;
+  /*Configure GPIO pins : TFT_RESET_Pin TFT_DC_Pin TFT_CS_Pin */
+  GPIO_InitStruct.Pin = TFT_RESET_Pin|TFT_DC_Pin|TFT_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : MATRIX_COL_C_Pin */
-  GPIO_InitStruct.Pin = MATRIX_COL_C_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(MATRIX_COL_C_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : MATRIX_COL_A_Pin */
-  GPIO_InitStruct.Pin = MATRIX_COL_A_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(MATRIX_COL_A_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : MATRIX_ROW_C_Pin MATRIX_ROW_A_Pin MATRIX_ROW_B_Pin */
-  GPIO_InitStruct.Pin = MATRIX_ROW_C_Pin|MATRIX_ROW_A_Pin|MATRIX_ROW_B_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : MATRIX_COL_B_Pin */
-  GPIO_InitStruct.Pin = MATRIX_COL_B_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(MATRIX_COL_B_GPIO_Port, &GPIO_InitStruct);
 
 }
 
