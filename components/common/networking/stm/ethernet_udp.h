@@ -41,6 +41,20 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
                          char *payload);
 
 /**
+ * @brief sends a udp packet with binary data
+ *
+ * @param[in] upcb pointer to a udp handler
+ * @param[in] dest_ip pointer to an int list of 4 ints that make up the
+ * destination IP
+ * @param[in] port destination port address
+ * @param[in] payload pointer to binary data
+ * @param[in] length length of payload in bytes
+ * @return result_t
+ */
+result_t udp_client_send_binary(struct udp_pcb *upcb, uint8_t dest_ip[4], 
+                                uint8_t port, void *payload, size_t length);
+
+/**
  * @brief initializes a udp_handler. You can only initialize 1 callback
  * function, if you do it multiple times the last one is used.
  *

@@ -31,6 +31,16 @@ void ETH_udp_init();
 void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload);
 
 /**
+ * @brief Send a udp message with binary data
+ *
+ * @param ip[4]    Destination ip, 1 byte per entry
+ * @param port     Destination port
+ * @param payload  pointer to binary data
+ * @param length   length of payload in bytes
+ */
+void ETH_udp_send_binary(uint8_t ip[4], uint8_t port, void *payload, size_t length);
+
+/**
  * @brief Sets registers for perfect mac filtering
  *
  * @param[in] mac1 mac to filter, can be NULL

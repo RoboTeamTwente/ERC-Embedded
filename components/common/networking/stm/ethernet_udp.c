@@ -193,3 +193,35 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
 
   return RESULT_OK;
 }
+
+result_t udp_client_send_binary(struct udp_pcb *upcb, uint8_t dest_ip[4], 
+                                uint8_t port, void *payload, size_t length) {
+  err_t err = ERR_OK;
+  struct pbuf *txBuf;
+
+  txBuf = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
+
+  if (txBuf != NULL) {
+    err = pbuf_take(txBuf, payload, length);
+    if (err != ERR_OK) {
+      LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
+      pbuf_free(txBuf);
+      return RESULT_ERR_BUFF;
+    }
+
+    ip_addr_t destIPaddr;
+    IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
+    err = udp_sendto(upcb, txBuf, &destIPaddr, port);
+    if (err != ERR_OK) {
+      LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
+      pbuf_free(txBuf);
+      return RESULT_ERR_COMMS;
+    }
+    pbuf_free(txBuf);
+  } else {
+    LOGE(TAG, "cannot allocate a pbuffer");
+    return RESULT_ERR_BUFF;
+  }
+
+  return RESULT_OK;
+}

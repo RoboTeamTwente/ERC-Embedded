@@ -21,6 +21,7 @@
 #include "cmsis_os2.h"
 #include "ethernet.h"
 #include "gpio.h"
+#include "ip_mac_constants.h"
 #include "logging.h"
 #include "tim.h"
 #include "string.h"
@@ -39,6 +40,14 @@
 #include "imu_sensor.pb.h"
 #include "gps_sensor.pb.h"
 #include "sensor.pb.h"
+
+// PHY driver for diagnostics
+#include "lan8742.h"
+#include "stm32h7xx_hal_eth.h"
+
+// External declarations for PHY and Ethernet handle
+extern lan8742_Object_t LAN8742;
+extern ETH_HandleTypeDef heth;
 
 #define TAG "MAIN"
 #define MAIN_TASK_DELAY_MS 5000
@@ -93,12 +102,8 @@ void init_board() {
   char *boot_msg = "\r\n[BOOT] System Initialized. Starting Kernel...\r\n";
   HAL_UART_Transmit(&huart_com, (uint8_t*)boot_msg, strlen(boot_msg), 100);
 
-  // Initialize Ethernet with MAC address filtering
-  ETH_init(NULL);
-  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
-  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
-  int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};
-  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+  // Note: ETH_init is called by StartDefaultTask after RTOS starts
+  // MAC filtering will be applied in MainTask after network is ready
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
@@ -123,6 +128,126 @@ void MainTask(void *argument) {
 
   LOGI(TAG, "Sensor board taking off...");
 
+  // Small delay to let RTOS settle
+  osDelay(500);
+
+  // Initialize Ethernet (calls MX_LWIP_Init and HAL_ETH_Start_IT)
+  LOGI(TAG, "Initializing Ethernet...");
+  ETH_init(NULL);
+  LOGI(TAG, "ETH_init() completed");
+
+  // Give time for initialization to complete
+  osDelay(3000);
+  
+  // Diagnose PHY link status
+  extern struct netif gnetif;
+  extern lan8742_Object_t LAN8742;
+  uint32_t reg_value;
+  
+  // Read PHY Basic Status Register (BSR)
+  if (LAN8742.IO.ReadReg(LAN8742.DevAddr, 0x0001, &reg_value) == 0) {
+    LOGI(TAG, "PHY BSR: 0x%04lX", reg_value);
+    if (reg_value & 0x0004) {
+      LOGI(TAG, "  - Link Status: UP");
+    } else {
+      LOGW(TAG, "  - Link Status: DOWN");
+    }
+    if (reg_value & 0x0020) {
+      LOGI(TAG, "  - Auto-negotiation: COMPLETE");
+    } else {
+      LOGW(TAG, "  - Auto-negotiation: NOT COMPLETE");
+    }
+  }
+  
+  // Read PHY Basic Control Register (BCR)
+  if (LAN8742.IO.ReadReg(LAN8742.DevAddr, 0x0000, &reg_value) == 0) {
+    LOGI(TAG, "PHY BCR: 0x%04lX", reg_value);
+    if (reg_value & 0x1000) {
+      LOGI(TAG, "  - Auto-negotiation: ENABLED");
+    } else {
+      LOGW(TAG, "  - Auto-negotiation: DISABLED");
+    }
+    if (reg_value & 0x2000) {
+      LOGI(TAG, "  - Speed: 100 Mbps");
+    } else {
+      LOGI(TAG, "  - Speed: 10 Mbps");
+    }
+    if (reg_value & 0x0100) {
+      LOGI(TAG, "  - Duplex: FULL");
+    } else {
+      LOGI(TAG, "  - Duplex: HALF");
+    }
+  }
+  
+  // Check link detection and force if needed
+  if (!netif_is_link_up(&gnetif)) {
+    LOGW(TAG, "Link not detected by LWIP, checking PHY directly...");
+    int32_t phy_state = LAN8742_GetLinkState(&LAN8742);
+    LOGI(TAG, "PHY Link State: %ld", phy_state);
+    
+    // Disable auto-negotiation and force 100Mbps Full Duplex for direct connection
+    LOGW(TAG, "Disabling auto-negotiation and forcing 100BASE-TX Full Duplex...");
+    reg_value = 0x2100; // Speed=100Mbps, Full Duplex, No Auto-neg
+    if (LAN8742.IO.WriteReg(LAN8742.DevAddr, 0x0000, reg_value) == 0) {
+      LOGI(TAG, "PHY configured for 100BASE-TX FD");
+      osDelay(1000); // Wait for link to stabilize
+      
+      // Read BSR again to check link status
+      if (LAN8742.IO.ReadReg(LAN8742.DevAddr, 0x0001, &reg_value) == 0) {
+        LOGI(TAG, "PHY BSR after config: 0x%04lX", reg_value);
+        if (reg_value & 0x0004) {
+          LOGI(TAG, "PHY Link is now UP! Forcing netif up...");
+          
+          // Manually configure MAC to match PHY settings
+          ETH_MACConfigTypeDef mac_config;
+          HAL_ETH_GetMACConfig(&heth, &mac_config);
+          mac_config.Speed = ETH_SPEED_100M;
+          mac_config.DuplexMode = ETH_FULLDUPLEX_MODE;
+          HAL_ETH_SetMACConfig(&heth, &mac_config);
+          HAL_ETH_Start_IT(&heth);
+          
+          // Bring up the network interface
+          netif_set_up(&gnetif);
+          netif_set_link_up(&gnetif);
+          BSP_LED_On(LED_GREEN);
+        } else {
+          LOGE(TAG, "PHY Link still DOWN after configuration!");
+          BSP_LED_On(LED_RED);
+        }
+      }
+    } else {
+      LOGE(TAG, "Failed to write PHY BCR!");
+      BSP_LED_On(LED_RED);
+    }
+  } else {
+    LOGI(TAG, "Network interface is UP!");
+    BSP_LED_On(LED_GREEN);
+  }
+
+  // Setup MAC address filtering - use PC's actual MAC address
+  // PC Ethernet MAC: 58-11-22-3D-88-FC  
+  int mac1[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC}; // PC Ethernet adapter
+  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67}; // Placeholder
+  int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68}; // Placeholder
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+  LOGI(TAG, "MAC filtering configured for PC: 58:11:22:3D:88:FC");
+
+  // Initialize UDP for networking
+  LOGI(TAG, "Initializing UDP...");
+  ETH_udp_init(NULL);
+  
+  // Configure destination IP and MAC address
+  uint8_t dest_ip[4] = SAMPLE_BOARD_IP;
+  uint8_t dest_mac[6] = SAMPEL_BOARD_MAC;
+  
+  // Add ARP entry for destination
+  result_t arp_result = ETH_add_arp(dest_ip, dest_mac);
+  if (arp_result == RESULT_OK) {
+    LOGI(TAG, "ARP entry added successfully");
+  } else {
+    LOGW(TAG, "Failed to add ARP entry");
+  }
+
   // Initialize sensors
   imu_data_t imu_data;
   LOGI(TAG, "Initializing IMU...");
@@ -140,9 +265,6 @@ void MainTask(void *argument) {
   
   uint32_t loop_count = 0;
   LOGI(TAG, "Starting main sensor loop...");
-
-  // Configuring the raw Ethernet destination (this is the broadcast MAC address,used while testing it)
-  uint8_t dest_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
   while (1) {
     loop_count++;
@@ -338,11 +460,10 @@ void MainTask(void *argument) {
                                                 &encoded_data, &encoded_size);
     
     if (encode_result == RESULT_OK) {
-      // Send encoded protobuf message via raw Ethernet
-      ETH_raw_send_binary(dest_mac, encoded_data, encoded_size);
-      LOGI(TAG, "Sensor diagnostics sent (%d bytes) to %02X:%02X:%02X:%02X:%02X:%02X", 
-           encoded_size, dest_mac[0], dest_mac[1], dest_mac[2], 
-           dest_mac[3], dest_mac[4], dest_mac[5]);
+      // Send encoded protobuf message via UDP
+      ETH_udp_send_binary(dest_ip, 7, encoded_data, encoded_size);
+      LOGI(TAG, "Sensor diagnostics sent via UDP (%d bytes) to %d.%d.%d.%d:7", 
+           encoded_size, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
       free(encoded_data);
     } else {
       LOGE(TAG, "Failed to encode sensor diagnostics: %d", encode_result);

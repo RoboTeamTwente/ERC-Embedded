@@ -2,5 +2,5 @@
 #define IP_MAC_CONSTANTS
 
 #define SAMPLE_BOARD_IP {192, 168, 0, 50}
-#define SAMPEL_BOARD_MAC {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33}
+#define SAMPEL_BOARD_MAC {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC}  // PC Ethernet adapter
 #endif //! IP_MAC_CONSTANTS

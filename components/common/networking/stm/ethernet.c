@@ -27,6 +27,9 @@ void ETH_raw_init(raw_receiver_callback callback) { raw_init(callback); }
 void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload) {
   udp_client_send(upcb, ip, port, payload);
 }
+void ETH_udp_send_binary(uint8_t ip[4], uint8_t port, void *payload, size_t length) {
+  udp_client_send_binary(upcb, ip, port, payload, length);
+}
 
 void ETH_raw_send(uint8_t *mac, char *payload) {
   raw_packet_send(&gnetif, &heth, mac, payload);
@@ -40,7 +43,7 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]) {
   ETH_MACFilterConfigTypeDef macfilterconfig;
   HAL_ETH_GetMACFilterConfig(&heth, &macfilterconfig);
   macfilterconfig.HachOrPerfectFilter = DISABLE;
-  macfilterconfig.PromiscuousMode = DISABLE;
+  macfilterconfig.PromiscuousMode = ENABLE;  // Enable promiscuous mode for testing
   HAL_ETH_SetMACFilterConfig(&heth, &macfilterconfig);
 
   if (mac1 != NULL) {
