@@ -5,6 +5,7 @@ static char *TAG = "PB_CONTROL";
 
 typedef result_t (*packet_handler_t)(const uint8_t *packet_data,
                                      size_t packet_size);
+
 #define MAX_PROCESSABLE_PACKET_TYPES 64
 
 typedef struct {
