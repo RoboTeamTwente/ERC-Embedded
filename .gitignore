@@ -11,3 +11,4 @@ platformio.ini
 .vscode
 .venv
 venv
+shell.nix
