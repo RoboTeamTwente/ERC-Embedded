@@ -4,6 +4,9 @@
 #include "pb_encode.h"
 #include "result.h"
 #include <stdlib.h>
+#include "components/common/message_types.pb.h"
+#include "components/common/envelope.pb.h"
+
 
 result_t pb_message_encode(const void *src_struct, const pb_field_t *fields,
                            uint8_t **out_data, size_t *out_length) {
@@ -64,4 +67,33 @@ result_t pb_message_decode(const uint8_t *byte_buffer, size_t size,
 
   *out_struct = buf;
   return RESULT_OK;
+}
+
+result_t pb_message_decode_into(const uint8_t *byte_buffer, size_t size,
+                                const pb_field_t *fields, size_t struct_size,
+                                void *out_struct) {
+  if (byte_buffer == NULL || fields == NULL || out_struct == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  memset(out_struct, 0, struct_size);
+
+  pb_istream_t istream = pb_istream_from_buffer(byte_buffer, size);
+  bool status = pb_decode(&istream, fields, out_struct);
+  if (!status) {
+    return RESULT_FAIL;
+  }
+
+  return RESULT_OK;
+}
+
+result_t pb_message_decode_envelope(const uint8_t *byte_buffer, size_t size, PBMessageType* out_type, uint8_t ** out_data) {
+
+  // cursed memory reallocation to not have to alloc dynamically
+  
+
+
+  
+
+  return RESULT_ERR_NO_MEM;
 }
