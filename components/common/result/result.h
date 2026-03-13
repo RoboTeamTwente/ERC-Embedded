@@ -38,6 +38,9 @@ typedef enum {
 
   RESULT_ERR_WATCHDOG = 20,     // watchdog timeout
   RESULT_ERR_NON_TERMINAL = 21, // None terminal error
+  RESULT_ERR_INVALID_PACKET = 22, // Invalid Packet
+
+
 } result_t;
 
 /**

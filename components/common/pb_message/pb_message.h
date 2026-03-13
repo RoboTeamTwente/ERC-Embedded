@@ -4,6 +4,8 @@
 #include "pb.h"
 #include "result.h"
 #include "stdint.h"
+#include "components/common/message_types.pb.h"
+
 
 /**
  * @brief Encode a nanopb message into a newly allocated byte buffer.
@@ -53,4 +55,9 @@ result_t pb_message_encode(const void *src_struct, const pb_field_t fields[],
 result_t pb_message_decode(const uint8_t *byte_buffer, size_t size,
                            const pb_field_t *fields, size_t struct_size,
                            void **out_struct);
+
+
+result_t pb_message_decode_into(const uint8_t *byte_buffer, size_t size,
+                                const pb_field_t *fields, size_t struct_size,
+                                void *out_struct);
 #endif
