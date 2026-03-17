@@ -18,4 +18,5 @@
 #define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame)
 #define ETHERNET_RQ_PRIORITY_BUFFERS 2
 #define MAX_ETH_PAYLOAD_SIZE 80
+#define ETHERNET_PRIO 1
 #endif // !NETWORKING_CONSTANTS_H
