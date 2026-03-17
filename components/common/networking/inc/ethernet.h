@@ -6,23 +6,22 @@
 #include "result.h"
 #include "stm/ethernet_diagnostics.h"
 #include "stm/ethernet_raw.h"
-
+#include "stm/ethernet_udp.h"
 /**
  * @brief Initializes ethernet
  *
- *
- * @param[in] receiver_callback callback function for receiving a message
  * @param[in] link_state_change_callback callback function for when the physical
  *                                       Ethernet link state changes
  *                                       I.e. cable connects/disconnects
  */
-void ETH_init(receiver_callback receiver_callback,
-              linkstatus_callback_t link_state_change_callback);
+void ETH_init(linkstatus_callback_t link_state_change_callback);
 
 /**
- * @brief Initializes the udp stack, such that messages can be send.
+ * @brief Initialzes the udp protocol control block
+ *
+ * @param callback callback function for receiving messages
  */
-void ETH_udp_init();
+void ETH_udp_init(udp_receiver_callback callback);
 
 /**
  * @brief Send a udp message

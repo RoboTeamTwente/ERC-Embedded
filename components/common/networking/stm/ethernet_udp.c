@@ -60,10 +60,11 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
   LOGI(TAG, "Port: %d", port);
   result_t err = RESULT_OK;
-  receive_frame buffer = { .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
-  if((&buffer)->payload == NULL){
+  receive_frame buffer = {
+      .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
+  if ((&buffer)->payload == NULL) {
     LOGE(TAG, "Couldn't allocate receive buffer");
-    return; 
+    return;
   }
   memcpy(((&buffer)->payload), (int8_t *)(p->payload), p->len);
   if ((&buffer)->payload != NULL) {
@@ -139,7 +140,7 @@ result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
   return RESULT_OK;
 }
 
-result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
+result_t udp_client_init(struct udp_pcb **upcb,
                          udp_receiver_callback udp_callback) {
 
   *upcb = udp_new(); // TODO: return error if this is NULL
@@ -147,9 +148,8 @@ result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
     LOGE(TAG, "Cannot create new udp handler");
     return RESULT_FAIL;
   }
-  ip_addr_t myIPaddr;
-  IP_ADDR4(&myIPaddr, 192, 168, 0, 111);
-  err_t err = udp_bind(*upcb, &myIPaddr, 8);
+
+  err_t err = udp_bind(*upcb,IP_ADDR_ANY, 8);
   if (err != ERR_OK) {
     LOGE(TAG, "Cannot bind the udp: %s", lwip_strerr(err));
     return RESULT_FAIL;

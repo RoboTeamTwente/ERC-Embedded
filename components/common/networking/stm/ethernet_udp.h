@@ -45,12 +45,10 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
  * function, if you do it multiple times the last one is used.
  *
  * @param[out] upcb pointer to a UDP handler
- * @param[in] src_ip pointer to an array with the source ip of length 4
- * @param[in] len lenght of the ip. Should always be 4
  * @param[in] udp_callback the udp callback function
  * @return result_t
  */
-result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
+result_t udp_client_init(struct udp_pcb **upcb,
                          udp_receiver_callback udp_callback);
 
 #endif // !ETHERNET_UDP

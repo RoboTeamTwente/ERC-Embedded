@@ -14,12 +14,11 @@
 
 extern ETH_HandleTypeDef heth;
 extern struct netif gnetif;
-extern uint8_t IP_ADDRESS[4];
 
 struct udp_pcb *upcb;
 
 void ETH_udp_init(udp_receiver_callback callback) {
-  udp_client_init(&upcb, IP_ADDRESS, callback);
+  udp_client_init(&upcb, callback);
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
 }
