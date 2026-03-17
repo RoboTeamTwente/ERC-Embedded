@@ -107,7 +107,7 @@ void MainTask(void *argument) {
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
   ETH_udp_init(NULL);
-  // ETH_add_arp(ip, mac);
+  ETH_add_arp(ip, mac);
   while (1) {
     ETH_udp_send(ip, 7, "udp message");
     osDelay(100);
