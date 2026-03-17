@@ -5,6 +5,7 @@
 #include "menu_driver.h"
 #include "menu_driver/inc/menu_driver.h"
 #include "menu_driver_conf.h"
+#include "ili9341.h"
 #include <string.h>
 
 #define MENU_OVERVIEW_MAX_VISIBLE_ENTRY_TITLE_LEN 4
@@ -86,46 +87,45 @@ void menu_overview_get_last_states(page_overview_state *state,
 void menu_page_overview_render_entry(uint8_t offset_x, uint8_t offset_y,
                                      const char *title, uint8_t code,
                                      bool err_sprite_state) {
-  // if (code != 0x00) {
-  //   LOGI(TAG, "Rendering error sprite for code: %02X", code);
-  //   LOGI(TAG, "Error sprite state: %d", err_sprite_state);
-  //   ssd1306_DrawBitmap(offset_x + 2, offset_y,
-  //                      err_sprite_state ? error_sprite_1 : error_sprite_2,
-  //                      MENU_OVERVIEW_ICON_WIDTH, MENU_OVERVIEW_ICON_HEIGHT,
-  //                      White);
-  // }
+  if (code != 0x00) {
+    LOGI(TAG, "Rendering error sprite for code: %02X", code);
+    LOGI(TAG, "Error sprite state: %d", err_sprite_state);
+    ILI9341_Draw_Bitmap(offset_x + 2, offset_y+2, MENU_OVERVIEW_ICON_WIDTH, MENU_OVERVIEW_ICON_HEIGHT, err_sprite_state ? error_sprite_1 : error_sprite_2, MENU_DRIVER_FOREGROUND_COLOR, MENU_DRIVER_BACKGROUND_COLOR);
+  }
   // ssd1306_SetCursor(offset_x + MENU_OVERVIEW_ICON_WIDTH + 6, offset_y + 2);
-  // char display_title[MENU_OVERVIEW_MAX_ENTRY_TITLE_LEN + 6] = {0};
-  // char formatted_title[MENU_OVERVIEW_MAX_VISIBLE_ENTRY_TITLE_LEN + 1] = {0};
-  // strncpy(formatted_title, title, MENU_OVERVIEW_MAX_VISIBLE_ENTRY_TITLE_LEN);
-  // char *title_format = "%s:x%02X";
-  // snprintf(display_title, sizeof(display_title), title_format,
-  // formatted_title,
-  //          code);
-  // LOGI(TAG, "Rendering overview entry: %s", display_title);
+  char display_title[MENU_OVERVIEW_MAX_ENTRY_TITLE_LEN + 6] = {0};
+  char formatted_title[MENU_OVERVIEW_MAX_VISIBLE_ENTRY_TITLE_LEN + 1] = {0};
+  strncpy(formatted_title, title, MENU_OVERVIEW_MAX_VISIBLE_ENTRY_TITLE_LEN);
+  char *title_format = "%s:x%02X";
+  snprintf(display_title, sizeof(display_title), title_format,
+  formatted_title,
+           code);
+  LOGI(TAG, "Rendering overview entry: %s", display_title);
+  ILI9341_WriteString(offset_x+MENU_OVERVIEW_ICON_WIDTH+6, offset_y+2, display_title, ILi9341_Font_11x18, MENU_DRIVER_FOREGROUND_COLOR, MENU_DRIVER_BACKGROUND_COLOR);
+
   // ssd1306_WriteString(display_title, Font_6x8, White);
 }
 
 void menu_page_render_overview(struct menu_manager_t *manager_str) {
-  // menu_manager_t *manager = (menu_manager_t *)manager_str;
-  // menu_page_t *active_page = &manager->pages[manager->active_page_id];
-  // if (active_page->needs_render == false) {
-  //   return;
-  // }
-  // page_overview_state *state = (page_overview_state *)active_page->state;
-  // uint8_t offset_x, offset_y;
-  //
+  menu_manager_t *manager = (menu_manager_t *)manager_str;
+  menu_page_t *active_page = &manager->pages[manager->active_page_id];
+  if (active_page->needs_render == false) {
+    return;
+  }
+  page_overview_state *state = (page_overview_state *)active_page->state;
+  uint8_t offset_x, offset_y;
+
   // ssd1306_Fill(Black);
-  // for (uint8_t i = 0; i < state->num_entries; i++) {
-  //   offset_y = i / 2 * 13 + 12; // 13 size of entry, 12 initial offset
-  //   offset_x = i % 2 * 65;      // either 0 or 65 (left or right)
-  //   menu_page_overview_render_entry(offset_x, offset_y,
-  //   state->entry_titles[i],
-  //                                   state->last_states[i],
-  //                                   state->err_sprite_state);
-  // }
+  for (uint8_t i = 0; i < state->num_entries; i++) {
+    offset_y = i / 2 * 13 + 12; // 13 size of entry, 12 initial offset
+    offset_x = i % 2 * 65;      // either 0 or 65 (left or right)
+    menu_page_overview_render_entry(offset_x, offset_y,
+    state->entry_titles[i],
+                                    state->last_states[i],
+                                    state->err_sprite_state);
+  }
   // ssd1306_UpdateScreen();
-  // active_page->needs_render = false;
+  active_page->needs_render = false;
 }
 void menu_page_update_overview(struct menu_manager_t *manager_str) {
   // menu_manager_t *manager = (menu_manager_t *)manager_str;
