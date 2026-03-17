@@ -5,7 +5,8 @@
 
 #ifdef UNIT_TEST
 void pb_control_test_reset(void) {
-  memset(DispatchTable, 0, sizeof(DispatchTable));
+  memset(DispatchTableEntries, 0, sizeof(DispatchTableEntries));
+  memset(DispatchTableHandlers, 0, sizeof(DispatchTableHandlers));
   DispatchTableSize = 0;
 }
 #endif
