@@ -61,12 +61,12 @@ static void SensorBoard_RebindUdpClient(void);
 static void SensorBoard_ConfigureDestinationRoute(void);
 static void SensorBoard_InitSensors(imu_data_t *imu_data, ph_sensor_t *ph_sensor,
                                     gps_data_t *gps_data);
-static void SensorBoard_UpdateDiagnostics(SensorDiagnostics *diagnostics,
+static void SensorBoard_UpdateDiagnostics(SensorBoardDiagnostics *diagnostics,
                                           imu_data_t *imu_data,
                                           ph_sensor_t *ph_sensor,
                                           gps_data_t *gps_data);
 static void SensorBoard_SendDiagnostics(
-  const SensorDiagnostics *diagnostics);
+  const SensorBoardDiagnostics *diagnostics);
 
 extern TIM_HandleTypeDef htim1;
 COM_InitTypeDef BspCOMInit;
@@ -234,7 +234,7 @@ static void SensorBoard_InitSensors(imu_data_t *imu_data, ph_sensor_t *ph_sensor
   gps_sensor_init(gps_data);
 }
 
-static void SensorBoard_UpdateDiagnostics(SensorDiagnostics *diagnostics,
+static void SensorBoard_UpdateDiagnostics(SensorBoardDiagnostics *diagnostics,
                                           imu_data_t *imu_data,
                                           ph_sensor_t *ph_sensor,
                                           gps_data_t *gps_data) {
@@ -252,8 +252,8 @@ static void SensorBoard_UpdateDiagnostics(SensorDiagnostics *diagnostics,
   result_t imu_poll_result;
   result_t ph_poll_result;
 
-  *diagnostics = SensorDiagnostics_init_zero;
-  diagnostics->state = SensorDiagnostics_State_OPERATING;
+  *diagnostics = (SensorBoardDiagnostics)SensorBoardDiagnostics_init_zero;
+  diagnostics->state = SensorBoardDiagnostics_State_OPERATING;
   diagnostics->has_ph_sensor = true;
   diagnostics->has_gps_sensor_1 = true;
   diagnostics->has_imu_sensor = true;
@@ -346,12 +346,12 @@ static void SensorBoard_UpdateDiagnostics(SensorDiagnostics *diagnostics,
 }
 
 static void SensorBoard_SendDiagnostics(
-  const SensorDiagnostics *diagnostics) {
+  const SensorBoardDiagnostics *diagnostics) {
   uint8_t encoded_payload[SENSOR_BOARD_PROTOBUF_BUFFER_SIZE];
   pb_ostream_t stream;
 
   stream = pb_ostream_from_buffer(encoded_payload, sizeof(encoded_payload));
-  if (pb_encode(&stream, SensorDiagnostics_fields, diagnostics)) {
+  if (pb_encode(&stream, SensorBoardDiagnostics_fields, diagnostics)) {
     ETH_udp_send_binary(laptop_ip, SENSOR_BOARD_UDP_PORT, encoded_payload,
                         stream.bytes_written);
     return;
@@ -406,7 +406,7 @@ void MainTask(void *argument) {
        sensor_board_send_interval_ms);
 
   while (1) {
-    SensorDiagnostics diagnostics;
+    SensorBoardDiagnostics diagnostics;
 
     SensorBoard_UpdateDiagnostics(&diagnostics, &imu_data, &ph_sensor, &gps_data);
     SensorBoard_SendDiagnostics(&diagnostics);
