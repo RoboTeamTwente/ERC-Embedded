@@ -5,6 +5,8 @@
 #include "ip_addr.h"
 #include "logging.h"
 #include "networking_constants.h"
+#include "portmacro.h"
+#include "projdefs.h"
 #include "result.h"
 #include "udp.h"
 #include <lwip.h>
@@ -12,13 +14,14 @@
 #include <string.h>
 #define TAG "UDP"
 
-udp_receiver_callback r_callback;
 extern ETH_HandleTypeDef heth;
 
-bucketed_pqueue_t udp_receiver_queue;
 static StaticQueue_t xStaticQueue;
-QueueHandle_t udp_queue;
+QueueHandle_t udp_receiver_queue;
+QueueHandle_t udp_receiver_queue;
 uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
+TaskHandle_t receiver_notifier = NULL;
+TaskHandle_t receiver_notifier = NULL;
 
 #define STACK_SIZE 200
 StaticTask_t xTaskBuffer;
@@ -60,19 +63,26 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
   LOGI(TAG, "Port: %d", port);
   result_t err = RESULT_OK;
-  receive_frame buffer = { .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
-  if((&buffer)->payload == NULL){
+  receive_frame buffer = {
+      .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
+  if ((&buffer)->payload == NULL) {
     LOGE(TAG, "Couldn't allocate receive buffer");
-    return; 
+    return;
   }
   memcpy(((&buffer)->payload), (int8_t *)(p->payload), p->len);
   if ((&buffer)->payload != NULL) {
-    err = bucketed_pqueue_push(&udp_receiver_queue, 0, &buffer, 0U);
+    if (xQueueSend(udp_receiver_queue, &buffer, 10) != pdPASS) {
+      err = RESULT_ERR_OVERFLOW;
+    } else {
+      (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)ETHERNET_PRIO),
+                        eSetBits);
+    }
   } else {
     LOGE(TAG, "Buffer copy failed");
   }
   if (err != RESULT_OK) {
-    LOGE(TAG, "Could not push incomming message to queue");
+    LOGE(TAG, "Could not push incomming message to queue: %s",
+         result_to_short_str(err));
   }
   pbuf_free(p);
 }
@@ -84,26 +94,28 @@ void udp_receiver_task(void *pvParameters) {
   for (;;) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     for (;;) {
+
+      LOGI(TAG, "UDP receiver notification received");
       receive_frame frame;
-      result_t r = bucketed_pqueue_pop(&udp_receiver_queue, &frame);
-      if (r != RESULT_OK) {
+      BaseType_t r = xQueueReceive(udp_receiver_queue, &frame, 10);
+      if (r != pdPASS) {
         free(frame.payload);
         break;
       }
-      r_callback(frame.payload, frame.len, &(frame.addr), frame.port);
+      udp_receiver_callback_example(frame.payload, frame.len, &(frame.addr),
+                                    frame.port);
       free(frame.payload);
     }
   }
 }
 
-result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
-                               udp_receiver_callback udp_callback) {
+result_t ETH_udp_receiver_init(struct udp_pcb *pcb) {
 
-  udp_queue = xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_RQ_ITEM_SIZE,
-                                 ucQueueStorageArea, &xStaticQueue);
+  udp_receiver_queue =
+      xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_RQ_ITEM_SIZE,
+                         ucQueueStorageArea, &xStaticQueue);
 
-  TaskHandle_t xHandle = NULL;
-  xHandle = xTaskCreateStatic(
+  receiver_notifier = xTaskCreateStatic(
 
       udp_receiver_task, /* Function that implements the task. */
 
@@ -119,42 +131,29 @@ result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
 
       &xTaskBuffer); /* Variable to hold the task's data structure. */
 
-  if (udp_queue == NULL || xHandle == NULL) {
+  if (udp_receiver_queue == NULL || receiver_notifier == NULL) {
     return RESULT_ERR_BUFF;
   }
 
-  result_t err = bucketed_pqueue_init(&udp_receiver_queue, &udp_queue,
-                                      ETHERNET_RQ_PRIORITY_BUFFERS, xHandle);
-  if (err != RESULT_OK) {
-    LOGE(TAG, "pbuffer failed to initialize with error code: %s",
-         result_to_short_str(err));
-  }
-  if (udp_callback != NULL) {
-    r_callback = udp_callback;
-  } else {
-    r_callback = udp_receiver_callback_example;
-  }
   udp_recv(pcb, udp_receiver, NULL);
 
   return RESULT_OK;
 }
 
-result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
-                         udp_receiver_callback udp_callback) {
+result_t udp_client_init(struct udp_pcb **upcb) {
 
   *upcb = udp_new(); // TODO: return error if this is NULL
   if (upcb == NULL) {
     LOGE(TAG, "Cannot create new udp handler");
     return RESULT_FAIL;
   }
-  ip_addr_t myIPaddr;
-  IP_ADDR4(&myIPaddr, 192, 168, 0, 111);
-  err_t err = udp_bind(*upcb, &myIPaddr, 8);
+
+  err_t err = udp_bind(*upcb, IP_ADDR_ANY, 8);
   if (err != ERR_OK) {
     LOGE(TAG, "Cannot bind the udp: %s", lwip_strerr(err));
     return RESULT_FAIL;
   }
-  ETH_udp_receiver_init(*upcb, udp_callback);
+  ETH_udp_receiver_init(*upcb);
   return RESULT_OK;
 }
 

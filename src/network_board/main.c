@@ -22,6 +22,7 @@
 #include "gpio.h"
 #include "ip_mac_constants.h"
 #include "logging.h"
+#include "netif.h"
 #include "tim.h"
 #include <stdint.h>
 #include <time.h>
@@ -36,6 +37,7 @@ void MainTask(void *argument);
 extern TIM_HandleTypeDef htim1;
 extern COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
+extern struct netif gnetif;
 
 void uart_setup() {
 
@@ -58,6 +60,14 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
+void ethernet_linkstatus_callback(struct netif *netif) {
+  if (netif_is_up(netif)) {
+    LOGI(TAG, "Physical ethernet link is up");
+  } else {
+    LOGE(TAG, "Physical ethernet link is down");
+  }
+}
+
 int main(void) {
 
   MPU_Config_wrapper();
@@ -77,7 +87,7 @@ int main(void) {
 
   uart_setup();
   LOG_init(&huart_com);
-  ETH_init(NULL, NULL);
+  ETH_init(ethernet_linkstatus_callback);
   ETH_raw_init(NULL);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
@@ -95,7 +105,7 @@ void MainTask(void *argument) {
 
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  ETH_udp_init(NULL);
+  ETH_udp_init();
   ETH_add_arp(ip, mac);
   while (1) {
     ETH_udp_send(ip, 7, "udp message");
