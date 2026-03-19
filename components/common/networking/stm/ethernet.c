@@ -17,8 +17,8 @@ extern struct netif gnetif;
 
 struct udp_pcb *upcb;
 
-void ETH_udp_init(udp_receiver_callback callback) {
-  udp_client_init(&upcb, callback);
+void ETH_udp_init() {
+  udp_client_init(&upcb);
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
 }

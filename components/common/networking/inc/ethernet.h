@@ -19,7 +19,6 @@ void ETH_init(linkstatus_callback_t link_state_change_callback);
 /**
  * @brief Initialzes the udp protocol control block
  *
- * @param callback callback function for receiving messages
  */
 void ETH_udp_init(udp_receiver_callback callback);
 

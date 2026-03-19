@@ -66,7 +66,6 @@ void ethernet_linkstatus_callback(struct netif *netif) {
   } else {
     LOGE(TAG, "Physical ethernet link is down");
   }
-
 }
 
 int main(void) {
@@ -106,7 +105,7 @@ void MainTask(void *argument) {
 
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  ETH_udp_init(NULL);
+  ETH_udp_init();
   ETH_add_arp(ip, mac);
   while (1) {
     ETH_udp_send(ip, 7, "udp message");
