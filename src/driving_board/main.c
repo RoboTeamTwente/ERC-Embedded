@@ -218,14 +218,16 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
     size_t encoded_length = 0;
 
     float distance_left = 10.5f;
-
-    result_t res = DBMPProgressEncode(distance_left, &encoded_data, &encoded_length);
+/**
+ * result_t res = DBMPProgressEncode(distance_left, &encoded_data, &encoded_length);
     if (res != RESULT_OK) {
       LOGI(TAG, "Encoding failed");
     }
     else{
       LOGI(TAG, "Encoding successful");
     }
+ */
+    
     
 
 
@@ -268,7 +270,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 }
 
 void PwmTask(void *argument){
-   const uint32_t period_ms = 1;
+   const uint32_t period_ms = 100;
 
    for(;;)
    {
