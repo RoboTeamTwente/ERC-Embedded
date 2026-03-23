@@ -6,7 +6,6 @@
 
 static char *TAG = "MENU DRIVER";
 
-
 void menu_manager_switch_page(menu_manager_t *manager,
                               unsigned char new_page_id) {
   manager->pages[manager->active_page_id].destruct(
@@ -22,7 +21,6 @@ void menu_driver_draw_ribbon() {
                       menu_driver_ui_ribbon, MENU_DRIVER_FOREGROUND_COLOR,
                       MENU_DRIVER_BACKGROUND_COLOR);
 }
-
 
 void menu_manager_init_display() {
   ILI9341_Init();
