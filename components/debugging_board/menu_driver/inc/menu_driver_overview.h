@@ -5,7 +5,6 @@
 #include "menu_driver_conf.h"
 #include "result.h"
 
-
 #define MENU_OVERVIEW_ICON_HEIGHT 16
 #define MENU_OVERVIEW_ICON_WIDTH 16
 

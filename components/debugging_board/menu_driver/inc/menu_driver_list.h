@@ -1,8 +1,8 @@
 #ifndef MENU_DRIVER_LIST_H
 #define MENU_DRIVER_LIST_H
-#include "menu_driver_icons.h"
 #include "menu_driver.h"
 #include "menu_driver_conf.h"
+#include "menu_driver_icons.h"
 #include "result.h"
 #include <stdint.h>
 
