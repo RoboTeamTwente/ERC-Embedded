@@ -17,12 +17,16 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include "FreeRTOS.h"
 #include "cmsis_os2.h"
 #include "ethernet.h"
 #include "gpio.h"
 #include "ip_mac_constants.h"
 #include "logging.h"
 #include "netif.h"
+#include "networking_constants.h"
+#include "queue.h"
+#include "stm/ethernet_udp.h"
 #include "tim.h"
 #include <stdint.h>
 #include <time.h>
@@ -102,13 +106,26 @@ int main(void) {
 
 void set_mac(int mac[6]) {}
 void MainTask(void *argument) {
+  static StaticQueue_t xStaticQueue1;
+  uint8_t ucQueueStorageArea1[ETHERNET_RQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t udp_receiver_queue1 =
+      xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea1, &xStaticQueue1);
+
+  static StaticQueue_t xStaticQueue2;
+  uint8_t ucQueueStorageArea2[ETHERNET_RQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t udp_receiver_queue2 =
+      xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea2, &xStaticQueue2);
+  QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  ETH_udp_init();
+  ETH_udp_init(2, queues);
   ETH_add_arp(ip, mac);
+  uint8_t message[12] = "udp message";
   while (1) {
-    ETH_udp_send(ip, 7, "udp message");
+    ETH_udp_send(ip, 7, message, 12, 1);
     osDelay(100);
     // ETH_raw_send(mac_other,
     //              "long ass raw message looooong looooooonger "
