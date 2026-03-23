@@ -4,10 +4,10 @@
 #include "cubemx_main.h"
 #include "ili9341_fonts.h"
 #include "logging.h"
-#include "stm32h7xx_hal.h"
-#include "stm32h7xx_hal_gpio.h"
 #include "result.h"
 #include "stdbool.h"
+#include "stm32h7xx_hal.h"
+#include "stm32h7xx_hal_gpio.h"
 
 static char *TAG = "ILI9341";
 
@@ -529,175 +529,191 @@ void ILI9341_WriteString(uint16_t x, uint16_t y, const char *str,
   }
 }
 
-
-static inline void print_bitmap(uint8_t **bitmap, size_t width, size_t height ) {
+static inline void print_bitmap(uint8_t **bitmap, size_t width, size_t height) {
   uint32_t stride = (width + 7u) >> 3;
   for (uint8_t y = 0; y < height; y++) {
     for (uint8_t x = 0; x < width; x++) {
-        bool set = ((*bitmap)[y * stride + (x >> 3)] & (0x80u >> (x & 7u))) != 0u;
-        printf("%c", set ? '#' : '.');
+      bool set = ((*bitmap)[y * stride + (x >> 3)] & (0x80u >> (x & 7u))) != 0u;
+      printf("%c", set ? '#' : '.');
     }
     printf("\n");
   }
 }
 
-
-
-static inline bool is_point_in_circle_u8(uint8_t dx, uint8_t dy, uint8_t r)
-{
-    uint16_t d2 = (uint16_t)dx * dx + (uint16_t)dy * dy;
-    uint16_t r2 = (uint16_t)r  * r;
-    return d2 <= r2;
+static inline bool is_point_in_circle_u8(uint8_t dx, uint8_t dy, uint8_t r) {
+  uint16_t d2 = (uint16_t)dx * dx + (uint16_t)dy * dy;
+  uint16_t r2 = (uint16_t)r * r;
+  return d2 <= r2;
 }
 
+static inline result_t
+ILI9341_Get_Rounded_Corner_Bitmap(uint8_t radius, uint8_t thickness,
+                                  uint8_t *bitmap, uint32_t bitmap_bytes) {
+  if (!bitmap || radius == 0u)
+    return RESULT_ERR_INVALID_ARG;
 
-static inline result_t ILI9341_Get_Rounded_Corner_Bitmap(
-    uint8_t radius,
-    uint8_t thickness,
-    uint8_t *bitmap,
-    uint32_t bitmap_bytes
-){
-     if (!bitmap || radius == 0u) return RESULT_ERR_INVALID_ARG;
+  uint8_t rin = (thickness >= radius) ? 0u : (uint8_t)(radius - thickness);
 
-    uint8_t rin = (thickness >= radius) ? 0u : (uint8_t)(radius - thickness);
+  uint32_t stride = ((uint32_t)radius + 7u) >> 3;
+  uint32_t bytes = stride * (uint32_t)radius;
 
-    uint32_t stride = ((uint32_t)radius + 7u) >> 3;
-    uint32_t bytes  = stride * (uint32_t)radius;
+  if (bitmap_bytes < bytes)
+    return RESULT_ERR_NO_MEM;
 
-    if (bitmap_bytes < bytes) return RESULT_ERR_NO_MEM;
+  memset(bitmap, 0, bytes);
 
-    memset(bitmap, 0, bytes);
+  /* Pixel-center sampling, 2x fixed-point */
+  int32_t cx = (int32_t)(2u * radius - 1u);
+  int32_t cy = (int32_t)(2u * radius - 1u);
 
-    /* Pixel-center sampling, 2x fixed-point */
-    int32_t cx = (int32_t)(2u * radius - 1u);
-    int32_t cy = (int32_t)(2u * radius - 1u);
+  uint32_t outer_r2 =
+      (uint32_t)(2u * radius - 1u) * (uint32_t)(2u * radius - 1u);
+  uint32_t inner_r2 =
+      (rin > 0u) ? (uint32_t)(2u * rin - 1u) * (uint32_t)(2u * rin - 1u) : 0u;
 
-    uint32_t outer_r2 = (uint32_t)(2u * radius - 1u) * (uint32_t)(2u * radius - 1u);
-    uint32_t inner_r2 = (rin > 0u)
-        ? (uint32_t)(2u * rin - 1u) * (uint32_t)(2u * rin - 1u)
-        : 0u;
+  for (uint8_t y = 0; y < radius; y++) {
+    for (uint8_t x = 0; x < radius; x++) {
+      int32_t px = (int32_t)(2u * x + 1u);
+      int32_t py = (int32_t)(2u * y + 1u);
 
-    for (uint8_t y = 0; y < radius; y++) {
-        for (uint8_t x = 0; x < radius; x++) {
-            int32_t px = (int32_t)(2u * x + 1u);
-            int32_t py = (int32_t)(2u * y + 1u);
+      int32_t dx = cx - px;
+      int32_t dy = cy - py;
 
-            int32_t dx = cx - px;
-            int32_t dy = cy - py;
+      uint32_t d2 = (uint32_t)(dx * dx + dy * dy);
 
-            uint32_t d2 = (uint32_t)(dx * dx + dy * dy);
+      bool in_outer = (d2 <= outer_r2);
+      bool in_inner = (rin > 0u) ? (d2 < inner_r2) : false;
 
-            bool in_outer = (d2 <= outer_r2);
-            bool in_inner = (rin > 0u) ? (d2 < inner_r2) : false;
-
-            if (in_outer && !in_inner) {
-                bitmap[(uint32_t)y * stride + (x >> 3)] |= (uint8_t)(0x80u >> (x & 7u));
-            }
-        }
+      if (in_outer && !in_inner) {
+        bitmap[(uint32_t)y * stride + (x >> 3)] |= (uint8_t)(0x80u >> (x & 7u));
+      }
     }
+  }
 
-    return RESULT_OK;
+  return RESULT_OK;
 }
 
+static inline void bitmap_rotate_90_cw_1bpp(const uint8_t *src, uint16_t src_w,
+                                            uint16_t src_h, uint8_t *dst,
+                                            uint16_t dst_w, uint16_t dst_h) {
+  if (!src || !dst)
+    return;
+  if ((dst_w != src_h) || (dst_h != src_w))
+    return;
 
-static inline void bitmap_rotate_90_cw_1bpp(
-    const uint8_t *src, uint16_t src_w, uint16_t src_h,
-    uint8_t *dst,       uint16_t dst_w, uint16_t dst_h
-){
-   if (!src || !dst) return;
-    if ((dst_w != src_h) || (dst_h != src_w)) return;
+  uint16_t src_stride = (uint16_t)((src_w + 7u) >> 3);
+  uint16_t dst_stride = (uint16_t)((dst_w + 7u) >> 3);
 
-    uint16_t src_stride = (uint16_t)((src_w + 7u) >> 3);
-    uint16_t dst_stride = (uint16_t)((dst_w + 7u) >> 3);
+  memset(dst, 0, (uint32_t)dst_stride * (uint32_t)dst_h);
 
-    memset(dst, 0, (uint32_t)dst_stride * (uint32_t)dst_h);
+  for (uint16_t y = 0; y < src_h; y++) {
+    for (uint16_t x = 0; x < src_w; x++) {
+      uint8_t src_byte = src[(uint32_t)y * src_stride + (x >> 3)];
+      uint8_t src_mask = (uint8_t)(0x80u >> (x & 7u));
 
-    for (uint16_t y = 0; y < src_h; y++) {
-        for (uint16_t x = 0; x < src_w; x++) {
-            uint8_t src_byte = src[(uint32_t)y * src_stride + (x >> 3)];
-            uint8_t src_mask = (uint8_t)(0x80u >> (x & 7u));
+      if (src_byte & src_mask) {
+        uint16_t dx = (uint16_t)(src_h - 1u - y);
+        uint16_t dy = x;
 
-            if (src_byte & src_mask) {
-                uint16_t dx = (uint16_t)(src_h - 1u - y);
-                uint16_t dy = x;
-
-                dst[(uint32_t)dy * dst_stride + (dx >> 3)] |= (uint8_t)(0x80u >> (dx & 7u));
-            }
-        }
-    }}
+        dst[(uint32_t)dy * dst_stride + (dx >> 3)] |=
+            (uint8_t)(0x80u >> (dx & 7u));
+      }
+    }
+  }
+}
 
 static inline result_t ILI9341_Build_All_Rounded_Corners(
-    uint8_t radius,
-    uint8_t thickness,
-    uint8_t *region,
-    uint32_t region_bytes,
-    uint8_t *out_bm[4],
-    uint32_t *out_each_bytes
-){
-   if (!region || !out_bm || radius == 0u) return RESULT_ERR_INVALID_ARG;
+    uint8_t radius, uint8_t thickness, uint8_t *region, uint32_t region_bytes,
+    uint8_t *out_bm[4], uint32_t *out_each_bytes) {
+  if (!region || !out_bm || radius == 0u)
+    return RESULT_ERR_INVALID_ARG;
 
-    uint32_t stride = ((uint32_t)radius + 7u) >> 3;
-    uint32_t each   = stride * (uint32_t)radius;
-    uint32_t need   = 4u * each;
-
-    if (region_bytes < need) return RESULT_ERR_NO_MEM;
-
-    out_bm[0] = region + 0u * each; /* TL */
-    out_bm[1] = region + 1u * each; /* TR */
-    out_bm[2] = region + 2u * each; /* BR */
-    out_bm[3] = region + 3u * each; /* BL */
-
-    if (out_each_bytes) *out_each_bytes = each;
-
-    result_t r = ILI9341_Get_Rounded_Corner_Bitmap(radius, thickness, out_bm[0], each);
-    if (r != RESULT_OK) return r;
-
-    bitmap_rotate_90_cw_1bpp(out_bm[0], radius, radius, out_bm[1], radius, radius);
-    bitmap_rotate_90_cw_1bpp(out_bm[1], radius, radius, out_bm[2], radius, radius);
-    bitmap_rotate_90_cw_1bpp(out_bm[2], radius, radius, out_bm[3], radius, radius);
-
-    return RESULT_OK;
-}
-
-void ILI9341_Draw_Rectangle_Custom_Corner(uint16_t X, uint16_t Y, uint16_t Width,
-                            uint16_t Height, uint8_t thickness, uint8_t corner_size, uint8_t *corners[4], uint16_t Color, uint16_t Bg_Color) {
-  // draw corners
-  uint32_t bitmap_size = (uint32_t) corner_size*(uint32_t) corner_size;
-  uint32_t bitmap_bytes = (bitmap_size+7u)>>3;
-  
-  ILI9341_Draw_Bitmap(X, Y, corner_size, corner_size, corners[0], Color, Bg_Color);                                   // TL
-  ILI9341_Draw_Bitmap(X + Width  - corner_size, Y, corner_size, corner_size, corners[1], Color, Bg_Color);           // TR
-  ILI9341_Draw_Bitmap(X + Width  - corner_size, Y + Height - corner_size, corner_size, corner_size, corners[2], Color, Bg_Color); // BR
-  ILI9341_Draw_Bitmap(X, Y + Height - corner_size, corner_size, corner_size, corners[3], Color, Bg_Color);           // BL  // Top line
-  //
-  //
-  //
-  ILI9341_Draw_Rectangle(X+corner_size, Y, Width-corner_size*2, thickness, Color);
-  // Bottom Line
-  ILI9341_Draw_Rectangle(X+corner_size, Y+Height-thickness, Width-corner_size*2, thickness, Color);
-  // Right Line
-  ILI9341_Draw_Rectangle(X, Y+corner_size, thickness, Height-corner_size*2, Color);
-  // Left Line
-  ILI9341_Draw_Rectangle(X+Width-thickness, Y+corner_size, thickness, Height-corner_size*2, Color);
-
-}
-
-result_t ILI9341_Draw_Rectangle_Rounded_Corner(uint16_t X, uint16_t Y, uint16_t Width, uint16_t Height, uint8_t thickness, uint8_t radius, uint8_t* corner_buffer, size_t corner_buffer_size, uint16_t Colour, uint16_t Bg_Colour) {
-  result_t res;
-  
   uint32_t stride = ((uint32_t)radius + 7u) >> 3;
-  uint32_t each   = stride * (uint32_t)radius;
-  uint32_t need   = 4u * each;
+  uint32_t each = stride * (uint32_t)radius;
+  uint32_t need = 4u * each;
+
+  if (region_bytes < need)
+    return RESULT_ERR_NO_MEM;
+
+  out_bm[0] = region + 0u * each; /* TL */
+  out_bm[1] = region + 1u * each; /* TR */
+  out_bm[2] = region + 2u * each; /* BR */
+  out_bm[3] = region + 3u * each; /* BL */
+
+  if (out_each_bytes)
+    *out_each_bytes = each;
+
+  result_t r =
+      ILI9341_Get_Rounded_Corner_Bitmap(radius, thickness, out_bm[0], each);
+  if (r != RESULT_OK)
+    return r;
+
+  bitmap_rotate_90_cw_1bpp(out_bm[0], radius, radius, out_bm[1], radius,
+                           radius);
+  bitmap_rotate_90_cw_1bpp(out_bm[1], radius, radius, out_bm[2], radius,
+                           radius);
+  bitmap_rotate_90_cw_1bpp(out_bm[2], radius, radius, out_bm[3], radius,
+                           radius);
+
+  return RESULT_OK;
+}
+
+void ILI9341_Draw_Rectangle_Custom_Corner(uint16_t X, uint16_t Y,
+                                          uint16_t Width, uint16_t Height,
+                                          uint8_t thickness,
+                                          uint8_t corner_size,
+                                          uint8_t *corners[4], uint16_t Color,
+                                          uint16_t Bg_Color) {
+  // draw corners
+  uint32_t bitmap_size = (uint32_t)corner_size * (uint32_t)corner_size;
+  uint32_t bitmap_bytes = (bitmap_size + 7u) >> 3;
+
+  ILI9341_Draw_Bitmap(X, Y, corner_size, corner_size, corners[0], Color,
+                      Bg_Color); // TL
+  ILI9341_Draw_Bitmap(X + Width - corner_size, Y, corner_size, corner_size,
+                      corners[1], Color, Bg_Color); // TR
+  ILI9341_Draw_Bitmap(X + Width - corner_size, Y + Height - corner_size,
+                      corner_size, corner_size, corners[2], Color,
+                      Bg_Color); // BR
+  ILI9341_Draw_Bitmap(X, Y + Height - corner_size, corner_size, corner_size,
+                      corners[3], Color, Bg_Color); // BL  // Top line
+  //
+  //
+  //
+  ILI9341_Draw_Rectangle(X + corner_size, Y, Width - corner_size * 2, thickness,
+                         Color);
+  // Bottom Line
+  ILI9341_Draw_Rectangle(X + corner_size, Y + Height - thickness,
+                         Width - corner_size * 2, thickness, Color);
+  // Right Line
+  ILI9341_Draw_Rectangle(X, Y + corner_size, thickness,
+                         Height - corner_size * 2, Color);
+  // Left Line
+  ILI9341_Draw_Rectangle(X + Width - thickness, Y + corner_size, thickness,
+                         Height - corner_size * 2, Color);
+}
+
+result_t ILI9341_Draw_Rectangle_Rounded_Corner(
+    uint16_t X, uint16_t Y, uint16_t Width, uint16_t Height, uint8_t thickness,
+    uint8_t radius, uint8_t *corner_buffer, size_t corner_buffer_size,
+    uint16_t Colour, uint16_t Bg_Colour) {
+  result_t res;
+
+  uint32_t stride = ((uint32_t)radius + 7u) >> 3;
+  uint32_t each = stride * (uint32_t)radius;
+  uint32_t need = 4u * each;
   if (corner_buffer_size < need) {
     return RESULT_ERR_NO_MEM;
   }
 
   uint8_t *bitmaps[4] = {0};
   size_t bitmap_size_each = 0;
-  TRY(ILI9341_Build_All_Rounded_Corners(radius, thickness, corner_buffer, corner_buffer_size, &bitmaps, &bitmap_size_each));
+  TRY(ILI9341_Build_All_Rounded_Corners(radius, thickness, corner_buffer,
+                                        corner_buffer_size, &bitmaps,
+                                        &bitmap_size_each));
   LOGI(TAG, "Got rounded corners, each of size: %d", bitmap_size_each);
 
-  ILI9341_Draw_Rectangle_Custom_Corner(X,Y,Width,Height,thickness, radius, bitmaps, Colour, Bg_Colour);
+  ILI9341_Draw_Rectangle_Custom_Corner(X, Y, Width, Height, thickness, radius,
+                                       bitmaps, Colour, Bg_Colour);
   return RESULT_OK;
-
 }

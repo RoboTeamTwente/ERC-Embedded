@@ -5,6 +5,9 @@
 #include "menu_driver_conf.h"
 #include "result.h"
 
+#define MENU_OVERVIEW_ICON_HEIGHT 16
+#define MENU_OVERVIEW_ICON_WIDTH 16
+
 result_t
 get_menu_page_overview(uint8_t id, uint8_t parent_id,
                        char name[MAX_PAGE_NAME_LEN], uint8_t num_entries,

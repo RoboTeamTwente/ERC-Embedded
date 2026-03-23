@@ -1,8 +1,6 @@
 #include "menu_driver_list.h"
 #include "ili9341.h"
 #include "ili9341_fonts.h"
-#include "menu_driver.h"
-#include "menu_driver_conf.h"
 #include "logging.h"
 #include "menu_driver.h"
 #include "menu_driver_conf.h"
@@ -90,30 +88,31 @@ void menu_page_update_list(struct menu_manager_t *manager_str) {
 };
 
 #define MENU_DRIVER_LIST_ICON_OFFSET 10
-#define MENU_DRIVER_LIST_TEXT_OFFSET (MENU_DRIVER_LIST_ICON_OFFSET + 20 + MENU_DRIVER_ICON_WIDTH)
+#define MENU_DRIVER_LIST_TEXT_OFFSET                                           \
+  (MENU_DRIVER_LIST_ICON_OFFSET + 20 + MENU_DRIVER_ICON_WIDTH)
 
 static uint16_t last_text_widths[3] = {0};
 
-void menu_driver_list_render_item(uint8_t index, uint16_t x_offset, uint16_t y_offset,
-                                  const uint8_t *icon, char *name) {
-  uint16_t current_width = strlen(name)*ILI9341_Font_11x18.width;
+void menu_driver_list_render_item(uint8_t index, uint16_t x_offset,
+                                  uint16_t y_offset, const uint8_t *icon,
+                                  char *name) {
+  uint16_t current_width = strlen(name) * ILI9341_Font_11x18.width;
   if (current_width < last_text_widths[index]) {
-    uint16_t difference = last_text_widths[index]-current_width;
-    ILI9341_Draw_Rectangle(x_offset + MENU_DRIVER_LIST_TEXT_OFFSET+current_width, y_offset+28, difference,
-                           MENU_DRIVER_ICON_HEIGHT, MENU_DRIVER_BACKGROUND_COLOR);
+    uint16_t difference = last_text_widths[index] - current_width;
+    ILI9341_Draw_Rectangle(
+        x_offset + MENU_DRIVER_LIST_TEXT_OFFSET + current_width, y_offset + 28,
+        difference, MENU_DRIVER_ICON_HEIGHT, MENU_DRIVER_BACKGROUND_COLOR);
   }
   // draw icon
   ILI9341_Draw_Bitmap(x_offset + 10, y_offset + 14, MENU_DRIVER_ICON_WIDTH,
                       MENU_DRIVER_ICON_HEIGHT, icon,
                       MENU_DRIVER_BACKGROUND_COLOR,
                       MENU_DRIVER_FOREGROUND_COLOR);
-  ILI9341_WriteString(x_offset + MENU_DRIVER_LIST_TEXT_OFFSET,
-                      y_offset + 28, name, ILI9341_Font_11x18,
-                      MENU_DRIVER_FOREGROUND_COLOR,
+  ILI9341_WriteString(x_offset + MENU_DRIVER_LIST_TEXT_OFFSET, y_offset + 28,
+                      name, ILI9341_Font_11x18, MENU_DRIVER_FOREGROUND_COLOR,
                       MENU_DRIVER_BACKGROUND_COLOR);
   last_text_widths[index] = current_width;
 }
-
 
 #define MENU_DRIVER_LIST_ROUNDNESS (12)
 
@@ -136,13 +135,18 @@ void menu_page_render_list(struct menu_manager_t *manager_str) {
   uint8_t current_index = state->selected_index;
 
   if (state->first_render) {
-    state->first_render=false;
+    state->first_render = false;
     // draw outline double stroke
 
-    // ILI9341_Draw_Bitmap(50,88, MENU_LIST_ITEM_WIDTH, MENU_LIST_ITEM_HEIGHT+2, &menu_driver_list_ribbon, MENU_DRIVER_FOREGROUND_COLOR, MENU_DRIVER_BACKGROUND_COLOR);
-    result_t res = ILI9341_Draw_Rectangle_Rounded_Corner(50,88, MENU_LIST_ITEM_WIDTH, MENU_LIST_ITEM_HEIGHT+2, 3, MENU_DRIVER_LIST_ROUNDNESS, &corners, 512, MENU_DRIVER_FOREGROUND_COLOR, MENU_DRIVER_BACKGROUND_COLOR );
-    
-    if (res!= RESULT_OK) {
+    // ILI9341_Draw_Bitmap(50,88, MENU_LIST_ITEM_WIDTH, MENU_LIST_ITEM_HEIGHT+2,
+    // &menu_driver_list_ribbon, MENU_DRIVER_FOREGROUND_COLOR,
+    // MENU_DRIVER_BACKGROUND_COLOR);
+    result_t res = ILI9341_Draw_Rectangle_Rounded_Corner(
+        50, 88, MENU_LIST_ITEM_WIDTH, MENU_LIST_ITEM_HEIGHT + 2, 3,
+        MENU_DRIVER_LIST_ROUNDNESS, &corners, 512, MENU_DRIVER_FOREGROUND_COLOR,
+        MENU_DRIVER_BACKGROUND_COLOR);
+
+    if (res != RESULT_OK) {
       LOGE(TAG, "Error drawing rectangle: %s", result_to_short_str(res));
     }
   }
@@ -160,11 +164,10 @@ void menu_page_render_list(struct menu_manager_t *manager_str) {
   for (int i = 0; i < 3; i++) {
     uint16_t y_position =
         MENU_LIST_ITEM_GAP + i * (MENU_LIST_ITEM_HEIGHT + MENU_LIST_ITEM_GAP);
-    menu_driver_list_render_item(i,
-        MENU_LIST_ITEM_X, y_position, state->entry_icons[indexes[i]],
+    menu_driver_list_render_item(
+        i, MENU_LIST_ITEM_X, y_position, state->entry_icons[indexes[i]],
         manager->pages[state->entry_ids[indexes[i]]].name);
   }
-
 }
 
 void menu_page_destruct_list(menu_page_state *state_ptr) {
