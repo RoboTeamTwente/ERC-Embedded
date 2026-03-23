@@ -1,6 +1,7 @@
 #include "decoding_task.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
@@ -19,6 +20,7 @@ const static char* TAG = "DECODING_TASK";
 static PBEnvelope DecodingPacketArena[PB_ENVELOPE_NUMBER_OF_PACKET_TYPES];
 static PBEnvelope DecodingEnvelopeCurrent;
 static receive_frame DecodingPacketCurrent;
+static void* DecodingPacketContents[PBEnvelope_size];
 
 void PacketHandlerTask(void* pvParameters) {
     packet_handler_config_t* conf = (packet_handler_config_t*)pvParameters;
@@ -104,6 +106,11 @@ void PacketDispatcherTask(void* pvParameters) {
                  "more than PBEnvelope allows");
             continue;
         }
+        memset(DecodingPacketContents, 0, PBEnvelope_size);
+        memcpy(DecodingPacketContents, DecodingPacketCurrent.payload,
+               DecodingPacketCurrent.len);
+        DecodingPacketCurrent.payload = DecodingPacketContents;
+        DecodingPacketCurrent.len = PBEnvelope_size;
         istream = pb_istream_from_buffer(DecodingPacketCurrent.payload,
                                          DecodingPacketCurrent.len);
         status =
