@@ -122,7 +122,7 @@ void MainTask(void *argument) {
 
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  ETH_udp_init(2, queues);
+  ETH_udp_init(2, queues, NULL);
   ETH_add_arp(ip, mac);
   uint8_t message[12] = "udp message";
   while (1) {
