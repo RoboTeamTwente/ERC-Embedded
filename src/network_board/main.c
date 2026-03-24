@@ -106,16 +106,17 @@ int main(void) {
 
 void set_mac(int mac[6]) {}
 void MainTask(void *argument) {
+  int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
-  uint8_t ucQueueStorageArea1[ETHERNET_RQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
+  uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
   QueueHandle_t udp_receiver_queue1 =
-      xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_SQ_ITEM_SIZE,
+      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
                          ucQueueStorageArea1, &xStaticQueue1);
 
   static StaticQueue_t xStaticQueue2;
-  uint8_t ucQueueStorageArea2[ETHERNET_RQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
+  uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
   QueueHandle_t udp_receiver_queue2 =
-      xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_SQ_ITEM_SIZE,
+      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
                          ucQueueStorageArea2, &xStaticQueue2);
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 

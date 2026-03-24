@@ -85,7 +85,7 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     if (xQueueSend(udp_receiver_queue, &buffer, 10) != pdPASS) {
       err = RESULT_ERR_OVERFLOW;
     } else {
-      (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)ETHERNET_PRIO),
+      (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)RQ_ETHERNET_PRIO),
                         eSetBits);
     }
   } else {
