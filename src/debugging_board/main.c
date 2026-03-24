@@ -4,6 +4,7 @@
 #include "components/common/envelope.pb.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
+#include "decoding_macros.h"
 #include "decoding_task.h"
 #include "portmacro.h"
 #include "stm/ethernet_udp.h"
@@ -12,6 +13,7 @@
 #include "bucketed_pqueue.h"
 #include "cmsis_os2.h"  // FreeRTOS wrapper header (v2)
 #include "cubemx_main.h"
+#include "decoding_macros.h"
 #include "gpio.h"
 #include "ili9341.h"
 #include "ili9341_fonts.h"
@@ -66,13 +68,13 @@ static result_t HandleType2Packet(void* buffer) {
 }
 
 #define DISPATCHER_INPUT_QUEUE_LENGTH 8U
-#define HANDLER_QUEUE_LENGTH 4U
-#define PRODUCER_TASK_STACK_DEPTH 768U
-
-#define configCHECK_FOR_STACK_OVERFLOW 2
+// #define HANDLER_QUEUE_LENGTH 4U
+// #define PRODUCER_TASK_STACK_DEPTH 768U
+//
+// #define configCHECK_FOR_STACK_OVERFLOW 2
 static QueueHandle_t g_dispatcher_input_queue;
-static QueueHandle_t g_type1_queue;
-static QueueHandle_t g_type2_queue;
+// static QueueHandle_t g_type1_queue;
+// static QueueHandle_t g_type2_queue;
 
 static uint8_t packet1_payload[] = {
     0x62, 0x2C, 0x09, 0x13, 0xF2, 0x41, 0xCF, 0x66, 0x1D, 0x4A, 0x40, 0x11,
@@ -88,11 +90,12 @@ static uint8_t packet2_payload[] = {
     0x00, 0x44, 0x1D, 0x00, 0x00, 0xAC, 0x41, 0x20, 0x01};
 static receive_frame packet2 = {.payload = packet2_payload,
                                 .len = sizeof(packet2_payload)};
-
 static packet_dispatcher_config_t disp_conf = {
     .task_count = 2,
     .dispatcher_priority = tskIDLE_PRIORITY + 3U,
     .dispatcher_stack_depth = 1 * 1024U};
+static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
+static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
 
 void MainTask(void* argument) {
     LOGI(TAG, "In main");
@@ -111,18 +114,16 @@ void MainTask(void* argument) {
     handler_configs[0].item_size = SensorBoardGPSInfo_size;
     handler_configs[0].task_priority = tskIDLE_PRIORITY + 2U;
     handler_configs[0].queue_length = 5;
-    // handler_configs[0].queue_buffer = packet1_buffer;
-    // handler_configs[0].task_stack_depth = 512U;
-
+    handler_configs[0].queue_buffer = packet1_buffer;
+    handler_configs[0].task_stack_depth = 512U;
     handler_configs[1].handler = HandleType2Packet;
     handler_configs[1].task_name = "PktType2";
     handler_configs[1].packet_type = PBEnvelope_ph_info_tag;
     handler_configs[1].item_size = SensorBoardPHInfo_size;
     handler_configs[1].task_priority = tskIDLE_PRIORITY + 2U;
     handler_configs[1].queue_length = 5;
-    // handler_configs[1].queue_buffer = packet2_buffer;
-    // handler_configs[1].task_stack_depth = 512U;
-
+    handler_configs[1].queue_buffer = packet2_buffer;
+    handler_configs[1].task_stack_depth = 512U;
     disp_conf.tasks = handler_configs;
     disp_conf.input_queue = g_dispatcher_input_queue;
 
@@ -131,8 +132,6 @@ void MainTask(void* argument) {
     BaseType_t ok;
     PacketDispatcherStart(&disp_conf);
 
-    LOGI(TAG, "Packet 1 p: %p", (void*)packet1_payload);
-    LOGI(TAG, "Packet 2 p: %p", (void*)packet2_payload);
     for (;;) {
         LOGI(TAG, "Sending packets");
 
@@ -143,7 +142,7 @@ void MainTask(void* argument) {
 
         ok = xQueueSend(g_dispatcher_input_queue, &packet2, portMAX_DELAY);
         LOGI(TAG, "Sent packet2: %ld", (long)ok);
-        osDelay(1);
+        osDelay(500);
     }
 }
 
