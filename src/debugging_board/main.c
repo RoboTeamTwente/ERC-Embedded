@@ -2,9 +2,11 @@
 #include <stdio.h>
 
 #include "components/common/envelope.pb.h"
+#include "components/common/packet_dispatcher/packet_dispatcher.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
 #include "packet_dispatcher.h"
+#include "packet_dispatcher_macros.h"
 #include "portmacro.h"
 #include "stm/ethernet_udp.h"
 #ifndef UNIT_TEST
@@ -85,27 +87,32 @@ static receive_frame packet2 = {.payload = packet2_payload,
 static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
 static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
 
-static packet_handler_config_t handler_configs[] = {
-    {.handler = HandleType1Packet,
-     .task_name = "GPS Handler",
-     .packet_type = PBEnvelope_gps_info_tag,
-     .item_size = SensorBoardGPSInfo_size,
-     .task_priority = tskIDLE_PRIORITY + 2U,
-     .queue_length = 5,
-     .queue_buffer = packet1_buffer},
-    {
-        .handler = HandleType2Packet,
-        .task_name = "PH Handler",
-        .packet_type = PBEnvelope_ph_info_tag,
-        .item_size = SensorBoardPHInfo_size,
-        .task_priority = tskIDLE_PRIORITY + 2U,
-        .queue_length = 5,
-        .queue_buffer = packet2_buffer,
-    }};
+// static packet_handler_config_t handler_configs[] = {
+//     {.handler = HandleType1Packet,
+//      .task_name = "GPS Handler",
+//      .packet_type = PBEnvelope_gps_info_tag,
+//      .item_size = SensorBoardGPSInfo_size,
+//      .task_priority = tskIDLE_PRIORITY + 2U,
+//      .queue_length = 5,
+//      .queue_buffer = packet1_buffer},
+//     {
+//         .handler = HandleType2Packet,
+//         .task_name = "PH Handler",
+//         .packet_type = PBEnvelope_ph_info_tag,
+//         .item_size = SensorBoardPHInfo_size,
+//         .task_priority = tskIDLE_PRIORITY + 2U,
+//         .queue_length = 5,
+//         .queue_buffer = packet2_buffer,
+//     }};
+PACKET_HANDLER_CONFIG_STATIC(gps_handler, PBEnvelope_gps_info_tag, gps_info,
+                             HandleType1Packet);
+PACKET_HANDLER_CONFIG_STATIC(ph_handler, PBEnvelope_ph_info_tag, ph_info,
+                             HandleType2Packet);
+
 void MainTask(void* argument) {
     LOGI(TAG, "In main");
-    LOGI(TAG, "created dispatcher queue: %p", (void*)g_dispatcher_input_queue);
 
+    packet_handler_config_t handler_configs[] = {gps_handler, ph_handler};
     BaseType_t ok;
     PacketDispatcherInit(handler_configs, 2);
 
@@ -133,7 +140,8 @@ void main() {
     SystemClock_Config();
     MX_SPI1_Init();
 
-    HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN, GPIO_PIN_RESET);  // CS OFF
+    HAL_GPIO_WritePin(LCD_CS_PORT, LCD_CS_PIN,
+                      GPIO_PIN_RESET);  // CS OFF
 
     /* Initialize COM1 port */
 
@@ -160,4 +168,4 @@ void main() {
 }
 
 #endif  //! UNIT_TEST
-//
+        //
