@@ -1,4 +1,4 @@
-#include "decoding_task.h"
+#include "packet_dispatcher.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -12,7 +12,7 @@
 #include "result.h"
 #include "stm/ethernet_udp.h"
 
-const static char* TAG = "DECODING_TASK";
+const static char* TAG = "DISPATCHER";
 
 static PBEnvelope DecodingEnvelopeCurrent;
 static packet_handler_config_t* PacketHandlers;
