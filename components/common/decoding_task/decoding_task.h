@@ -11,7 +11,6 @@
 #include "result.h"
 #include "stm/ethernet_udp.h"
 
-#define PB_ENVELOPE_NUMBER_OF_PACKET_TYPES (20)
 #define PACKET_HANDLER_TASK_STACK_DEPTH_DEFAULT ((configSTACK_DEPTH_TYPE)512U)
 #define PACKET_DISPATCHER_TASK_STACK_DEPTH ((configSTACK_DEPTH_TYPE)1024U)
 

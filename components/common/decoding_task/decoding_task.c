@@ -17,10 +17,9 @@
 
 const static char* TAG = "DECODING_TASK";
 
-static PBEnvelope DecodingPacketArena[PB_ENVELOPE_NUMBER_OF_PACKET_TYPES];
 static PBEnvelope DecodingEnvelopeCurrent;
 static receive_frame DecodingPacketCurrent;
-static void* DecodingPacketContents[PBEnvelope_size];
+static uint8_t DecodingPacketContents[PBEnvelope_size];
 
 void PacketHandlerTask(void* pvParameters) {
     packet_handler_config_t* conf = (packet_handler_config_t*)pvParameters;
@@ -106,17 +105,13 @@ void PacketDispatcherTask(void* pvParameters) {
                  "more than PBEnvelope allows");
             continue;
         }
-        memset(DecodingPacketContents, 0, PBEnvelope_size);
-        memcpy(DecodingPacketContents, DecodingPacketCurrent.payload,
-               DecodingPacketCurrent.len);
-        DecodingPacketCurrent.payload = DecodingPacketContents;
-        DecodingPacketCurrent.len = PBEnvelope_size;
+
         istream = pb_istream_from_buffer(DecodingPacketCurrent.payload,
                                          DecodingPacketCurrent.len);
         status =
             pb_decode(&istream, PBEnvelope_fields, &DecodingEnvelopeCurrent);
 
-        if (status) {
+        if (!status) {
             LOGE(TAG, "Dispatcher could not decode incoming packet");
             continue;
         }
@@ -141,12 +136,9 @@ result_t PacketHandlerStart(packet_handler_config_t* handler_conf) {
     if (handler_conf->handler == NULL || handler_conf->task_name == NULL) {
         return RESULT_ERR_INVALID_ARG;
     }
-    if (handler_conf->packet_type >= PB_ENVELOPE_NUMBER_OF_PACKET_TYPES) {
-        return RESULT_ERR_INVALID_ARG;
-    }
-
-    handler_conf->queue =
-        xQueueCreate(handler_conf->queue_length, handler_conf->item_size);
+    handler_conf->queue = xQueueCreateStatic(
+        handler_conf->queue_length, handler_conf->item_size,
+        handler_conf->queue_buffer, &handler_conf->queue_struct);
     if (handler_conf->queue == NULL) {
         return RESULT_FAIL;
     }
