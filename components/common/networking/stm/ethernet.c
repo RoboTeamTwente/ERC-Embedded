@@ -5,6 +5,7 @@
 #include "ethernet_udp.h"
 #include "logging.h"
 #include "lwip.h"
+#include "queue.h"
 #include "tim.h"
 #include "udp.h"
 #include <stdint.h>
@@ -17,14 +18,16 @@ extern struct netif gnetif;
 
 struct udp_pcb *upcb;
 
-void ETH_udp_init() {
-  udp_client_init(&upcb);
+void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues) {
+  udp_client_init(&upcb, sender_prio_buf, send_queues);
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
 }
 void ETH_raw_init(raw_receiver_callback callback) { raw_init(callback); }
-void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload) {
-  udp_client_send(upcb, ip, port, payload);
+void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
+                  uint16_t payload_len, uint8_t prio_num,
+                  QueueHandle_t *send_queues) {
+  udp_client_send(upcb, ip, port, payload, payload_len, prio_num);
 }
 
 void ETH_raw_send(uint8_t *mac, char *payload) {

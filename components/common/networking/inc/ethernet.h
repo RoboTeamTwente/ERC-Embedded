@@ -1,12 +1,14 @@
 #ifndef ETHERNET_H
 #define ETHERNET_H
 
-#include <stdint.h>
-
+#include "FreeRTOS.h"
+#include "queue.h"
 #include "result.h"
 #include "stm/ethernet_diagnostics.h"
 #include "stm/ethernet_raw.h"
 #include "stm/ethernet_udp.h"
+#include <stdint.h>
+#include <sys/types.h>
 /**
  * @brief Initializes ethernet
  *
@@ -19,8 +21,10 @@ void ETH_init(linkstatus_callback_t link_state_change_callback);
 /**
  * @brief Initialzes the udp protocol control block
  *
+ * @param[in] sender_prio_num Number of priority queues for sending messages
+ * @param[in] send_queues priority queues for sending
  */
-void ETH_udp_init(udp_receiver_callback callback);
+void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues);
 
 /**
  * @brief Send a udp message
@@ -28,8 +32,11 @@ void ETH_udp_init(udp_receiver_callback callback);
  * @param ip[4]    Destination ip, 1 byte per entry
  * @param port     Destination port
  * @param payload  payload of the message
+ * @param[in] payload_len Length of the payload
+ * @param[in] prio_num the priority for this message
  */
-void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload);
+void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
+                  uint16_t payload_len, uint8_t prio_num);
 
 /**
  * @brief Sets registers for perfect mac filtering

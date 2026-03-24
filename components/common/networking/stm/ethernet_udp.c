@@ -1,10 +1,13 @@
 
 #include "ethernet_udp.h"
+#include "FreeRTOS.h"
 #include "bucketed_pqueue.h"
+#include "err.h"
 #include "ip4_addr.h"
 #include "ip_addr.h"
 #include "logging.h"
 #include "networking_constants.h"
+#include "pbuf.h"
 #include "portmacro.h"
 #include "projdefs.h"
 #include "result.h"
@@ -16,16 +19,24 @@
 
 extern ETH_HandleTypeDef heth;
 
+// receive queue variables
 static StaticQueue_t xStaticQueue;
 QueueHandle_t udp_receiver_queue;
-QueueHandle_t udp_receiver_queue;
 uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
-TaskHandle_t receiver_notifier = NULL;
 TaskHandle_t receiver_notifier = NULL;
 
 #define STACK_SIZE 200
 StaticTask_t xTaskBuffer;
 StackType_t xStack[STACK_SIZE];
+
+// send queue varialbes
+bucketed_pqueue_t udp_send_bqueue;
+TaskHandle_t send_notifier = NULL;
+
+StaticTask_t sendTaskBuffer;
+StackType_t sendStack[STACK_SIZE];
+
+int counter = 0;
 
 void udp_receiver_callback_example(void *payload, size_t length,
                                    const ip_addr_t *addr, u16_t port) {
@@ -74,7 +85,7 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     if (xQueueSend(udp_receiver_queue, &buffer, 10) != pdPASS) {
       err = RESULT_ERR_OVERFLOW;
     } else {
-      (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)ETHERNET_PRIO),
+      (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)RQ_ETHERNET_PRIO),
                         eSetBits);
     }
   } else {
@@ -105,6 +116,52 @@ void udp_receiver_task(void *pvParameters) {
       udp_receiver_callback_example(frame.payload, frame.len, &(frame.addr),
                                     frame.port);
       free(frame.payload);
+    }
+  }
+}
+
+void udp_send_task(void *pvParameters) {
+
+  configASSERT((uint32_t)pvParameters == 1UL);
+
+  for (;;) {
+    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    for (;;) {
+      LOGI(TAG, "UDP message being send %d", counter);
+      counter += 1;
+      send_frame frame;
+      result_t r = bucketed_pqueue_pop(&udp_send_bqueue, &frame);
+
+      if (r != RESULT_OK) {
+        free(frame.payload);
+        break;
+      }
+
+      struct pbuf *txBuf;
+
+      int len = frame.payload_len;
+      txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
+
+      if (txBuf != NULL) {
+        err_t err = pbuf_take(txBuf, frame.payload, len);
+        if (err != ERR_OK) {
+          LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
+          pbuf_free(txBuf);
+          free(frame.payload);
+          break;
+        }
+      } else {
+        LOGE(TAG, "cannot allocate a pbuffer");
+        free(frame.payload);
+        break;
+      }
+      free(frame.payload);
+
+      err_t err = udp_sendto(frame.upcb, txBuf, &frame.addr, frame.port);
+      if (err != ERR_OK) {
+        LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
+      }
+      pbuf_free(txBuf);
     }
   }
 }
@@ -140,7 +197,41 @@ result_t ETH_udp_receiver_init(struct udp_pcb *pcb) {
   return RESULT_OK;
 }
 
-result_t udp_client_init(struct udp_pcb **upcb) {
+result_t ETH_udp_send_init(struct udp_pcb *pcb, uint8_t num_buckets,
+                           QueueHandle_t *send_queues) {
+  TaskHandle_t sendHandle = NULL;
+  sendHandle = xTaskCreateStatic(
+
+      udp_send_task, /* Function that implements the task. */
+
+      "udp send task", /* Text name for the task. */
+
+      STACK_SIZE, /* Number of indexes in the xStack array. */
+
+      (void *)1, /* Parameter passed into the task. */
+
+      tskIDLE_PRIORITY, /* Priority at which the task is created. */
+
+      sendStack, /* Array to use as the task's stack. */
+
+      &sendTaskBuffer); /* Variable to hold the task's data structure. */
+
+  if (sendHandle == NULL) {
+    return RESULT_ERR_BUFF;
+  }
+
+  result_t err = bucketed_pqueue_init(&udp_send_bqueue, send_queues,
+                                      num_buckets, sendHandle);
+  if (err != RESULT_OK) {
+    LOGE(TAG, "pbuffer failed to initialize with error code: %s",
+         result_to_short_str(err));
+    return err;
+  }
+  return RESULT_OK;
+}
+
+result_t udp_client_init(struct udp_pcb **upcb, uint8_t prio_num,
+                         QueueHandle_t *send_queues) {
 
   *upcb = udp_new(); // TODO: return error if this is NULL
   if (upcb == NULL) {
@@ -154,40 +245,32 @@ result_t udp_client_init(struct udp_pcb **upcb) {
     return RESULT_FAIL;
   }
   ETH_udp_receiver_init(*upcb);
+  ETH_udp_send_init(*upcb, prio_num, send_queues);
   return RESULT_OK;
 }
 
-result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
-                         char *payload) {
+result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4],
+                         uint16_t port, uint8_t *payload, uint16_t payload_len,
+                         uint8_t prio_buf) {
   err_t err = ERR_OK;
 
-  size_t payload_len = strlen(payload);
-  struct pbuf *txBuf;
-  char data[payload_len];
+  uint8_t *txBuf = malloc(payload_len);
+  memcpy(txBuf, payload, payload_len);
 
-  int len = sprintf(data, "%s", payload);
-  txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
+  ip_addr_t destIPaddr;
+  IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
 
-  if (txBuf != NULL) {
-    err = pbuf_take(txBuf, data, len);
-    if (err != ERR_OK) {
-      LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
-      pbuf_free(txBuf);
-      return RESULT_ERR_BUFF;
-    }
+  send_frame buffer = {.addr = destIPaddr,
+                       .payload = txBuf,
+                       .payload_len = payload_len,
+                       .upcb = upcb,
+                       .port = port};
 
-    ip_addr_t destIPaddr;
-    IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
-    err = udp_sendto(upcb, txBuf, &destIPaddr, port);
-    if (err != ERR_OK) {
-      LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
-      pbuf_free(txBuf);
-      return RESULT_ERR_COMMS;
-    }
-    pbuf_free(txBuf);
-  } else {
-    LOGE(TAG, "cannot allocate a pbuffer");
-    return RESULT_ERR_BUFF;
+  err = bucketed_pqueue_push(&udp_send_bqueue, prio_buf, &buffer, 10U);
+  if (err != RESULT_OK) {
+    LOGE(TAG, "Could not push send message to queue");
+    free(txBuf);
+    return err;
   }
 
   return RESULT_OK;
