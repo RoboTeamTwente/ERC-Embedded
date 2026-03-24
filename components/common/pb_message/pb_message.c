@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "components/common/envelope.pb.h"
-#include "components/common/message_types.pb.h"
 #include "pb.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
@@ -89,7 +88,6 @@ result_t pb_message_decode_into(const uint8_t* byte_buffer, size_t size,
 }
 
 result_t pb_message_decode_envelope(const uint8_t* byte_buffer, size_t size,
-                                    PBMessageType* out_type,
                                     uint8_t** out_data) {
     // cursed memory reallocation to not have to alloc dynamically
 

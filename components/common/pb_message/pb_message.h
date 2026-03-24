@@ -1,7 +1,6 @@
 #ifndef PB_MESSAGE_H
 #define PB_MESSAGE_H
 
-#include "components/common/message_types.pb.h"
 #include "pb.h"
 #include "result.h"
 #include "stdint.h"
