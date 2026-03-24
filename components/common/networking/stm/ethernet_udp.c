@@ -160,8 +160,8 @@ void udp_send_task(void *pvParameters) {
       err_t err = udp_sendto(frame.upcb, txBuf, &frame.addr, frame.port);
       if (err != ERR_OK) {
         LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
-        pbuf_free(txBuf);
       }
+      pbuf_free(txBuf);
     }
   }
 }
@@ -254,15 +254,17 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4],
                          uint8_t prio_buf) {
   err_t err = ERR_OK;
 
-
   uint8_t *txBuf = malloc(payload_len);
   memcpy(txBuf, payload, payload_len);
 
   ip_addr_t destIPaddr;
   IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
 
-  send_frame buffer = {
-      .addr = destIPaddr, .payload = txBuf, .payload_len = payload_len, .upcb = upcb, .port = port};
+  send_frame buffer = {.addr = destIPaddr,
+                       .payload = txBuf,
+                       .payload_len = payload_len,
+                       .upcb = upcb,
+                       .port = port};
 
   err = bucketed_pqueue_push(&udp_send_bqueue, prio_buf, &buffer, 10U);
   if (err != RESULT_OK) {
