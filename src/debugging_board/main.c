@@ -4,7 +4,6 @@
 #include "components/common/envelope.pb.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
-#include "decoding_macros.h"
 #include "decoding_task.h"
 #include "portmacro.h"
 #include "stm/ethernet_udp.h"
@@ -13,7 +12,6 @@
 #include "bucketed_pqueue.h"
 #include "cmsis_os2.h"  // FreeRTOS wrapper header (v2)
 #include "cubemx_main.h"
-#include "decoding_macros.h"
 #include "gpio.h"
 #include "ili9341.h"
 #include "ili9341_fonts.h"
@@ -90,57 +88,42 @@ static uint8_t packet2_payload[] = {
     0x00, 0x44, 0x1D, 0x00, 0x00, 0xAC, 0x41, 0x20, 0x01};
 static receive_frame packet2 = {.payload = packet2_payload,
                                 .len = sizeof(packet2_payload)};
-static packet_dispatcher_config_t disp_conf = {
-    .task_count = 2,
-    .dispatcher_priority = tskIDLE_PRIORITY + 3U,
-    .dispatcher_stack_depth = 1 * 1024U};
 static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
 static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
 
+static packet_handler_config_t handler_configs[] = {
+    {.handler = HandleType1Packet,
+     .task_name = "GPS Handler",
+     .packet_type = PBEnvelope_gps_info_tag,
+     .item_size = SensorBoardGPSInfo_size,
+     .task_priority = tskIDLE_PRIORITY + 2U,
+     .queue_length = 5,
+     .queue_buffer = packet1_buffer},
+    {
+        .handler = HandleType2Packet,
+        .task_name = "PH Handler",
+        .packet_type = PBEnvelope_ph_info_tag,
+        .item_size = SensorBoardPHInfo_size,
+        .task_priority = tskIDLE_PRIORITY + 2U,
+        .queue_length = 5,
+        .queue_buffer = packet2_buffer,
+    }};
 void MainTask(void* argument) {
     LOGI(TAG, "In main");
-    g_dispatcher_input_queue =
-        xQueueCreate(DISPATCHER_INPUT_QUEUE_LENGTH, sizeof(receive_frame));
-    if (g_dispatcher_input_queue == NULL) {
-        LOGE(TAG, "Could not create dispatcher input queue");
-        return;
-    }
     LOGI(TAG, "created dispatcher queue: %p", (void*)g_dispatcher_input_queue);
 
-    static packet_handler_config_t handler_configs[2];
-    handler_configs[0].handler = HandleType1Packet;
-    handler_configs[0].task_name = "PktType1";
-    handler_configs[0].packet_type = PBEnvelope_gps_info_tag;
-    handler_configs[0].item_size = SensorBoardGPSInfo_size;
-    handler_configs[0].task_priority = tskIDLE_PRIORITY + 2U;
-    handler_configs[0].queue_length = 5;
-    handler_configs[0].queue_buffer = packet1_buffer;
-    handler_configs[0].task_stack_depth = 512U;
-    handler_configs[1].handler = HandleType2Packet;
-    handler_configs[1].task_name = "PktType2";
-    handler_configs[1].packet_type = PBEnvelope_ph_info_tag;
-    handler_configs[1].item_size = SensorBoardPHInfo_size;
-    handler_configs[1].task_priority = tskIDLE_PRIORITY + 2U;
-    handler_configs[1].queue_length = 5;
-    handler_configs[1].queue_buffer = packet2_buffer;
-    handler_configs[1].task_stack_depth = 512U;
-    disp_conf.tasks = handler_configs;
-    disp_conf.input_queue = g_dispatcher_input_queue;
-
-    LOGI(TAG, "handlers configured");
-
     BaseType_t ok;
-    PacketDispatcherStart(&disp_conf);
+    PacketDispatcherInit(handler_configs, 2);
 
     for (;;) {
         LOGI(TAG, "Sending packets");
 
-        ok = xQueueSend(g_dispatcher_input_queue, &packet1, portMAX_DELAY);
+        DispatchPacket(&packet1);
         LOGI(TAG, "Sent packet1: %ld", (long)ok);
 
         osDelay(1);
 
-        ok = xQueueSend(g_dispatcher_input_queue, &packet2, portMAX_DELAY);
+        DispatchPacket(&packet2);
         LOGI(TAG, "Sent packet2: %ld", (long)ok);
         osDelay(500);
     }

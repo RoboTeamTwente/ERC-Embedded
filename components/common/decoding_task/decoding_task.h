@@ -29,18 +29,8 @@ typedef struct {
     QueueHandle_t queue;         // Not filled by called
 } packet_handler_config_t;
 
-typedef struct {
-    packet_handler_config_t* tasks;
-    const size_t task_count;
-    configSTACK_DEPTH_TYPE dispatcher_stack_depth;
-    const UBaseType_t dispatcher_priority;
-    QueueHandle_t input_queue;
-} packet_dispatcher_config_t;
-
-void PacketHandlerTask(void* pvParameters);
-
-void PacketDispatcherTask(void* pvParameters);
-
-result_t PacketDispatcherStart(packet_dispatcher_config_t* dispatcher_config);
+void DispatchPacket(receive_frame* incoming_packet);
+result_t PacketDispatcherInit(packet_handler_config_t* handlers,
+                              size_t handler_count);
 
 #endif

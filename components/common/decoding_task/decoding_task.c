@@ -3,13 +3,10 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "FreeRTOS.h"
-#include "cmsis_os2.h"
 #include "components/common/envelope.pb.h"
 #include "logging.h"
 #include "pb.h"
 #include "pb_decode.h"
-#include "pb_message.h"
 #include "portmacro.h"
 #include "projdefs.h"
 #include "result.h"
@@ -18,8 +15,8 @@
 const static char* TAG = "DECODING_TASK";
 
 static PBEnvelope DecodingEnvelopeCurrent;
-static receive_frame DecodingPacketCurrent;
-static uint8_t DecodingPacketContents[PBEnvelope_size];
+static packet_handler_config_t* PacketHandlers;
+static size_t PacketHandlerCount;
 
 void PacketHandlerTask(void* pvParameters) {
     packet_handler_config_t* conf = (packet_handler_config_t*)pvParameters;
@@ -61,75 +58,41 @@ void PacketHandlerTask(void* pvParameters) {
     }
 }
 
-void PacketDispatcherTask(void* pvParameters) {
-    packet_dispatcher_config_t* conf =
-        (packet_dispatcher_config_t*)pvParameters;
+void DispatchPacket(receive_frame* incoming_packet) {
+    if (incoming_packet->len > PBEnvelope_size || incoming_packet->len == 0 ||
+        incoming_packet->payload == NULL) {
+        LOGE(TAG,
+             "Incoming packet is NULL or its size is 0 or its size is "
+             "more than PBEnvelope allows");
+        return;
+    }
 
-    if (conf == NULL) {
-        LOGE(TAG, "Dispatcher task arguments are null");
-        vTaskDelete(NULL);
+    pb_istream_t istream =
+        pb_istream_from_buffer(incoming_packet->payload, incoming_packet->len);
+    bool status =
+        pb_decode(&istream, PBEnvelope_fields, &DecodingEnvelopeCurrent);
+
+    if (!status) {
+        LOGE(TAG, "Dispatcher could not decode incoming packet");
+        return;
     }
-    if (conf->input_queue == NULL) {
-        LOGE(TAG, "Dispatcher task incoming queue is null");
-        vTaskDelete(NULL);
-    }
-    if (conf->task_count < 1) {
-        LOGE(
-            TAG,
-            "Dispatcher task requires at least one packet type to be processed "
-            "(otherwise why the hell would you use it)");
-        vTaskDelete(NULL);
-    }
-    if (conf->tasks == NULL) {
-        LOGE(TAG, "Packet task arg list is null");
-        vTaskDelete(NULL);
-    }
-    configASSERT(conf != NULL);
-    configASSERT(conf->input_queue != NULL);
-    configASSERT(conf->tasks != NULL);
-    configASSERT(conf->task_count > 0U);
-    bool status;
-    pb_istream_t istream;
-    for (;;) {
-        if (xQueueReceive(conf->input_queue, &DecodingPacketCurrent,
-                          portMAX_DELAY) != pdTRUE) {
-            LOGE(TAG, "Dispatcher could not receive packet form queue");
+    for (int i = 0; i < PacketHandlerCount; i++) {
+        if (PacketHandlers[i].packet_type !=
+            DecodingEnvelopeCurrent.which_payload) {
             continue;
         }
-
-        if (DecodingPacketCurrent.len > PBEnvelope_size ||
-            DecodingPacketCurrent.len == 0 ||
-            DecodingPacketCurrent.payload == NULL) {
+        if (xQueueSend(PacketHandlers[i].queue,
+                       &DecodingEnvelopeCurrent.payload,
+                       portMAX_DELAY) != pdTRUE) {
             LOGE(TAG,
-                 "Incoming packet is NULL or its size is 0 or its size is "
-                 "more than PBEnvelope allows");
-            continue;
+                 "Could not enqueue packet of type: %d into its "
+                 "queue",
+                 DecodingEnvelopeCurrent.which_payload);
         }
-
-        istream = pb_istream_from_buffer(DecodingPacketCurrent.payload,
-                                         DecodingPacketCurrent.len);
-        status =
-            pb_decode(&istream, PBEnvelope_fields, &DecodingEnvelopeCurrent);
-
-        if (!status) {
-            LOGE(TAG, "Dispatcher could not decode incoming packet");
-            continue;
-        }
-        for (int i = 0; i < conf->task_count; i++) {
-            if (conf->tasks[i].packet_type !=
-                DecodingEnvelopeCurrent.which_payload) {
-                continue;
-            }
-            if (xQueueSend(conf->tasks[i].queue,
-                           &DecodingEnvelopeCurrent.payload,
-                           portMAX_DELAY) != pdTRUE) {
-                LOGE(TAG,
-                     "Could not enqueue packet of type: %d into its "
-                     "queue",
-                     DecodingEnvelopeCurrent.which_payload);
-            }
-        }
+        return;
     }
+    LOGW(TAG, "Received packet of type %d, could not be processsed",
+         DecodingEnvelopeCurrent.which_payload);
 }
 
 result_t PacketHandlerStart(packet_handler_config_t* handler_conf) {
@@ -157,46 +120,25 @@ result_t PacketHandlerStart(packet_handler_config_t* handler_conf) {
     return RESULT_OK;
 }
 
-result_t PacketDispatcherStart(packet_dispatcher_config_t* dispatcher_config) {
-    if (dispatcher_config == NULL) {
-        LOGE(TAG, "Dispatcher config provided is null");
-        return RESULT_ERR_INVALID_ARG;
-    }
-
-    if ((dispatcher_config->tasks == NULL) &&
-        (dispatcher_config->task_count > 0U)) {
+result_t PacketDispatcherInit(packet_handler_config_t* handlers,
+                              size_t handler_count) {
+    if (handlers == NULL || handler_count <= 0) {
         LOGE(TAG,
-             "No Packet handlers NULL or task count is not higher than 0.");
+             "Provided handlers are NULL or handler_count is not a positive "
+             "number.");
         return RESULT_ERR_INVALID_ARG;
     }
 
-    if (dispatcher_config->input_queue == NULL) {
-        LOGE(TAG, "Incoming packet queue is NULL");
-        return RESULT_ERR_INVALID_ARG;
-    }
-
+    PacketHandlers = handlers;
+    PacketHandlerCount = handler_count;
     result_t res;
-    for (size_t i = 0; i < dispatcher_config->task_count; i++) {
-        res = PacketHandlerStart(&dispatcher_config->tasks[i]);
+    for (size_t i = 0; i < handler_count; i++) {
+        res = PacketHandlerStart(&handlers[i]);
         if (res != RESULT_OK) {
             LOGE(TAG, "Packet handler %s could not be created because: %s",
-                 dispatcher_config->tasks[i].task_name,
-                 result_to_short_str(res));
+                 handlers[i].task_name, result_to_short_str(res));
+            return RESULT_FAIL;
         }
-    }
-
-    if (dispatcher_config->dispatcher_stack_depth <= 0) {
-        dispatcher_config->dispatcher_stack_depth =
-            PACKET_DISPATCHER_TASK_STACK_DEPTH;
-    }
-
-    BaseType_t status = xTaskCreate(
-        PacketDispatcherTask, "PktDispatch",
-        dispatcher_config->dispatcher_stack_depth, (void*)dispatcher_config,
-        dispatcher_config->dispatcher_priority, NULL);
-
-    if (status != pdPASS) {
-        return RESULT_FAIL;
     }
 
     return RESULT_OK;
