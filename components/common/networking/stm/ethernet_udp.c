@@ -36,7 +36,7 @@ TaskHandle_t send_notifier = NULL;
 StaticTask_t sendTaskBuffer;
 StackType_t sendStack[STACK_SIZE];
 
-int counter = 0;
+int counter = 0; // A counter for the send packet debug message
 
 void udp_receiver_callback_example(void *payload, size_t length,
                                    const ip_addr_t *addr, u16_t port) {
