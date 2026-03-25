@@ -19,6 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
+#include "components/common/packet_dispatcher/packet_dispatcher.h"
+#include "components/sensor_board/gps_sensor.pb.h"
+#include "components/sensor_board/ph_sensor.pb.h"
 #include "ethernet.h"
 #include "gpio.h"
 #include "ip_mac_constants.h"
@@ -103,8 +106,56 @@ int main(void) {
   while (1) {
   }
 }
+static int incomming_counter = 0;
+static int outgoing_counter = 0;
+static result_t HandleType1Packet(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
 
-void set_mac(int mac[6]) {}
+  SensorBoardGPSInfo *packet = (SensorBoardGPSInfo *)buffer;
+  incomming_counter += 1;
+  printf("Envelope of type gps info has value: %f\n", packet->speed);
+  printf("This is packet: %d\n", incomming_counter);
+  return RESULT_OK;
+}
+
+static result_t HandleType2Packet(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  SensorBoardPHInfo *packet = (SensorBoardPHInfo *)buffer;
+  printf("envelope of type ph info has value: %f\n", packet->ph_value);
+  return RESULT_OK;
+}
+
+static uint8_t packet1_payload[] = {
+    0x62, 0x2C, 0x09, 0x13, 0xF2, 0x41, 0xCF, 0x66, 0x1D, 0x4A, 0x40, 0x11,
+    0x2C, 0x65, 0x19, 0xE2, 0x58, 0x97, 0x1B, 0x40, 0x1D, 0x00, 0x00, 0x0C,
+    0x42, 0x2D, 0x00, 0x00, 0x87, 0x43, 0x35, 0x9A, 0x99, 0x99, 0x3F, 0x3D,
+    0x66, 0x66, 0xE6, 0x3F, 0x40, 0x09, 0x48, 0x01, 0x50, 0x01};
+
+static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
+static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
+
+static packet_handler_config_t handler_configs[] = {
+    {.handler = HandleType1Packet,
+     .task_name = "GPS Handler",
+     .packet_type = PBEnvelope_gps_info_tag,
+     .item_size = SensorBoardGPSInfo_size,
+     .task_priority = tskIDLE_PRIORITY + 2U,
+     .queue_length = 5,
+     .queue_buffer = packet1_buffer},
+    {
+        .handler = HandleType2Packet,
+        .task_name = "PH Handler",
+        .packet_type = PBEnvelope_ph_info_tag,
+        .item_size = SensorBoardPHInfo_size,
+        .task_priority = tskIDLE_PRIORITY + 2U,
+        .queue_length = 5,
+        .queue_buffer = packet2_buffer,
+    }};
+
 void MainTask(void *argument) {
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
@@ -122,22 +173,18 @@ void MainTask(void *argument) {
 
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  ETH_udp_init(2, queues, NULL);
-  ETH_add_arp(ip, mac);
-  uint8_t message[12] = "udp message";
-  while (1) {
-    ETH_udp_send(ip, 7, message, 12, 1);
-    osDelay(100);
-    // ETH_raw_send(mac_other,
-    //              "long ass raw message looooong looooooonger "
-    //              "loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-    //              "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-    //              "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-    //              "ooooooooooooooooooooooooooooooooooooooooooo000000000000000000ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooonger"
-    //              );
 
-    // osDelay(100);
-    // ETH_raw_send(mac_other, "-");
-    // osDelay(200);
+  PacketDispatcherInit(handler_configs, 2);
+
+  ETH_udp_init(2, queues, DispatchPacket);
+  ETH_add_arp(ip, mac);
+  while (outgoing_counter < 10) {
+    ETH_udp_send(ip, 8, packet1_payload, 46, 1);
+    osDelay(100);
+    outgoing_counter += 1;
+    LOGI(TAG, "%d", outgoing_counter);
+  }
+
+  while (1) {
   }
 }

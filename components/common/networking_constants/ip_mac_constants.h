@@ -1,6 +1,6 @@
 #ifndef IP_MAC_CONSTANTS
 #define IP_MAC_CONSTANTS
 
-#define SAMPLE_BOARD_IP {192, 168, 0, 50}
-#define SAMPEL_BOARD_MAC {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33}
+#define SAMPLE_BOARD_IP {192, 168, 0, 111}
+#define SAMPEL_BOARD_MAC {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00}
 #endif //! IP_MAC_CONSTANTS
