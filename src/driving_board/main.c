@@ -3,7 +3,8 @@
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
 #include "control.h"
 #include "cubemx_main.h"
-#include "driving_board.pb.h"
+#include "diagnostics.pb.h"
+#include "motor_information.pb.h"
 #include "ethernet.h"
 #include "gpio.h"
 #include "logging.h"
@@ -19,6 +20,7 @@
 
 
 #include "calculator.h"
+#include <math.h>
 
 static char *TAG = "MAIN";
 
@@ -49,6 +51,9 @@ void MainTask(void *argument);
 void PwmTask(void *argument);
 void DrivingEncoderTask(void *argument);
 
+float revolutions = 0;
+float radians = 0;
+float rpm = 0;
 
 // Task attributes for CMSIS-RTOS v2
 const osThreadAttr_t mainTask_attributes = {
@@ -164,6 +169,29 @@ void init_board() {
 
 int main(void) { init_board(); }
 
+void FillDiagnostics(DiagnosticsData *diag)
+{
+    if (diag == NULL) return;
+
+    diag->board_state = STATE_OPERATING;
+    diag->motor_count = 10;
+
+    // Front left motor
+    diag->motors[0].state = STATE_OPERATING;
+    diag->motors[0].motor_id = 1;
+    diag->motors[0].rpm = rpm;
+    diag->motors[0].voltage = 0;
+    diag->motors[0].encoder_angle = radians;
+
+    // Middle left motor
+    diag->motors[1].state = STATE_OPERATING;
+    diag->motors[1].motor_id = 2;
+    diag->motors[1].rpm = get_motor_rpm(2);
+    diag->motors[1].voltage = get_motor_voltage(2);
+    diag->motors[1].encoder_angle = get_motor_angle(2);
+    //add more of the motors later
+}
+
 /**
  * @brief  Main application task
  * @param  argument: Not used
@@ -171,23 +199,7 @@ int main(void) { init_board(); }
  */
 void MainTask(void *argument) {//send messages calculates actual values from reallife hall sensors(encoders)
 
-  //BSP_LED_Init(LED_GREEN);
-  //BSP_LED_Init(LED_BLUE);
-  //BSP_LED_Init(LED_RED);
 
-
-  //BSP_LED_Toggle(LED_GREEN);
-  /**
-   * for (size_t i = 0; i < 4; i++)//stub values actual will come from decode
-   {
-      rtU.actang[i] = rtY.desang[i]*0.96;
-   }
-  
- for (size_t i = 0; i < 4; i++)
-   {
-      rtU.actspeed[i] = rtY.desspeed[i]*0.8;
-   }
-   */
   rtU.actspeed[0] =7.15;
   rtU.actspeed[1] =7.12;
   rtU.actspeed[2] =7.15;
@@ -214,8 +226,24 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
     ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
     osDelay(100); 
 
+    //sending packet
+    DiagnosticsData diag;
+    FillDiagnostics(&diag);
+    
     uint8_t *encoded_data = NULL;
     size_t encoded_length = 0;
+    result_t res = DBMDiagnosticsEncode(&diag, &encoded_data, &encoded_length);
+
+    if (res == RESULT_OK)
+    {
+      ETH_udp_send(ip, 7, encoded_data);
+      free(encoded_data);
+    }
+    else
+    {
+      free(encoded_data);
+      LOGE(TAG, "Encoding failed for diag");
+    }
 
     float distance_left = 10.5f;
 /**
@@ -241,7 +269,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
     //error msg
     free(enc.data);
     }
-    //Ethsend(enc.data, enc.length);
+    //send with eth
     free(enc.data);
  */
 /**
@@ -277,7 +305,7 @@ void PwmTask(void *argument){
        control_step();// from control.c
        //LOGI(TAG, "actang[0]     = %f, actang[1]     = %f, actang[2]     = %f, actang[3]     = %f\n", rtU.actang[0], rtU.actang[1], rtU.actang[2], rtU.actang[3]);
        //LOGI(TAG, "control step occured");
-       //LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
+       LOGI(TAG, "pwmrev[0]   = %f, pwmrev[1]   = %f, pwmrev[2]   = %f, pwmrev[3]   = %f, pwmenable[0]   = %f, pwmenable[1]   = %f, pwmenable[2]   = %f, pwmenable[3]   = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3], rtY.pwnenable[0], rtY.pwnenable[1],rtY.pwnenable[2],rtY.pwnenable[3]);
        set_bldc_pwm();//this might also be done somewhere else im not sure
        //set_stepper_pwm();
        osDelay(period_ms); //fixed 1ms loop
@@ -286,20 +314,34 @@ void PwmTask(void *argument){
 
 void DrivingEncoderTask(void *argument){
   int16_t counter = 0;
-  int16_t count = 0;
+  int16_t last_counter = 0;
+  int16_t total_count = 0;
+  const float counts_per_rev = 80.0f;//20 PPR * 4 
+  const float dt = 0.1f;//100 ms
   for(;;)
   {
     counter = __HAL_TIM_GET_COUNTER(&htim4);
-    count = count/4;
-    // For a 20 PPR encoder
-    float revolutions = count / 80.0f;
-    float degrees = count / 80.0f * 360.0f;
+    int16_t delta = counter - last_counter;
+
+    total_count += delta; 
+    last_counter = counter;
+
+    //Position
+    revolutions = total_count / counts_per_rev;
+    //degrees = revolutions * 360.0f;
+    radians = revolutions * 2.0f * M_PI;
+    // Speed
+    rpm = (delta / counts_per_rev) * (60.0f / dt);
+
+    osDelay(100); // 100 ms
+
+    //TODO: Make this work for multiple encoders
 
     // For a 600 PPR encoder
     //float revolutions = count / 2400.0f;
     //float degrees = count / 2400.0f * 360.0f;
-    LOGI(TAG, "encoder revolutions: %f \n", revolutions);
-    LOGI(TAG, "encoder degrees: %f \n", degrees);
+    //LOGI(TAG, "encoder revolutions: %f \n", revolutions);
+    //LOGI(TAG, "encoder degrees: %f \n", degrees);
   }
 }
 
