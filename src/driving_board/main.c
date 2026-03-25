@@ -51,9 +51,9 @@ void MainTask(void *argument);
 void PwmTask(void *argument);
 void DrivingEncoderTask(void *argument);
 
-float revolutions = 0;
-float radians = 0;
-float rpm = 0;
+static float revolutions = 0;
+static float radians = 0;
+static float rpm = 0;
 
 // Task attributes for CMSIS-RTOS v2
 const osThreadAttr_t mainTask_attributes = {
