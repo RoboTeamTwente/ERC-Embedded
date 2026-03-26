@@ -19,6 +19,8 @@
 
 extern ETH_HandleTypeDef heth;
 receive_callback_t r_callback;
+
+int receive_counter = 0;
 // receive queue variables
 static StaticQueue_t xStaticQueue;
 QueueHandle_t udp_receiver_queue;
@@ -111,6 +113,8 @@ void udp_receiver_task(void *pvParameters) {
       continue;
     }
     r_callback(&frame);
+    receive_counter += 1;
+    LOGI(TAG, "Received message: %d", receive_counter);
     free(frame.payload);
   }
 }

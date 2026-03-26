@@ -138,15 +138,14 @@ static uint8_t packet1_payload[] = {
 static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
 static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
 
-static packet_handler_config_t handler_configs[] = {{
-    .handler = HandleType2Packet,
-    .task_name = "PH Handler",
-    .packet_type = PBEnvelope_ph_info_tag,
-    .item_size = SensorBoardPHInfo_size,
-    .task_priority = tskIDLE_PRIORITY + 2U,
-    .queue_length = 5,
-    .queue_buffer = packet2_buffer,
-}};
+static packet_handler_config_t handler_configs[] = {
+    {.handler = HandleType1Packet,
+     .task_name = "GPS Handler",
+     .packet_type = PBEnvelope_gps_info_tag,
+     .item_size = SensorBoardGPSInfo_size,
+     .task_priority = tskIDLE_PRIORITY + 2U,
+     .queue_length = 5,
+     .queue_buffer = packet1_buffer}};
 
 void MainTask(void *argument) {
   int SendQueueSize = 80;
@@ -170,7 +169,7 @@ void MainTask(void *argument) {
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac);
-  while (outgoing_counter < 0) {
+  while (outgoing_counter < 100) {
     ETH_udp_send(ip, 8, packet1_payload, 46, 1);
     osDelay(100);
     outgoing_counter += 1;
@@ -179,7 +178,7 @@ void MainTask(void *argument) {
 
   while (1) {
     __asm__ __volatile__("nop");
-    //LOGI(TAG, "in while loop");
+    // LOGI(TAG, "in while loop");
     osDelay(300);
   }
 }
