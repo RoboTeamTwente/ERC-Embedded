@@ -139,13 +139,6 @@ static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
 static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
 
 static packet_handler_config_t handler_configs[] = {
-    {.handler = HandleType1Packet,
-     .task_name = "GPS Handler",
-     .packet_type = PBEnvelope_gps_info_tag,
-     .item_size = SensorBoardGPSInfo_size,
-     .task_priority = tskIDLE_PRIORITY + 2U,
-     .queue_length = 5,
-     .queue_buffer = packet1_buffer},
     {
         .handler = HandleType2Packet,
         .task_name = "PH Handler",
@@ -174,7 +167,7 @@ void MainTask(void *argument) {
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
-  PacketDispatcherInit(handler_configs, 2);
+  PacketDispatcherInit(handler_configs, 1);
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac);

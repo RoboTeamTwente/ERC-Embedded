@@ -131,7 +131,7 @@ result_t PacketDispatcherInit(packet_handler_config_t *handlers,
     res = PacketHandlerStart(&handlers[i]);
     if (res != RESULT_OK) {
       LOGE(TAG, "Packet handler %s could not be created because: %s",
-           handlers[i].task_name, result_to_short_str(res));
+           handlers[i].task_name, result_to_short_str(res)); //FIXIT: Hardfaults when there are less handlers then the actual handler count
       return RESULT_FAIL;
     }
   }
