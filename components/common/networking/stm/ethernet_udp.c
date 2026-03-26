@@ -103,18 +103,15 @@ void udp_receiver_task(void *pvParameters) {
 
   for (;;) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    for (;;) {
-
-      LOGI(TAG, "UDP receiver notification received");
-      receive_frame_t frame;
-      BaseType_t r = xQueueReceive(udp_receiver_queue, &frame, 10);
-      if (r != pdPASS) {
-        free(frame.payload);
-        break;
-      }
-      r_callback(&frame);
+    LOGI(TAG, "UDP receiver notification received");
+    receive_frame_t frame;
+    BaseType_t r = xQueueReceive(udp_receiver_queue, &frame, 10);
+    if (r != pdPASS) {
       free(frame.payload);
+      continue;
     }
+    r_callback(&frame);
+    free(frame.payload);
   }
 }
 
@@ -124,43 +121,42 @@ void udp_send_task(void *pvParameters) {
 
   for (;;) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    for (;;) {
-      LOGI(TAG, "UDP message being send %d", counter);
-      counter += 1;
-      send_frame_t frame;
-      result_t r = bucketed_pqueue_pop(&udp_send_bqueue, &frame);
+    LOGI(TAG, "UDP message being send %d", counter);
+    counter += 1;
+    send_frame_t frame;
+    result_t r = bucketed_pqueue_pop(&udp_send_bqueue, &frame);
 
-      if (r != RESULT_OK) {
-        free(frame.payload);
-        break;
-      }
-
-      struct pbuf *txBuf;
-
-      int len = frame.payload_len;
-      txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
-
-      if (txBuf != NULL) {
-        err_t err = pbuf_take(txBuf, frame.payload, len);
-        if (err != ERR_OK) {
-          LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
-          pbuf_free(txBuf);
-          free(frame.payload);
-          break;
-        }
-      } else {
-        LOGE(TAG, "cannot allocate a pbuffer");
-        free(frame.payload);
-        break;
-      }
+    if (r != RESULT_OK) {
       free(frame.payload);
-
-      err_t err = udp_sendto(frame.upcb, txBuf, &frame.addr, frame.port);
-      if (err != ERR_OK) {
-        LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
-      }
-      pbuf_free(txBuf);
+      LOGE(TAG, "Queue couldn't be popped");
+      continue;
     }
+
+    struct pbuf *txBuf;
+
+    int len = frame.payload_len;
+    txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
+
+    if (txBuf != NULL) {
+      err_t err = pbuf_take(txBuf, frame.payload, len);
+      if (err != ERR_OK) {
+        LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
+        pbuf_free(txBuf);
+        free(frame.payload);
+        continue;
+      }
+    } else {
+      LOGE(TAG, "cannot allocate a pbuffer");
+      free(frame.payload);
+      continue;
+    }
+    free(frame.payload);
+
+    err_t err = udp_sendto(frame.upcb, txBuf, &frame.addr, frame.port);
+    if (err != ERR_OK) {
+      LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
+    }
+    pbuf_free(txBuf);
   }
 }
 
