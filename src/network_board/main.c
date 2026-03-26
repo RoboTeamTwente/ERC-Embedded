@@ -171,7 +171,7 @@ void MainTask(void *argument) {
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac);
-  while (outgoing_counter < 10) {
+  while (outgoing_counter < 50) {
     ETH_udp_send(ip, 8, packet1_payload, 46, 1);
     osDelay(100);
     outgoing_counter += 1;
