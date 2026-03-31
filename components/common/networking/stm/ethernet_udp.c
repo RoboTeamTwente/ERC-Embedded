@@ -9,13 +9,17 @@
 #include "udp.h"
 #include <lwip.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #define TAG "UDP"
 
 udp_receiver_callback r_callback;
 extern ETH_HandleTypeDef heth;
 
+static struct udp_pcb *udp_sender_pcb;
+
 bucketed_pqueue_t udp_receiver_queue;
+bucketed_pqueue_t udp_sender_queue;
 static StaticQueue_t xStaticQueue;
 QueueHandle_t udp_queue;
 uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
@@ -23,6 +27,10 @@ uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
 #define STACK_SIZE 200
 StaticTask_t xTaskBuffer;
 StackType_t xStack[STACK_SIZE];
+
+#define TX_STACK_SIZE 256
+StaticTask_t txTaskBuffer;
+StackType_t txStack[TX_STACK_SIZE];
 
 void udp_receiver_callback_example(void *payload, size_t length,
                                    const ip_addr_t *addr, u16_t port) {
@@ -96,6 +104,33 @@ void udp_receiver_task(void *pvParameters) {
   }
 }
 
+void udp_sender_task(void *pvParameters) {
+
+  configASSERT((uint32_t)pvParameters == 1UL);
+
+  for (;;) {
+    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    for (;;) {
+      udp_send_frame_t frame;
+      result_t r = bucketed_pqueue_pop(&udp_sender_queue, &frame);
+      if (r != RESULT_OK) {
+        break;
+      }
+      if (udp_sender_pcb == NULL) {
+        LOGE(TAG, "UDP sender not initialized");
+        free(frame.payload);
+        continue;
+      }
+      r = udp_client_send_binary(udp_sender_pcb, frame.dest_ip, frame.port,
+                 frame.payload, frame.len);
+      if (r != RESULT_OK) {
+        LOGE(TAG, "UDP send failed: %s", result_to_short_str(r));
+      }
+      free(frame.payload);
+    }
+  }
+}
+
 result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
                                udp_receiver_callback udp_callback) {
 
@@ -142,20 +177,88 @@ result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
 result_t udp_client_init(struct udp_pcb **upcb, uint8_t src_ip[4],
                          udp_receiver_callback udp_callback) {
 
+  if (src_ip == NULL) {
+    LOGE(TAG, "Source IP is NULL");
+    return RESULT_ERR_INVALID_ARG;
+  }
+
   *upcb = udp_new(); // TODO: return error if this is NULL
-  if (upcb == NULL) {
+  if (*upcb == NULL) {
     LOGE(TAG, "Cannot create new udp handler");
     return RESULT_FAIL;
   }
   ip_addr_t myIPaddr;
-  IP_ADDR4(&myIPaddr, 192, 168, 0, 111);
+  IP_ADDR4(&myIPaddr, src_ip[0], src_ip[1], src_ip[2], src_ip[3]);
   err_t err = udp_bind(*upcb, &myIPaddr, 8);
   if (err != ERR_OK) {
     LOGE(TAG, "Cannot bind the udp: %s", lwip_strerr(err));
     return RESULT_FAIL;
   }
+  udp_sender_pcb = *upcb;
   ETH_udp_receiver_init(*upcb, udp_callback);
   return RESULT_OK;
+}
+
+result_t udp_sender_init(uint8_t prio_num, QueueHandle_t *send_queues) {
+  if (send_queues == NULL || prio_num == 0U) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  TaskHandle_t xHandle = NULL;
+  xHandle = xTaskCreateStatic(
+
+      udp_sender_task, /* Function that implements the task. */
+
+      "udp sender task", /* Text name for the task. */
+
+      TX_STACK_SIZE, /* Number of indexes in the txStack array. */
+
+      (void *)1, /* Parameter passed into the task. */
+
+      tskIDLE_PRIORITY, /* Priority at which the task is created. */
+
+      txStack, /* Array to use as the task's stack. */
+
+      &txTaskBuffer); /* Variable to hold the task's data structure. */
+
+  if (xHandle == NULL) {
+    return RESULT_ERR_BUFF;
+  }
+
+  return bucketed_pqueue_init(&udp_sender_queue, send_queues, prio_num, xHandle);
+}
+
+result_t udp_client_send_enqueue(uint8_t dest_ip[4], uint8_t port,
+                                 const void *payload, size_t length,
+                                 uint8_t prio) {
+  if (dest_ip == NULL || payload == NULL || length == 0U) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  if (udp_sender_queue.buckets == NULL || udp_sender_queue.num_buckets == 0U) {
+    return RESULT_ERR_NOT_INITIALIZED;
+  }
+  if (prio >= udp_sender_queue.num_buckets) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  void *payload_copy = malloc(length);
+  if (payload_copy == NULL) {
+    return RESULT_ERR_NO_MEM;
+  }
+  memcpy(payload_copy, payload, length);
+
+  udp_send_frame_t frame = {
+      .dest_ip = {dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]},
+      .port = port,
+      .len = length,
+      .payload = payload_copy,
+  };
+
+  result_t r = bucketed_pqueue_push(&udp_sender_queue, prio, &frame, 0U);
+  if (r != RESULT_OK) {
+    free(payload_copy);
+  }
+  return r;
 }
 
 result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,

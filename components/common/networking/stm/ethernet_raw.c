@@ -11,7 +11,14 @@
 #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
 #define TAG "stm32_raw_eth_packet"
 
-raw_receiver_callback r_callback;
+// Safe no-op default callback
+static void raw_receiver_callback_noop(void *payload, size_t length) {
+  (void)payload;
+  (void)length;
+  // Silently ignore unknown protocols if no handler is registered
+}
+
+raw_receiver_callback r_callback = raw_receiver_callback_noop;
 extern ETH_HandleTypeDef heth;
 
 result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,

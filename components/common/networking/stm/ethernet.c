@@ -18,17 +18,31 @@ extern uint8_t IP_ADDRESS[4];
 
 struct udp_pcb *upcb;
 
-void ETH_udp_init(udp_receiver_callback callback) {
-  udp_client_init(&upcb, IP_ADDRESS, callback);
+result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
+                      udp_receiver_callback callback) {
+  result_t err = udp_client_init(&upcb, IP_ADDRESS, callback);
+  if (err != RESULT_OK) {
+    return err;
+  }
+  err = udp_sender_init(sender_prio_num, send_queues);
+  if (err != RESULT_OK) {
+    return err;
+  }
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
+  return RESULT_OK;
 }
 void ETH_raw_init(raw_receiver_callback callback) { raw_init(callback); }
-void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload) {
-  udp_client_send(upcb, ip, port, payload);
+result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload,
+                      uint8_t prio) {
+  if (payload == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  return udp_client_send_enqueue(ip, port, payload, strlen(payload), prio);
 }
-void ETH_udp_send_binary(uint8_t ip[4], uint8_t port, void *payload, size_t length) {
-  udp_client_send_binary(upcb, ip, port, payload, length);
+result_t ETH_udp_send_binary(uint8_t ip[4], uint8_t port, const void *payload,
+                             size_t length, uint8_t prio) {
+  return udp_client_send_enqueue(ip, port, payload, length, prio);
 }
 
 void ETH_raw_send(uint8_t *mac, char *payload) {

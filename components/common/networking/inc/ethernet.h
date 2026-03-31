@@ -2,10 +2,14 @@
 #define ETHERNET_H
 
 #include <stdint.h>
+#include <stddef.h>
 
+#include "FreeRTOS.h"
+#include "queue.h"
 #include "result.h"
 #include "stm/ethernet_diagnostics.h"
 #include "stm/ethernet_raw.h"
+#include "stm/ethernet_udp.h"
 
 /**
  * @brief Initializes ethernet
@@ -17,28 +21,40 @@
 void ETH_init(linkstatus_callback_t link_state_change_callback);
 
 /**
- * @brief Initializes the udp stack, such that messages can be send.
+ * @brief Initializes the udp stack with a priority send queue.
+ *
+ * @param[in] sender_prio_num number of priority buckets
+ * @param[in] send_queues array of queues, length sender_prio_num
+ * @param[in] callback UDP receive callback (NULL uses default logger)
+ * @return result_t
  */
-void ETH_udp_init();
+result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
+					  udp_receiver_callback callback);
 
 /**
- * @brief Send a udp message
+ * @brief Send a udp message using the priority send queue
  *
  * @param ip[4]    Destination ip, 1 byte per entry
  * @param port     Destination port
  * @param payload  payload of the message
+ * @param prio     priority bucket
+ * @return result_t
  */
-void ETH_udp_send(uint8_t ip[4], uint8_t port, char *payload);
+result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload,
+					  uint8_t prio);
 
 /**
- * @brief Send a udp message with binary data
+ * @brief Send a udp message with binary data using the priority send queue
  *
  * @param ip[4]    Destination ip, 1 byte per entry
  * @param port     Destination port
  * @param payload  pointer to binary data
  * @param length   length of payload in bytes
+ * @param prio     priority bucket
+ * @return result_t
  */
-void ETH_udp_send_binary(uint8_t ip[4], uint8_t port, void *payload, size_t length);
+result_t ETH_udp_send_binary(uint8_t ip[4], uint8_t port, const void *payload,
+							 size_t length, uint8_t prio);
 
 /**
  * @brief Sets registers for perfect mac filtering

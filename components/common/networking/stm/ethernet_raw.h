@@ -62,4 +62,13 @@ result_t raw_packet_send_binary(struct netif *netif, ETH_HandleTypeDef *heth,
  */
 void raw_init(raw_receiver_callback callback);
 
+/**
+ * @brief LwIP hook for handling unknown ethernet protocols
+ *
+ * @param netif Network interface
+ * @param p Packet buffer
+ * @return 1 if not handled
+ */
+u8_t eth_reader(struct netif *netif, struct pbuf *p);
+
 #endif // !ETHERNET_RAW_H

@@ -6,6 +6,10 @@
 #include "result.h"
 #include "udp.h"
 #include <stdint.h>
+#include <stddef.h>
+
+#include "FreeRTOS.h"
+#include "queue.h"
 
 typedef struct {
   ip_addr_t addr;
@@ -14,6 +18,13 @@ typedef struct {
   uint16_t len;
 
 } receive_frame;
+
+typedef struct {
+  uint8_t dest_ip[4];
+  uint8_t port;
+  size_t len;
+  void *payload;
+} udp_send_frame_t;
 
 /**
  * @brief The typedef of the callback function for receiving a message
@@ -53,6 +64,29 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
  */
 result_t udp_client_send_binary(struct udp_pcb *upcb, uint8_t dest_ip[4], 
                                 uint8_t port, void *payload, size_t length);
+
+/**
+ * @brief initialize UDP sender queue and task
+ *
+ * @param[in] prio_num number of priority buckets
+ * @param[in] send_queues array of queue handles, length prio_num
+ * @return result_t
+ */
+result_t udp_sender_init(uint8_t prio_num, QueueHandle_t *send_queues);
+
+/**
+ * @brief enqueue a UDP send request
+ *
+ * @param[in] dest_ip destination ip
+ * @param[in] port destination port
+ * @param[in] payload payload pointer
+ * @param[in] length payload length
+ * @param[in] prio priority bucket
+ * @return result_t
+ */
+result_t udp_client_send_enqueue(uint8_t dest_ip[4], uint8_t port,
+                                 const void *payload, size_t length,
+                                 uint8_t prio);
 
 /**
  * @brief initializes a udp_handler. You can only initialize 1 callback

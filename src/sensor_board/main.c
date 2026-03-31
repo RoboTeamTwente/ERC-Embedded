@@ -22,33 +22,30 @@
 #include "ethernet.h"
 #include "gpio.h"
 #include "logging.h"
-#include "lwip/ip4_addr.h"
-#include "lwip/netif.h"
-#include "lwip/netifapi.h"
-#include "pb_encode.h"
+#include "networking_constants.h"
 #include "tim.h"
-#include "udp.h"
+#include "string.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 #include <stdint.h>
-#include <string.h>
+#include <stdlib.h>
 
-#include "gps_sensor.h"
 #include "imu_sensor.h"
 #include "ph_sensor.h"
+#include "gps_sensor.h"
 #include "sensor_basics.h"
 
 // Protobuf includes
+#include "pb_message.h"
 #include "components/sensor_board/diagnostics.pb.h"
-#include "components/sensor_board/gps_sensor.pb.h"
-#include "components/sensor_board/imu_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
+#include "components/sensor_board/imu_sensor.pb.h"
+#include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/sensor.pb.h"
 
 #define TAG "MAIN"
-#define MAIN_TASK_DELAY_MS 100U
-#define SENSOR_BOARD_PROTOBUF_BUFFER_SIZE 256U
-#define SENSOR_BOARD_UDP_LOCAL_PORT 8U
-#define SENSOR_BOARD_UDP_PORT 7U
-#define SENSOR_BOARD_NETWORK_STARTUP_DELAY_MS 250U
+#define MAIN_TASK_DELAY_MS 5000
+#define SENSOR_UDP_DEST_PORT 7
 
 extern void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
@@ -56,36 +53,10 @@ extern void MPU_Config_wrapper(void);
 void Error_Handler(void);
 
 void MainTask(void *argument);
-static void SensorBoard_ApplyStaticNetwork(void);
-static void SensorBoard_RebindUdpClient(void);
-static void SensorBoard_ConfigureDestinationRoute(void);
-static void SensorBoard_InitSensors(imu_data_t *imu_data, ph_sensor_t *ph_sensor,
-                                    gps_data_t *gps_data);
-static void SensorBoard_UpdateDiagnostics(SensorBoardDiagnostics *diagnostics,
-                                          imu_data_t *imu_data,
-                                          ph_sensor_t *ph_sensor,
-                                          gps_data_t *gps_data);
-static void SensorBoard_SendDiagnostics(
-  const SensorBoardDiagnostics *diagnostics);
 
 extern TIM_HandleTypeDef htim1;
 COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
-
-typedef struct {
-  uint32_t timestamp;
-  float temperature;
-  float humidity;
-  float pressure;
-} SensorPacket;
-
-static uint32_t sensor_board_send_interval_ms = MAIN_TASK_DELAY_MS;
-static uint8_t sensor_board_ip[4] = {192, 168, 10, 2};
-static uint8_t sensor_board_netmask[4] = {255, 255, 255, 0};
-static uint8_t sensor_board_gateway[4] = {0, 0, 0, 0};
-static uint8_t laptop_ip[4] = {192, 168, 10, 1};
-static uint8_t laptop_mac[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
-static int laptop_mac_filter[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
 
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
@@ -108,13 +79,13 @@ void uart_setup() {
 
 void init_board() {
   MPU_Config_wrapper();
-  
+
   SCB_EnableICache();
   SCB_EnableDCache();
 
   HAL_Init();
   SystemClock_Config();
-  
+
   osKernelInitialize();
   MX_GPIO_Init();
   MX_TIM1_Init();
@@ -126,8 +97,12 @@ void init_board() {
   char *boot_msg = "\r\n[BOOT] System Initialized. Starting Kernel...\r\n";
   HAL_UART_Transmit(&huart_com, (uint8_t*)boot_msg, strlen(boot_msg), 100);
 
-  // Note: ETH_init is called by StartDefaultTask after RTOS starts
-  // MAC filtering will be applied in MainTask after network is ready
+  // Initialize Ethernet with MAC address filtering
+  ETH_init(NULL);
+  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
+  int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
@@ -140,279 +115,269 @@ int main(void) {
   init_board(); 
 }
 
-static void SensorBoard_ApplyStaticNetwork(void) {
-  extern struct netif gnetif;
-  extern uint8_t GATEWAY_ADDRESS[4];
-  extern uint8_t IP_ADDRESS[4];
-  extern uint8_t NETMASK_ADDRESS[4];
-
-  ip4_addr_t ipaddr;
-  ip4_addr_t netmask;
-  ip4_addr_t gateway;
-  err_t network_result;
-
-  memcpy(IP_ADDRESS, sensor_board_ip, sizeof(sensor_board_ip));
-  memcpy(NETMASK_ADDRESS, sensor_board_netmask, sizeof(sensor_board_netmask));
-  memcpy(GATEWAY_ADDRESS, sensor_board_gateway, sizeof(sensor_board_gateway));
-
-  IP4_ADDR(&ipaddr, sensor_board_ip[0], sensor_board_ip[1], sensor_board_ip[2],
-           sensor_board_ip[3]);
-  IP4_ADDR(&netmask, sensor_board_netmask[0], sensor_board_netmask[1],
-           sensor_board_netmask[2], sensor_board_netmask[3]);
-  IP4_ADDR(&gateway, sensor_board_gateway[0], sensor_board_gateway[1],
-           sensor_board_gateway[2], sensor_board_gateway[3]);
-
-  // Apply the required static IPv4 configuration after LWIP is initialized.
-  netif_set_addr(&gnetif, &ipaddr, &netmask, &gateway);
-  network_result = ERR_OK;
-  if (network_result == ERR_OK) {
-    LOGI(TAG, "Static IP set to %u.%u.%u.%u", sensor_board_ip[0],
-         sensor_board_ip[1], sensor_board_ip[2], sensor_board_ip[3]);
-  } else {
-    LOGE(TAG, "Failed to apply static IP configuration (%d)", network_result);
-  }
-}
-
-static void SensorBoard_ConfigureDestinationRoute(void) {
-  result_t arp_result;
-
-  // Program the laptop MAC so sends can proceed without broad filtering.
-  ETH_setup_MAC_address_filtering(laptop_mac_filter, NULL, NULL);
-
-  // Add a static ARP entry so the board can send to the laptop immediately.
-  arp_result = ETH_add_arp(laptop_ip, laptop_mac);
-  if (arp_result == RESULT_OK) {
-    LOGI(TAG, "Static ARP entry added for %u.%u.%u.%u", laptop_ip[0],
-         laptop_ip[1], laptop_ip[2], laptop_ip[3]);
-  } else {
-    LOGW(TAG, "Static ARP entry could not be added (%d)", arp_result);
-  }
-}
-
-static void SensorBoard_RebindUdpClient(void) {
-  extern struct udp_pcb *upcb;
-
-  err_t bind_result;
-  ip_addr_t local_addr;
-  struct udp_pcb *new_udp_client;
-
-  // ETH_udp_init() creates the shared PCB; replace its hardcoded bind address
-  // from sensor-board code so traffic originates from the required static IP.
-  new_udp_client = udp_new();
-  if (new_udp_client == NULL) {
-    LOGE(TAG, "Failed to allocate UDP client for static IP rebinding");
-    return;
-  }
-
-  IP_ADDR4(&local_addr, sensor_board_ip[0], sensor_board_ip[1],
-           sensor_board_ip[2], sensor_board_ip[3]);
-  bind_result = udp_bind(new_udp_client, &local_addr, SENSOR_BOARD_UDP_LOCAL_PORT);
-  if (bind_result != ERR_OK) {
-    LOGE(TAG, "Failed to bind UDP client to static IP (%d)", bind_result);
-    udp_remove(new_udp_client);
-    return;
-  }
-
-  if (upcb != NULL) {
-    udp_remove(upcb);
-  }
-  upcb = new_udp_client;
-  LOGI(TAG, "UDP client rebound to %u.%u.%u.%u:%u", sensor_board_ip[0],
-       sensor_board_ip[1], sensor_board_ip[2], sensor_board_ip[3],
-       SENSOR_BOARD_UDP_LOCAL_PORT);
-}
-
-static void SensorBoard_InitSensors(imu_data_t *imu_data, ph_sensor_t *ph_sensor,
-                                    gps_data_t *gps_data) {
-  LOGI(TAG, "Initializing IMU...");
-  imu_sensor_init(imu_data);
-
-  LOGI(TAG, "Initializing pH sensor...");
-  ph_sensor_init(ph_sensor, 3.3f);
-
-  LOGI(TAG, "Initializing GPS...");
-  gps_sensor_init(gps_data);
-}
-
-static void SensorBoard_UpdateDiagnostics(SensorBoardDiagnostics *diagnostics,
-                                          imu_data_t *imu_data,
-                                          ph_sensor_t *ph_sensor,
-                                          gps_data_t *gps_data) {
-  float ph_value = 0.0f;
-  float ph_voltage = 0.0f;
-  float altitude = 0.0f;
-  float heading = 0.0f;
-  float speed = 0.0f;
-  double latitude = 0.0;
-  double longitude = 0.0;
-  bool gps_valid = false;
-  gps_fix_quality_t fix_quality = GPS_NO_FIX;
-  int32_t satellites = 0;
-  result_t gps_poll_result;
-  result_t imu_poll_result;
-  result_t ph_poll_result;
-
-  *diagnostics = (SensorBoardDiagnostics)SensorBoardDiagnostics_init_zero;
-  diagnostics->state = SensorBoardDiagnostics_State_OPERATING;
-  diagnostics->has_ph_sensor = true;
-  diagnostics->has_gps_sensor_1 = true;
-  diagnostics->has_imu_sensor = true;
-
-  ph_poll_result = poll_ph_sensor(ph_sensor);
-  if (ph_poll_result == RESULT_OK &&
-      ph_sensor_get_value(ph_sensor, &ph_value) == RESULT_OK &&
-      ph_sensor_get_voltage(ph_sensor, &ph_voltage) == RESULT_OK) {
-    diagnostics->ph_sensor.ph_value = ph_value;
-    diagnostics->ph_sensor.voltage = ph_voltage;
-    diagnostics->ph_sensor.state =
-        validate_ph_value(ph_value) == RESULT_OK ? SensorState_SENSOR_OPERATING
-                                                 : SensorState_SENSOR_ERROR;
-    diagnostics->ph_sensor.error_code =
-        diagnostics->ph_sensor.state == SensorState_SENSOR_OPERATING
-            ? PHErrorCode_PH_NO_ERROR
-            : PHErrorCode_PH_INVALID_DATA;
-  } else {
-    diagnostics->ph_sensor.state =
-        ph_poll_result == RESULT_ERR_UNIMPLEMENTED ||
-                ph_poll_result == RESULT_ERR_COMMS
-            ? SensorState_SENSOR_IDLE
-            : SensorState_SENSOR_ERROR;
-    diagnostics->ph_sensor.error_code = PHErrorCode_PH_COMMUNICATION_FAILURE;
-  }
-
-  gps_poll_result = poll_gps_sensor(gps_data);
-  if (gps_poll_result == RESULT_OK &&
-      gps_sensor_is_valid(gps_data, &gps_valid) == RESULT_OK && gps_valid) {
-    diagnostics->gps_sensor_1.state = SensorState_SENSOR_OPERATING;
-    diagnostics->gps_sensor_1.error_code = GPSErrorCode_GPS_NO_ERROR;
-
-    if (gps_sensor_get_coordinates(gps_data, &latitude, &longitude) == RESULT_OK) {
-      diagnostics->gps_sensor_1.latitude = latitude;
-      diagnostics->gps_sensor_1.longitude = longitude;
-    }
-    if (gps_sensor_get_altitude(gps_data, &altitude) == RESULT_OK) {
-      diagnostics->gps_sensor_1.altitude = altitude;
-    }
-    if (gps_sensor_get_velocity(gps_data, &speed, &heading) == RESULT_OK) {
-      diagnostics->gps_sensor_1.speed = speed;
-      diagnostics->gps_sensor_1.heading = heading;
-    }
-    if (gps_sensor_get_fix_info(gps_data, &fix_quality, &satellites) == RESULT_OK) {
-      diagnostics->gps_sensor_1.fix_quality = (GPSFixQuality)fix_quality;
-      diagnostics->gps_sensor_1.satellites = satellites;
-    }
-    diagnostics->gps_sensor_1.hdop = gps_data->hdop;
-    diagnostics->gps_sensor_1.vdop = gps_data->vdop;
-  } else {
-    diagnostics->gps_sensor_1.state =
-        gps_poll_result == RESULT_ERR_UNIMPLEMENTED ||
-                gps_poll_result == RESULT_ERR_COMMS
-            ? SensorState_SENSOR_IDLE
-            : SensorState_SENSOR_ERROR;
-    diagnostics->gps_sensor_1.error_code = gps_valid
-                                               ? GPSErrorCode_GPS_NO_ERROR
-                                               : GPSErrorCode_GPS_INVALID_DATA;
-  }
-
-  imu_poll_result = poll_imu_sensor(imu_data);
-  if (imu_poll_result == RESULT_OK) {
-    diagnostics->imu_sensor.accel_x = imu_data->accel[0];
-    diagnostics->imu_sensor.accel_y = imu_data->accel[1];
-    diagnostics->imu_sensor.accel_z = imu_data->accel[2];
-    diagnostics->imu_sensor.gyro_x = imu_data->gyro[0];
-    diagnostics->imu_sensor.gyro_y = imu_data->gyro[1];
-    diagnostics->imu_sensor.gyro_z = imu_data->gyro[2];
-    diagnostics->imu_sensor.mag_x = imu_data->mag[0];
-    diagnostics->imu_sensor.mag_y = imu_data->mag[1];
-    diagnostics->imu_sensor.mag_z = imu_data->mag[2];
-    diagnostics->imu_sensor.state = SensorState_SENSOR_OPERATING;
-    diagnostics->imu_sensor.error_code = IMUErrorCode_IMU_NO_ERROR;
-
-    if (!imu_validate_accelerometer_range(imu_data)) {
-      diagnostics->imu_sensor.error_code = IMUErrorCode_IMU_ACCELEROMETER_ERROR;
-    } else if (!imu_validate_gyroscope_range(imu_data)) {
-      diagnostics->imu_sensor.error_code = IMUErrorCode_IMU_GYROSCOPE_ERROR;
-    } else if (!imu_validate_magnetometer_range(imu_data)) {
-      diagnostics->imu_sensor.error_code = IMUErrorCode_IMU_MAGNETOMETER_ERROR;
-    }
-  } else {
-    diagnostics->imu_sensor.state =
-        imu_poll_result == RESULT_ERR_UNIMPLEMENTED ||
-                imu_poll_result == RESULT_ERR_COMMS
-            ? SensorState_SENSOR_IDLE
-            : SensorState_SENSOR_ERROR;
-    diagnostics->imu_sensor.error_code = IMUErrorCode_IMU_COMMUNICATION_FAILURE;
-  }
-}
-
-static void SensorBoard_SendDiagnostics(
-  const SensorBoardDiagnostics *diagnostics) {
-  uint8_t encoded_payload[SENSOR_BOARD_PROTOBUF_BUFFER_SIZE];
-  pb_ostream_t stream;
-
-  stream = pb_ostream_from_buffer(encoded_payload, sizeof(encoded_payload));
-  if (pb_encode(&stream, SensorBoardDiagnostics_fields, diagnostics)) {
-    ETH_udp_send_binary(laptop_ip, SENSOR_BOARD_UDP_PORT, encoded_payload,
-                        stream.bytes_written);
-    return;
-  }
-
-  // Keep a compact fallback payload available without heap allocation.
-  SensorPacket fallback_packet = {
-      .timestamp = HAL_GetTick(),
-      .temperature = 0.0f,
-      .humidity = 0.0f,
-      .pressure = 0.0f,
-  };
-
-  LOGW(TAG, "Protobuf encode failed (%s), sending compact fallback packet",
-       PB_GET_ERROR(&stream));
-  ETH_udp_send_binary(laptop_ip, SENSOR_BOARD_UDP_PORT, &fallback_packet,
-                      sizeof(fallback_packet));
-}
-
 /**
  * @brief  Main application task - reads sensors and handles networking
  * @param  argument: Not used currently
  * @retval None
  */
 void MainTask(void *argument) {
-  gps_data_t gps_data;
-  imu_data_t imu_data;
-  ph_sensor_t ph_sensor;
-
-  (void)argument;
-
   BSP_LED_Init(LED_GREEN);
   BSP_LED_Init(LED_BLUE);
   BSP_LED_Init(LED_RED);
 
   LOGI(TAG, "Sensor board taking off...");
 
-  // Let the scheduler settle before bringing up the network stack.
-  osDelay(SENSOR_BOARD_NETWORK_STARTUP_DELAY_MS);
+  // Initialize sensors
+  imu_data_t imu_data;
+  LOGI(TAG, "Initializing IMU...");
+  imu_sensor_init(&imu_data);
 
-  LOGI(TAG, "Initializing Ethernet...");
-  ETH_init(NULL);
-  SensorBoard_ApplyStaticNetwork();
-  LOGI(TAG, "Initializing UDP...");
-  ETH_udp_init(NULL);
-  SensorBoard_RebindUdpClient();
-  SensorBoard_ConfigureDestinationRoute();
-  SensorBoard_InitSensors(&imu_data, &ph_sensor, &gps_data);
+  ph_sensor_t ph_sensor;
+  LOGI(TAG, "Initializing pH Sensor...");
+  ph_sensor_init(&ph_sensor, 3.3f); // 3.3V reference voltage
 
-  BSP_LED_On(LED_GREEN);
-  LOGI(TAG, "Starting sensor telemetry loop (%lu ms period)...",
-       sensor_board_send_interval_ms);
+  gps_data_t gps_data;
+  LOGI(TAG, "Initializing GPS...");
+  gps_sensor_init(&gps_data);
+
+  BSP_LED_Toggle(LED_GREEN);
+
+  uint32_t loop_count = 0;
+  LOGI(TAG, "Starting main sensor loop...");
+
+  // UDP destination (update when network params are finalized)
+  uint8_t dest_ip[4] = {192, 168, 0, 100};
+
+  static StaticQueue_t txStruct0;
+  static uint8_t txStorage0[ETHERNET_SQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t tx0 = xQueueCreateStatic(ETHERNET_SQ_LENGTH,
+                                         ETHERNET_SQ_ITEM_SIZE,
+                                         txStorage0, &txStruct0);
+
+  static StaticQueue_t txStruct1;
+  static uint8_t txStorage1[ETHERNET_SQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t tx1 = xQueueCreateStatic(ETHERNET_SQ_LENGTH,
+                                         ETHERNET_SQ_ITEM_SIZE,
+                                         txStorage1, &txStruct1);
+
+  QueueHandle_t send_queues[ETHERNET_SQ_PRIORITY_BUFFERS] = {tx0, tx1};
+  result_t udp_init = ETH_udp_init(ETHERNET_SQ_PRIORITY_BUFFERS, send_queues, NULL);
+  if (udp_init != RESULT_OK) {
+    LOGE(TAG, "UDP init failed: %s", result_to_short_str(udp_init));
+  }
 
   while (1) {
-    SensorBoardDiagnostics diagnostics;
-
-    SensorBoard_UpdateDiagnostics(&diagnostics, &imu_data, &ph_sensor, &gps_data);
-    SensorBoard_SendDiagnostics(&diagnostics);
-
+    loop_count++;
+    LOGI(TAG, "Loop iteration: %lu", loop_count);
+    BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
-    osDelay(sensor_board_send_interval_ms);
+    BSP_LED_Toggle(LED_RED);
+
+    // Initialize sensor diagnostics message
+    SensorBoardDiagnostics diagnostics = SensorBoardDiagnostics_init_zero;
+    diagnostics.state = SensorBoardDiagnostics_State_OPERATING;
+
+    LOGI(TAG, "========== Sensor Board Reading ==========");
+
+    // Read and log pH sensor
+    float ph_value, ph_voltage;
+    result_t ph_poll_result = poll_ph_sensor(&ph_sensor);
+
+    diagnostics.has_ph_sensor = true;
+    if (ph_poll_result == RESULT_ERR_UNIMPLEMENTED || ph_poll_result == RESULT_ERR_COMMS) {
+      // Sensor not connected
+      LOGW(TAG, "pH Sensor - Not connected (result: %d)", ph_poll_result);
+      diagnostics.ph_sensor.state = SensorState_SENSOR_IDLE;
+      diagnostics.ph_sensor.error_code = PHErrorCode_PH_COMMUNICATION_FAILURE;
+      diagnostics.ph_sensor.ph_value = 0.0f;
+      diagnostics.ph_sensor.voltage = 0.0f;
+    } else if (ph_poll_result != RESULT_OK) {
+      // Other error during polling
+      LOGE(TAG, "pH Sensor - Poll error: %d", ph_poll_result);
+      diagnostics.ph_sensor.state = SensorState_SENSOR_ERROR;
+      diagnostics.ph_sensor.error_code = PHErrorCode_PH_COMMUNICATION_FAILURE;
+      diagnostics.ph_sensor.ph_value = 0.0f;
+      diagnostics.ph_sensor.voltage = 0.0f;
+    } else {
+      // Poll succeeded, so now getting the actual sensor values
+      if (ph_sensor_get_value(&ph_sensor, &ph_value) == RESULT_OK) {
+        ph_sensor_get_voltage(&ph_sensor, &ph_voltage);
+        if (validate_ph_value(ph_value) == RESULT_OK) {
+          LOGI(TAG, "pH Sensor - Value: %.2f, Voltage: %.3fV", ph_value, ph_voltage);
+          diagnostics.ph_sensor.ph_value = ph_value;
+          diagnostics.ph_sensor.voltage = ph_voltage;
+          diagnostics.ph_sensor.state = SensorState_SENSOR_OPERATING;
+          diagnostics.ph_sensor.error_code = PHErrorCode_PH_NO_ERROR;
+        } else {
+          LOGI(TAG, "pH Sensor - Invalid value: %.2f", ph_value);
+          diagnostics.ph_sensor.ph_value = ph_value;
+          diagnostics.ph_sensor.voltage = ph_voltage;
+          diagnostics.ph_sensor.state = SensorState_SENSOR_ERROR;
+          diagnostics.ph_sensor.error_code = PHErrorCode_PH_INVALID_DATA;
+        }
+      } else {
+        LOGE(TAG, "pH Sensor - Failed to read value");
+        diagnostics.ph_sensor.state = SensorState_SENSOR_ERROR;
+        diagnostics.ph_sensor.error_code = PHErrorCode_PH_COMMUNICATION_FAILURE;
+        diagnostics.ph_sensor.ph_value = 0.0f;
+        diagnostics.ph_sensor.voltage = 0.0f;
+      }
+    }
+
+    // Read and log GPS data
+    result_t gps_poll_result = poll_gps_sensor(&gps_data);
+    double lat, lon;
+    float altitude, speed, heading;
+    gps_fix_quality_t fix_quality;
+    int32_t satellites;
+    bool gps_valid;
+
+    diagnostics.has_gps_sensor_1 = true;
+    if (gps_poll_result == RESULT_ERR_UNIMPLEMENTED || gps_poll_result == RESULT_ERR_COMMS) {
+      // Sensor not connected or hardware not available
+      LOGW(TAG, "GPS - Not connected (result: %d)", gps_poll_result);
+      diagnostics.gps_sensor_1.state = SensorState_SENSOR_IDLE;
+      diagnostics.gps_sensor_1.error_code = GPSErrorCode_GPS_COMMUNICATION_FAILURE;
+      diagnostics.gps_sensor_1.latitude = 0.0;
+      diagnostics.gps_sensor_1.longitude = 0.0;
+      diagnostics.gps_sensor_1.altitude = 0.0f;
+      diagnostics.gps_sensor_1.speed = 0.0f;
+      diagnostics.gps_sensor_1.heading = 0.0f;
+      diagnostics.gps_sensor_1.hdop = 99.9f;
+      diagnostics.gps_sensor_1.vdop = 99.9f;
+      diagnostics.gps_sensor_1.satellites = 0;
+      diagnostics.gps_sensor_1.fix_quality = GPSFixQuality_NO_FIX;
+    } else if (gps_poll_result != RESULT_OK) {
+      // Other error during polling
+      LOGE(TAG, "GPS - Poll error: %d", gps_poll_result);
+      diagnostics.gps_sensor_1.state = SensorState_SENSOR_ERROR;
+      diagnostics.gps_sensor_1.error_code = GPSErrorCode_GPS_COMMUNICATION_FAILURE;
+    } else if (gps_sensor_is_valid(&gps_data, &gps_valid) == RESULT_OK && gps_valid) {
+      diagnostics.gps_sensor_1.state = SensorState_SENSOR_OPERATING;
+      diagnostics.gps_sensor_1.error_code = GPSErrorCode_GPS_NO_ERROR;
+
+      if (gps_sensor_get_coordinates(&gps_data, &lat, &lon) == RESULT_OK) {
+        LOGI(TAG, "GPS - Lat: %.6f°, Lon: %.6f°", lat, lon);
+        diagnostics.gps_sensor_1.latitude = lat;
+        diagnostics.gps_sensor_1.longitude = lon;
+      }
+      if (gps_sensor_get_altitude(&gps_data, &altitude) == RESULT_OK) {
+        LOGI(TAG, "GPS - Altitude: %.2f m", altitude);
+        diagnostics.gps_sensor_1.altitude = altitude;
+      }
+      if (gps_sensor_get_velocity(&gps_data, &speed, &heading) == RESULT_OK) {
+        LOGI(TAG, "GPS - Speed: %.2f m/s, Heading: %.1f°", speed, heading);
+        diagnostics.gps_sensor_1.speed = speed;
+        diagnostics.gps_sensor_1.heading = heading;
+      }
+      if (gps_sensor_get_fix_info(&gps_data, &fix_quality, &satellites) == RESULT_OK) {
+        LOGI(TAG, "GPS - Fix Quality: %d, Satellites: %ld", fix_quality, satellites);
+        diagnostics.gps_sensor_1.fix_quality = (GPSFixQuality)fix_quality;
+        diagnostics.gps_sensor_1.satellites = satellites;
+      }
+      LOGI(TAG, "GPS - HDOP: %.2f, VDOP: %.2f", gps_data.hdop, gps_data.vdop);
+      diagnostics.gps_sensor_1.hdop = gps_data.hdop;
+      diagnostics.gps_sensor_1.vdop = gps_data.vdop;
+    } else {
+      LOGW(TAG, "GPS - No valid data received");
+      diagnostics.gps_sensor_1.state = SensorState_SENSOR_ERROR;
+      diagnostics.gps_sensor_1.error_code = GPSErrorCode_GPS_INVALID_DATA;
+    }
+
+    // Read and log IMU data
+    result_t imu_poll_result = poll_imu_sensor(&imu_data);
+
+    diagnostics.has_imu_sensor = true;
+    if (imu_poll_result == RESULT_ERR_UNIMPLEMENTED || imu_poll_result == RESULT_ERR_COMMS) {
+      // Sensor not connected or hardware not available
+      LOGW(TAG, "IMU - Not connected (result: %d)", imu_poll_result);
+      diagnostics.imu_sensor.state = SensorState_SENSOR_IDLE;
+      diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_COMMUNICATION_FAILURE;
+      diagnostics.imu_sensor.accel_x = 0.0f;
+      diagnostics.imu_sensor.accel_y = 0.0f;
+      diagnostics.imu_sensor.accel_z = 0.0f;
+      diagnostics.imu_sensor.gyro_x = 0.0f;
+      diagnostics.imu_sensor.gyro_y = 0.0f;
+      diagnostics.imu_sensor.gyro_z = 0.0f;
+      diagnostics.imu_sensor.mag_x = 0.0f;
+      diagnostics.imu_sensor.mag_y = 0.0f;
+      diagnostics.imu_sensor.mag_z = 0.0f;
+    } else if (imu_poll_result != RESULT_OK) {
+      // Other error during polling
+      LOGE(TAG, "IMU - Poll error: %d", imu_poll_result);
+      diagnostics.imu_sensor.state = SensorState_SENSOR_ERROR;
+      diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_COMMUNICATION_FAILURE;
+      diagnostics.imu_sensor.accel_x = 0.0f;
+      diagnostics.imu_sensor.accel_y = 0.0f;
+      diagnostics.imu_sensor.accel_z = 0.0f;
+      diagnostics.imu_sensor.gyro_x = 0.0f;
+      diagnostics.imu_sensor.gyro_y = 0.0f;
+      diagnostics.imu_sensor.gyro_z = 0.0f;
+      diagnostics.imu_sensor.mag_x = 0.0f;
+      diagnostics.imu_sensor.mag_y = 0.0f;
+      diagnostics.imu_sensor.mag_z = 0.0f;
+    } else {
+      // Sensor is operating normally
+      LOGI(TAG, "IMU - Accel (m/s²): X=%.2f, Y=%.2f, Z=%.2f", 
+           imu_data.accel[0], imu_data.accel[1], imu_data.accel[2]);
+      LOGI(TAG, "IMU - Gyro (°/s): X=%.2f, Y=%.2f, Z=%.2f", 
+           imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2]);
+      LOGI(TAG, "IMU - Mag (µT): X=%.2f, Y=%.2f, Z=%.2f", 
+           imu_data.mag[0], imu_data.mag[1], imu_data.mag[2]);
+
+      diagnostics.imu_sensor.accel_x = imu_data.accel[0];
+      diagnostics.imu_sensor.accel_y = imu_data.accel[1];
+      diagnostics.imu_sensor.accel_z = imu_data.accel[2];
+      diagnostics.imu_sensor.gyro_x = imu_data.gyro[0];
+      diagnostics.imu_sensor.gyro_y = imu_data.gyro[1];
+      diagnostics.imu_sensor.gyro_z = imu_data.gyro[2];
+      diagnostics.imu_sensor.mag_x = imu_data.mag[0];
+      diagnostics.imu_sensor.mag_y = imu_data.mag[1];
+      diagnostics.imu_sensor.mag_z = imu_data.mag[2];
+      diagnostics.imu_sensor.state = SensorState_SENSOR_OPERATING;
+      diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_NO_ERROR;
+    }
+
+    if (!imu_validate_accelerometer_range(&imu_data)) {
+      LOGW(TAG, "IMU - Accelerometer is out of range");
+      diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_ACCELEROMETER_ERROR;
+    }
+    if (!imu_validate_gyroscope_range(&imu_data)) {
+      LOGW(TAG, "IMU - Gyroscope is out of range");
+      diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_GYROSCOPE_ERROR;
+    }
+    if (!imu_validate_magnetometer_range(&imu_data)) {
+      LOGW(TAG, "IMU - Magnetometer is out of range");
+      diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_MAGNETOMETER_ERROR;
+    }
+
+    LOGI(TAG, "==========================================");
+
+    // Encode protobuf message
+    uint8_t *encoded_data = NULL;
+    size_t encoded_size = 0;
+    result_t encode_result = pb_message_encode(&diagnostics, SensorBoardDiagnostics_fields, 
+                                                &encoded_data, &encoded_size);
+
+        if (encode_result == RESULT_OK) {
+          // Send encoded protobuf message via UDP
+          result_t send_result = ETH_udp_send_binary(dest_ip, SENSOR_UDP_DEST_PORT,
+                                                     encoded_data, encoded_size, 1);
+          if (send_result == RESULT_OK) {
+            LOGI(TAG, "Sensor diagnostics sent (%d bytes) to %u.%u.%u.%u:%u", 
+                 encoded_size, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3],
+                 SENSOR_UDP_DEST_PORT);
+          } else {
+            LOGE(TAG, "UDP send failed: %s", result_to_short_str(send_result));
+          }
+          free(encoded_data);
+        } else {
+          LOGE(TAG, "Failed to encode sensor diagnostics: %d", encode_result);
+        }
+
+    LOGI(TAG, "Delaying for 5 seconds...");
+    LOGI(TAG, " ");
+    osDelay(MAIN_TASK_DELAY_MS);
   }
 }
 

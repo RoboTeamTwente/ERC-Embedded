@@ -1,6 +1,8 @@
 #ifndef NETWORKING_CONSTANTS_H
 #define NETWORKING_CONSTANTS_H
 
+#include "ethernet_udp.h"
+
 // BOARD IDS
 
 #define DEBUGGING_BOARD_ID 0x01
@@ -17,5 +19,9 @@
 #define ETHERNET_RQ_LENGTH 80
 #define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame)
 #define ETHERNET_RQ_PRIORITY_BUFFERS 2
+
+#define ETHERNET_SQ_LENGTH 80
+#define ETHERNET_SQ_ITEM_SIZE sizeof(udp_send_frame_t)
+#define ETHERNET_SQ_PRIORITY_BUFFERS 2
 #define MAX_ETH_PAYLOAD_SIZE 80
 #endif // !NETWORKING_CONSTANTS_H
