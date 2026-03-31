@@ -26,29 +26,8 @@
 
 #define TAG "MAIN"
 
-TIM_HandleTypeDef htim2;
-
-int32_t ARR = 65535;
-
-void SystemClock_Config(void);
-void MX_GPIO_Init(void);
-void MX_TIM2_Init(void);
-
 int main(void) {
 
-    HAL_Init();
-    SystemClock_Config();
-    MX_GPIO_Init();
-    MX_TIM2_Init();
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
-	stepper_make_steps(300, -1);
-
-	float DutyCycle = 0.25;
-	int32_t CH1_DC = DutyCycle * ARR;
-
-    while (1) {
-    	TIM2->CCR1 = CH1_DC;
-    	HAL_Delay(1);
-    }
+    do_pwm();
+    
 }

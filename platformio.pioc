@@ -1,5 +1,5 @@
 [platformio]
-default_envs = network_board
+default_envs = arm_board
 src_dir = .
 lib_dir = lib
 
@@ -11,7 +11,7 @@ common_lib_deps = https://github.com/nanopb/nanopb.git#d68cd4e954ae1d376275d9fce
 platform = ststm32
 framework = stm32cube
 custom_nanopb_preserve_directory_hierarchy = true
-custom_nanopb_project_dir = /home/nikanel/roboteam/erc/ERC-Protobufs
+custom_nanopb_project_dir = C:/Users/Gebruiker/Documents/Coding/Git/ERC-Embedded/ERC-Protobufs/
 custom_nanopb_options = 
     --error-on-unmatched
 
@@ -82,9 +82,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
-custom_nanopb_protos = +<components/common/**.proto>
-	+<${this.__env__}.proto>
-	+<components/${this.__env__}/**.proto>
+custom_nanopb_protos = +<components/**>
 lib_deps = ${extra.common_lib_deps}
 build_flags=
     +<components/arm_board/**>

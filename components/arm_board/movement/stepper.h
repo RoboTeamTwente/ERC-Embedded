@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include "result.h"
 
 //1:1 recration of protobuf
 typedef struct {
@@ -30,17 +31,19 @@ result_t control_signals_handler (control_signals_t signals);
  * 
  * @param angle amount to turn
  * @param direction direction to turn
- * @return result_t 
+ * @return uint32_t seconds it takes to turn angle
  */
-result_t stepper_make_steps(uint32_t angle, bool direction);
+uint32_t stepper_make_steps(uint32_t angle);
 
 /**
  * @brief calculates the rotation for the stepper and uses stepper_make_steps to turn
  * 
  * @param target_angle 
- * @return result_t 
+ * @return uint32_t 
  */
-result_t rotate_stepper(uint32_t target_angle);
+void rotate_stepper(uint32_t target_angle);
+
+void do_pwm();
 
 //placeholder 
 void delayMicroseconds (uint32_t ms);
@@ -65,4 +68,4 @@ void sequence_placeholder(int step);
 void sequence(int step);
 
 //NOTE: temporary method, will be replaced by HAL code
-void set_pin(pinname, what);
+void set_pin(int pinname, char what);

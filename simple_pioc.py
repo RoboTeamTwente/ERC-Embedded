@@ -3,7 +3,6 @@ from pathlib import Path
 import re
 import os
 import sys
-
 build_flags_tag = "build_flags"
 board_path = "components/"
 c_defines_tag = "C_DEFS"
