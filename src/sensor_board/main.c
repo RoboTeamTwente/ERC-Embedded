@@ -34,6 +34,8 @@
 #include "ph_sensor.h"
 #include "gps_sensor.h"
 #include "sensor_basics.h"
+#include "components/sensor_board/load_cell/load_cell_sensor.h"
+#include "components/sensor_board/pressure/pressure_sensor.h"
 
 // Protobuf includes
 #include "pb_message.h"
@@ -41,6 +43,8 @@
 #include "components/sensor_board/ph_sensor.pb.h"
 #include "components/sensor_board/imu_sensor.pb.h"
 #include "components/sensor_board/gps_sensor.pb.h"
+#include "components/sensor_board/load_cell.pb.h"
+#include "components/sensor_board/pressure_sensor.pb.h"
 #include "components/sensor_board/sensor.pb.h"
 
 // Packet dispatcher includes
@@ -71,8 +75,10 @@ static result_t handle_arm_control_signals(void* buffer) {
     return RESULT_ERR_INVALID_ARG;
   }
   ArmBoardControlSignals* signals = (ArmBoardControlSignals*)buffer;
-  LOGI(TAG, "Received ARM control signal (type field present: %d)", 
-       signals->has_motor_control);
+  LOGI(TAG,
+       "Received ARM control signal (base: %.2f, jaw: %.2f, top_ena: %d)",
+       signals->control_base, signals->control_jaw,
+       signals->stepper_top_ena);
   return RESULT_OK;
 }
 
@@ -143,6 +149,35 @@ static result_t handle_sensor_imu_info(void* buffer) {
 }
 
 /**
+ * @brief Handle load cell info received over network
+ */
+static result_t handle_sensor_load_cell_info(void* buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  SensorBoardLoadCellInfo* load_cell = (SensorBoardLoadCellInfo*)buffer;
+  LOGI(TAG,
+       "Received load cell info (idx: %lu, force: %.2f N, mass: %.2f g, state: %d)",
+       (unsigned long)load_cell->sensor_index,
+       load_cell->force_newtons, load_cell->mass_grams, load_cell->state);
+  return RESULT_OK;
+}
+
+/**
+ * @brief Handle pressure sensor info received over network
+ */
+static result_t handle_sensor_pressure_info(void* buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  SensorBoardPressureInfo* pressure = (SensorBoardPressureInfo*)buffer;
+  LOGI(TAG, "Received pressure info (idx: %lu, kPa: %.2f, state: %d)",
+       (unsigned long)pressure->sensor_index,
+       pressure->pressure_kpa, pressure->state);
+  return RESULT_OK;
+}
+
+/**
  * @brief UDP receive callback to feed the packet dispatcher
  */
 static void sensor_udp_rx_callback(void *payload, size_t length,
@@ -197,6 +232,16 @@ PACKET_HANDLER_CONFIG_STATIC(sensor_imu_handler,
                              PBEnvelope_imu_info_tag,
                              imu_info,
                              handle_sensor_imu_info);
+
+PACKET_HANDLER_CONFIG_STATIC(sensor_load_cell_handler,
+                             PBEnvelope_load_cell_info_tag,
+                             load_cell_info,
+                             handle_sensor_load_cell_info);
+
+PACKET_HANDLER_CONFIG_STATIC(sensor_pressure_handler,
+                             PBEnvelope_pressure_info_tag,
+                             pressure_info,
+                             handle_sensor_pressure_info);
 
 extern TIM_HandleTypeDef htim1;
 COM_InitTypeDef BspCOMInit;
@@ -279,6 +324,8 @@ void MainTask(void *argument) {
       sensor_ph_handler,
       sensor_gps_handler,
       sensor_imu_handler,
+      sensor_load_cell_handler,
+      sensor_pressure_handler,
   };
   
   result_t dispatcher_result =
@@ -302,6 +349,18 @@ void MainTask(void *argument) {
   gps_data_t gps_data;
   LOGI(TAG, "Initializing GPS...");
   gps_sensor_init(&gps_data);
+
+  load_cell_data_t load_cell_data[2];
+  LOGI(TAG, "Initializing Load Cells...");
+  for (size_t i = 0; i < 2; i++) {
+    load_cell_sensor_init(&load_cell_data[i]);
+  }
+
+  pressure_sensor_data_t pressure_data[2];
+  LOGI(TAG, "Initializing Pressure Sensors...");
+  for (size_t i = 0; i < 2; i++) {
+    pressure_sensor_init(&pressure_data[i]);
+  }
 
   BSP_LED_Toggle(LED_GREEN);
 
@@ -516,6 +575,160 @@ void MainTask(void *argument) {
       diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_MAGNETOMETER_ERROR;
     }
 
+    for (size_t i = 0; i < 2; i++) {
+      // Read and log load cell data
+      SensorBoardLoadCellInfo load_cell_info = SensorBoardLoadCellInfo_init_zero;
+      result_t load_cell_poll_result = poll_load_cell_sensor(&load_cell_data[i]);
+      float load_cell_force = 0.0f;
+      float load_cell_mass = 0.0f;
+      int32_t load_cell_counts = 0;
+      float load_cell_scale = 0.0f;
+      int32_t load_cell_tare = 0;
+      bool load_cell_valid = false;
+
+      load_cell_info.sensor_index = (uint32_t)i;
+
+      if (load_cell_poll_result == RESULT_ERR_UNIMPLEMENTED ||
+          load_cell_poll_result == RESULT_ERR_COMMS) {
+        LOGW(TAG, "Load cell %lu - Not connected (result: %d)",
+             (unsigned long)i, load_cell_poll_result);
+        load_cell_info.state = SensorState_SENSOR_IDLE;
+        load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_COMMUNICATION_FAILURE;
+      } else if (load_cell_poll_result != RESULT_OK) {
+        LOGE(TAG, "Load cell %lu - Poll error: %d",
+             (unsigned long)i, load_cell_poll_result);
+        load_cell_info.state = SensorState_SENSOR_ERROR;
+        load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_COMMUNICATION_FAILURE;
+      } else {
+        if (load_cell_get_force_newtons(&load_cell_data[i], &load_cell_force) == RESULT_OK &&
+            load_cell_get_mass_grams(&load_cell_data[i], &load_cell_mass) == RESULT_OK &&
+            load_cell_get_raw_counts(&load_cell_data[i], &load_cell_counts) == RESULT_OK &&
+            load_cell_get_calibration(&load_cell_data[i], &load_cell_scale,
+                                      &load_cell_tare) == RESULT_OK) {
+          load_cell_sensor_is_valid(&load_cell_data[i], &load_cell_valid);
+          if (load_cell_valid) {
+            LOGI(TAG, "Load cell %lu - Force: %.2f N, Mass: %.2f g, Counts: %ld",
+                 (unsigned long)i, load_cell_force, load_cell_mass,
+                 (long)load_cell_counts);
+            load_cell_info.state = SensorState_SENSOR_OPERATING;
+            load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_NO_ERROR;
+          } else {
+            LOGW(TAG, "Load cell %lu - Invalid data", (unsigned long)i);
+            load_cell_info.state = SensorState_SENSOR_ERROR;
+            load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_INVALID_DATA;
+          }
+        } else {
+          LOGE(TAG, "Load cell %lu - Failed to read values", (unsigned long)i);
+          load_cell_info.state = SensorState_SENSOR_ERROR;
+          load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_COMMUNICATION_FAILURE;
+        }
+      }
+
+      load_cell_info.force_newtons = load_cell_force;
+      load_cell_info.mass_grams = load_cell_mass;
+      load_cell_info.raw_counts = load_cell_counts;
+      load_cell_info.scale_newtons_per_count = load_cell_scale;
+      load_cell_info.tare_offset_counts = load_cell_tare;
+      load_cell_info.is_calibrated = load_cell_data[i].is_calibrated;
+
+      uint8_t *load_cell_encoded = NULL;
+      size_t load_cell_encoded_size = 0;
+      result_t load_cell_encode_result =
+          pb_message_encode(&load_cell_info, SensorBoardLoadCellInfo_fields,
+                            &load_cell_encoded, &load_cell_encoded_size);
+      if (load_cell_encode_result == RESULT_OK) {
+        result_t send_result = ETH_udp_send_binary(dest_ip, SENSOR_UDP_DEST_PORT,
+                                                   load_cell_encoded,
+                                                   load_cell_encoded_size, 1);
+        if (send_result == RESULT_OK) {
+          LOGI(TAG,
+               "Load cell %lu info sent (%d bytes) to %u.%u.%u.%u:%u",
+               (unsigned long)i, load_cell_encoded_size, dest_ip[0], dest_ip[1],
+               dest_ip[2], dest_ip[3], SENSOR_UDP_DEST_PORT);
+        } else {
+          LOGE(TAG, "Load cell %lu UDP send failed: %s",
+               (unsigned long)i, result_to_short_str(send_result));
+        }
+        free(load_cell_encoded);
+      } else {
+        LOGE(TAG, "Failed to encode load cell %lu info: %d",
+             (unsigned long)i, load_cell_encode_result);
+      }
+
+      // Read and log pressure sensor data
+      SensorBoardPressureInfo pressure_info = SensorBoardPressureInfo_init_zero;
+      result_t pressure_poll_result = poll_pressure_sensor(&pressure_data[i]);
+      float pressure_kpa = 0.0f;
+      float pressure_temperature = 0.0f;
+      float pressure_voltage = 0.0f;
+      bool pressure_valid = false;
+
+      pressure_info.sensor_index = (uint32_t)i;
+
+      if (pressure_poll_result == RESULT_ERR_UNIMPLEMENTED ||
+          pressure_poll_result == RESULT_ERR_COMMS) {
+        LOGW(TAG, "Pressure sensor %lu - Not connected (result: %d)",
+             (unsigned long)i, pressure_poll_result);
+        pressure_info.state = SensorState_SENSOR_IDLE;
+        pressure_info.error_code = PressureErrorCode_PRESSURE_COMMUNICATION_FAILURE;
+      } else if (pressure_poll_result != RESULT_OK) {
+        LOGE(TAG, "Pressure sensor %lu - Poll error: %d",
+             (unsigned long)i, pressure_poll_result);
+        pressure_info.state = SensorState_SENSOR_ERROR;
+        pressure_info.error_code = PressureErrorCode_PRESSURE_COMMUNICATION_FAILURE;
+      } else {
+        if (pressure_sensor_get_pressure_kpa(&pressure_data[i], &pressure_kpa) == RESULT_OK &&
+            pressure_sensor_get_temperature_c(&pressure_data[i], &pressure_temperature) == RESULT_OK &&
+            pressure_sensor_get_voltage(&pressure_data[i], &pressure_voltage) == RESULT_OK) {
+          pressure_sensor_is_valid(&pressure_data[i], &pressure_valid);
+          if (pressure_valid) {
+            LOGI(TAG, "Pressure %lu - %.2f kPa, Temp: %.2f C, V: %.3f",
+                 (unsigned long)i, pressure_kpa, pressure_temperature,
+                 pressure_voltage);
+            pressure_info.state = SensorState_SENSOR_OPERATING;
+            pressure_info.error_code = PressureErrorCode_PRESSURE_NO_ERROR;
+          } else {
+            LOGW(TAG, "Pressure %lu - Invalid data", (unsigned long)i);
+            pressure_info.state = SensorState_SENSOR_ERROR;
+            pressure_info.error_code = PressureErrorCode_PRESSURE_INVALID_DATA;
+          }
+        } else {
+          LOGE(TAG, "Pressure %lu - Failed to read values", (unsigned long)i);
+          pressure_info.state = SensorState_SENSOR_ERROR;
+          pressure_info.error_code = PressureErrorCode_PRESSURE_COMMUNICATION_FAILURE;
+        }
+      }
+
+      pressure_info.pressure_kpa = pressure_kpa;
+      pressure_info.temperature_c = pressure_temperature;
+      pressure_info.voltage = pressure_voltage;
+      pressure_info.is_calibrated = pressure_data[i].is_calibrated;
+
+      uint8_t *pressure_encoded = NULL;
+      size_t pressure_encoded_size = 0;
+      result_t pressure_encode_result =
+          pb_message_encode(&pressure_info, SensorBoardPressureInfo_fields,
+                            &pressure_encoded, &pressure_encoded_size);
+      if (pressure_encode_result == RESULT_OK) {
+        result_t send_result = ETH_udp_send_binary(dest_ip, SENSOR_UDP_DEST_PORT,
+                                                   pressure_encoded,
+                                                   pressure_encoded_size, 1);
+        if (send_result == RESULT_OK) {
+          LOGI(TAG,
+               "Pressure %lu info sent (%d bytes) to %u.%u.%u.%u:%u",
+               (unsigned long)i, pressure_encoded_size, dest_ip[0], dest_ip[1],
+               dest_ip[2], dest_ip[3], SENSOR_UDP_DEST_PORT);
+        } else {
+          LOGE(TAG, "Pressure %lu UDP send failed: %s",
+               (unsigned long)i, result_to_short_str(send_result));
+        }
+        free(pressure_encoded);
+      } else {
+        LOGE(TAG, "Failed to encode pressure %lu info: %d",
+             (unsigned long)i, pressure_encode_result);
+      }
+    }
+
     LOGI(TAG, "==========================================");
 
     // Encode protobuf message
@@ -539,6 +752,7 @@ void MainTask(void *argument) {
         } else {
           LOGE(TAG, "Failed to encode sensor diagnostics: %d", encode_result);
         }
+
 
     LOGI(TAG, "Delaying for 5 seconds...");
     LOGI(TAG, " ");
