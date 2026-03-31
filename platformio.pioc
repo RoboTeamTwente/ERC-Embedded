@@ -57,9 +57,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/sensor_board/**>
     -<components/sensor_board/firmware/Drivers/**>
     +<components/sensor_board/firmware/Drivers/BSP/**>
-custom_nanopb_protos = +<components/common/**.proto>
-	+<${this.__env__}.proto>
-	+<components/${this.__env__}/**.proto>
+custom_nanopb_protos = +<components/**/*.proto>
 build_flags = 
     +<components/common/*/inc>
     +<components/common/*>
@@ -84,9 +82,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
-custom_nanopb_protos = +<components/common/**.proto>
-	+<${this.__env__}.proto>
-	+<components/${this.__env__}/**.proto>
+custom_nanopb_protos = +<components/**/*.proto>
 lib_deps = ${extra.common_lib_deps}
 build_flags=
     +<components/arm_board/**>
@@ -109,9 +105,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
-custom_nanopb_protos = +<components/common/**.proto>
-	+<${this.__env__}.proto>
-	+<components/${this.__env__}/**.proto>
+custom_nanopb_protos = +<components/**/*.proto>
 test_filter = driving_board/*
 lib_deps = ${extra.common_lib_deps}
 build_flags=
@@ -128,6 +122,7 @@ build_flags=
 
 [env:debugging_board]
 board = nucleo_h753zi
+custom_nanopb_protos = +<components/**/*.proto>
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/*.c>

@@ -1,4 +1,3 @@
-
 #include "ethernet_udp.h"
 #include "bucketed_pqueue.h"
 #include "ip4_addr.h"
@@ -11,6 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #define TAG "UDP"
 
 udp_receiver_callback r_callback;
@@ -68,10 +68,10 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
   LOGI(TAG, "Port: %d", port);
   result_t err = RESULT_OK;
-  receive_frame buffer = { .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
-  if((&buffer)->payload == NULL){
+  receive_frame buffer = { .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len };
+  if ((&buffer)->payload == NULL) {
     LOGE(TAG, "Couldn't allocate receive buffer");
-    return; 
+    return;
   }
   memcpy(((&buffer)->payload), (int8_t *)(p->payload), p->len);
   if ((&buffer)->payload != NULL) {
@@ -95,7 +95,6 @@ void udp_receiver_task(void *pvParameters) {
       receive_frame frame;
       result_t r = bucketed_pqueue_pop(&udp_receiver_queue, &frame);
       if (r != RESULT_OK) {
-        free(frame.payload);
         break;
       }
       r_callback(frame.payload, frame.len, &(frame.addr), frame.port);
@@ -122,7 +121,7 @@ void udp_sender_task(void *pvParameters) {
         continue;
       }
       r = udp_client_send_binary(udp_sender_pcb, frame.dest_ip, frame.port,
-                 frame.payload, frame.len);
+                                 frame.payload, frame.len);
       if (r != RESULT_OK) {
         LOGE(TAG, "UDP send failed: %s", result_to_short_str(r));
       }
@@ -297,7 +296,7 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
   return RESULT_OK;
 }
 
-result_t udp_client_send_binary(struct udp_pcb *upcb, uint8_t dest_ip[4], 
+result_t udp_client_send_binary(struct udp_pcb *upcb, uint8_t dest_ip[4],
                                 uint8_t port, void *payload, size_t length) {
   err_t err = ERR_OK;
   struct pbuf *txBuf;

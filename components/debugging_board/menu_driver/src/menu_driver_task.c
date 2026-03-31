@@ -1,12 +1,10 @@
+#include "FreeRTOS.h"
+#include "cmsis_os2.h"
+#include "logging.h"
 #include "menu_driver.h"
 #include "menu_driver_list.h"
-#include "cmsis_os2.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "logging.h"
 #include "stm32h7xx_nucleo.h"
-
-
+#include "task.h"
 
 static const uint8_t main_menu_icons[4][MENU_DRIVER_ICON_BYTE_SIZE] = {
     {0xff, 0xe3, 0xff, 0xff, 0xff, 0xc3, 0xff, 0xff, 0xff, 0xc3, 0xff, 0xff,
@@ -83,11 +81,9 @@ static menu_manager_t manager = {
     .get_input = 0,
 };
 
+static const char *TAG = "MENU DRIVER TASK";
 
-static const char* TAG = "MENU DRIVER TASK";
-
-
-#define MENU_DRIVER_STACK_WORDS   (4096u)  /* words, not bytes, for CMSIS */
+#define MENU_DRIVER_STACK_WORDS (4096u) /* words, not bytes, for CMSIS */
 
 static uint32_t menu_driver_stack[MENU_DRIVER_STACK_WORDS];
 static StaticTask_t menu_driver_tcb;
@@ -100,13 +96,13 @@ const osThreadAttr_t menu_driver_task_attr = {
 
 osThreadId_t s_menu_driver_task_handle = NULL;
 
-void menu_driver_task(void* arg) {
+void menu_driver_task(void *arg) {
   menu_manager_init_display();
   menu_driver_draw_ribbon();
   LOGI(TAG, "Rendering Active Page\n");
   LOGI(TAG, "Rendered list");
   int id = manager.active_page_id;
-  page_list_state* state = &(manager.pages[id].state->list);
+  page_list_state *state = &(manager.pages[id].state->list);
   state->first_render = true;
   while (1) {
     LOGI(TAG, "In loop");
@@ -126,11 +122,12 @@ result_t menu_driver_task_spawn(menu_manager_t *manager) {
     return RESULT_ERR_ALREADY_EXISTS;
   }
 
-  s_menu_driver_task_handle = osThreadNew(menu_driver_task, NULL, &menu_driver_task_attr);
+  s_menu_driver_task_handle =
+      osThreadNew(menu_driver_task, NULL, &menu_driver_task_attr);
   if (s_menu_driver_task_handle == NULL) {
-    return RESULT_ERR_NO_MEM; /* or RESULT_ERR / RESULT_OS_FAIL, depending on your enum */
+    return RESULT_ERR_NO_MEM; /* or RESULT_ERR / RESULT_OS_FAIL, depending on
+                                 your enum */
   }
 
   return RESULT_OK;
-
 }

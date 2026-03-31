@@ -1,15 +1,14 @@
 #ifndef ETHERNET_UDP
 #define ETHERNET_UDP
 
+#include "FreeRTOS.h"
 #include "err.h"
 #include "ip4_addr.h"
+#include "queue.h"
 #include "result.h"
 #include "udp.h"
-#include <stdint.h>
 #include <stddef.h>
-
-#include "FreeRTOS.h"
-#include "queue.h"
+#include <stdint.h>
 
 typedef struct {
   ip_addr_t addr;
@@ -43,13 +42,12 @@ typedef void (*udp_receiver_callback)(void *payload, size_t length,
  * @param[in] upcb pointer to a udp handler
  * @param[in] dest_ip pointer to an int list of 4 ints that make up the
  * destination IP
- * @param[in] length dest_ip length. Should be always 4
  * @param[in] port destination port address
  * @param[in] payload String with the payload
  * @return err_t
  */
-result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
-                         char *payload);
+result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4],
+                         uint8_t port, char *payload);
 
 /**
  * @brief sends a udp packet with binary data
@@ -62,7 +60,7 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
  * @param[in] length length of payload in bytes
  * @return result_t
  */
-result_t udp_client_send_binary(struct udp_pcb *upcb, uint8_t dest_ip[4], 
+result_t udp_client_send_binary(struct udp_pcb *upcb, uint8_t dest_ip[4],
                                 uint8_t port, void *payload, size_t length);
 
 /**
@@ -94,7 +92,6 @@ result_t udp_client_send_enqueue(uint8_t dest_ip[4], uint8_t port,
  *
  * @param[out] upcb pointer to a UDP handler
  * @param[in] src_ip pointer to an array with the source ip of length 4
- * @param[in] len lenght of the ip. Should always be 4
  * @param[in] udp_callback the udp callback function
  * @return result_t
  */

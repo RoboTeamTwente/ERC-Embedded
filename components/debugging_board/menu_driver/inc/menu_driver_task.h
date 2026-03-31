@@ -4,7 +4,4 @@
 
 result_t menu_driver_task_spawn(menu_manager_t *manager);
 
-
 #endif
-
-

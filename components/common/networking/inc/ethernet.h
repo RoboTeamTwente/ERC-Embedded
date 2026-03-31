@@ -1,8 +1,8 @@
 #ifndef ETHERNET_H
 #define ETHERNET_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "FreeRTOS.h"
 #include "queue.h"
@@ -10,7 +10,6 @@
 #include "stm/ethernet_diagnostics.h"
 #include "stm/ethernet_raw.h"
 #include "stm/ethernet_udp.h"
-
 /**
  * @brief Initializes ethernet
  *
@@ -29,7 +28,7 @@ void ETH_init(linkstatus_callback_t link_state_change_callback);
  * @return result_t
  */
 result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-					  udp_receiver_callback callback);
+                      udp_receiver_callback callback);
 
 /**
  * @brief Send a udp message using the priority send queue
