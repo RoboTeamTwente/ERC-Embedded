@@ -48,6 +48,8 @@ const char *result_to_short_str(result_t code) {
     return "Invalid Data";
   case RESULT_ERR_BUFF:
     return "Buffer Error";
+  case RESULT_ERR_INVALID_PACKET:
+    return "Invalid Packet";
   default:
     return "Unknown Error";
   }
@@ -105,6 +107,8 @@ const char *result_to_desc_str(result_t code) {
     return "Data is invalid or out of range";
   case RESULT_ERR_BUFF:
     return "General Buffer Error";
+  case RESULT_ERR_INVALID_PACKET:
+    return "Provided packet type is either unkown or cannot be processed.";
   default:
     return "An unknown error code was encountered.";
   }

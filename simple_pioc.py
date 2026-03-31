@@ -69,6 +69,13 @@ def parse_pio_file(input_file_path, result_file_path):
                 if line:
                     outputf.write(line)
 
+    with open(output_file, "r") as ini:
+        text = ini.read()
+    with open(output_file, "w") as ini:
+        ini.write(set_abs_path_for_nanopb(text))
+    
+
+
 def parse_c_defines(board_folder):
     makefile = Path(board_path + board_folder + "/firmware/Makefile")
     defines = []
@@ -81,6 +88,11 @@ def parse_c_defines(board_folder):
                     line = inputf.readline().strip().rstrip("\\")
                 break
     return defines
+
+def set_abs_path_for_nanopb(pioc_file):
+    abs_path = os.path.abspath(".")
+    pioc_file = pioc_file.replace("${{project_absolute_path}}$", abs_path)
+    return pioc_file
 
 if __name__ == "__main__":
     parse_pio_file("platformio.pioc","platformio.ini")

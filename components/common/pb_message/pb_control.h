@@ -1,19 +1,25 @@
 #include "result.h"
 #include <stdbool.h>
+#include "components/common/envelope.pb.h"
 
 static char *TAG = "PB_CONTROL";
 
-typedef result_t (*packet_handler_t)(const uint8_t *packet_data,
-                                     size_t packet_size);
+typedef result_t (*packet_handler_t)(void* payload);
+
+
 #define MAX_PROCESSABLE_PACKET_TYPES 64
 
-typedef struct {
-  uint16_t type;
-  packet_handler_t handler;
-} handler_entry_t;
 
-static handler_entry_t DispatchTable[MAX_PROCESSABLE_PACKET_TYPES];
-static uint16_t DispachTableSize = 0;
+
+
+static pb_size_t DispatchTableEntries[MAX_PROCESSABLE_PACKET_TYPES];
+static packet_handler_t DispatchTableHandlers[MAX_PROCESSABLE_PACKET_TYPES];
+
+static uint16_t DispatchTableSize = 0;
+
+
+
+
 
 /**
  * @brief Initialize the packet dispatch table for protobuf control flow.
@@ -52,7 +58,6 @@ result_t pb_contorl_initialize(uint16_t *packet_types,
  * @warning The dispatch table is global shared state. Ensure it is initialized
  *          before calling this function, and avoid concurrent modification.
  */
-result_t pb_control_process_incoming_packet(const uint8_t *packet_data,
-                                            size_t packet_size);
+result_t pb_control_process_incoming_packet(const void* packet_buffer, size_t size);
 
 bool pb_control_is_initialized(void);

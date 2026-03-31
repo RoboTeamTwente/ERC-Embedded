@@ -25,8 +25,8 @@
  *
  * @note The caller owns @p out_data and must free() it when done.
  */
-result_t pb_message_encode(const void *src_struct, const pb_field_t fields[],
-                           uint8_t **out_data, size_t *out_length);
+result_t pb_message_encode(const void* src_struct, const pb_msgdesc_t* fields,
+                           uint8_t** out_data, size_t* out_length);
 
 /**
  * @brief Decode a nanopb message from a byte buffer into a newly allocated
@@ -50,7 +50,11 @@ result_t pb_message_encode(const void *src_struct, const pb_field_t fields[],
  *
  * @note The caller owns @p out_struct and must free() it when done.
  */
-result_t pb_message_decode(const uint8_t *byte_buffer, size_t size,
-                           const pb_field_t *fields, size_t struct_size,
-                           void **out_struct);
+result_t pb_message_decode(const uint8_t* byte_buffer, size_t size,
+                           const pb_msgdesc_t* fields, size_t struct_size,
+                           void** out_struct);
+
+result_t pb_message_decode_into(const uint8_t* byte_buffer, size_t size,
+                                const pb_msgdesc_t* fields, size_t struct_size,
+                                void* out_struct);
 #endif
