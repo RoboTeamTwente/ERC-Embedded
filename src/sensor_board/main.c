@@ -43,6 +43,12 @@
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/sensor.pb.h"
 
+// Packet dispatcher includes
+#include "components/common/envelope.pb.h"
+#include "components/common/packet_dispatcher/packet_dispatcher.h"
+#include "components/common/packet_dispatcher/packet_dispatcher_macros.h"
+#include "stm/ethernet_udp.h"
+
 #define TAG "MAIN"
 #define MAIN_TASK_DELAY_MS 5000
 #define SENSOR_UDP_DEST_PORT 7
@@ -52,7 +58,145 @@ extern void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
 void Error_Handler(void);
 
+/* ============================================================================
+ * Packet Dispatcher Handler Functions
+ * ============================================================================
+ */
+
+/**
+ * @brief Handle ARM board control signals received over network
+ */
+static result_t handle_arm_control_signals(void* buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  ArmBoardControlSignals* signals = (ArmBoardControlSignals*)buffer;
+  LOGI(TAG, "Received ARM control signal (type field present: %d)", 
+       signals->has_motor_control);
+  return RESULT_OK;
+}
+
+/**
+ * @brief Handle ARM board diagnostics received over network
+ */
+static result_t handle_arm_diagnostics(void* buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  ArmBoardDiagnostics* diag = (ArmBoardDiagnostics*)buffer;
+  LOGI(TAG, "Received ARM diagnostics (state: %d)", diag->state);
+  return RESULT_OK;
+}
+
+/**
+ * @brief Handle driving board diagnostics received over network
+ */
+static result_t handle_drive_diagnostics(void* buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  DrivingBoardDiagnostics* diag = (DrivingBoardDiagnostics*)buffer;
+  LOGI(TAG, "Received Driving board diagnostics (state: %d)", diag->state);
+  return RESULT_OK;
+}
+
+/**
+ * @brief Handle pH sensor info received over network
+ */
+static result_t handle_sensor_ph_info(void* buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  SensorBoardPHInfo* ph = (SensorBoardPHInfo*)buffer;
+  LOGI(TAG, "Received pH info (value: %.2f, V: %.3f, state: %d)",
+       ph->ph_value, ph->voltage, ph->state);
+  return RESULT_OK;
+}
+
+/**
+ * @brief Handle GPS info received over network
+ */
+static result_t handle_sensor_gps_info(void* buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  SensorBoardGPSInfo* gps = (SensorBoardGPSInfo*)buffer;
+  LOGI(TAG,
+       "Received GPS info (lat: %.6f, lon: %.6f, alt: %.2f, sats: %ld)",
+       gps->latitude, gps->longitude, gps->altitude, (long)gps->satellites);
+  return RESULT_OK;
+}
+
+/**
+ * @brief Handle IMU info received over network
+ */
+static result_t handle_sensor_imu_info(void* buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  SensorBoardIMUInfo* imu = (SensorBoardIMUInfo*)buffer;
+  LOGI(TAG,
+       "Received IMU info (accel: %.2f, %.2f, %.2f; gyro: %.2f, %.2f, %.2f)",
+       imu->accel_x, imu->accel_y, imu->accel_z,
+       imu->gyro_x, imu->gyro_y, imu->gyro_z);
+  return RESULT_OK;
+}
+
+/**
+ * @brief UDP receive callback to feed the packet dispatcher
+ */
+static void sensor_udp_rx_callback(void *payload, size_t length,
+                                   const ip_addr_t *addr, u16_t port) {
+  if (payload == NULL || length == 0U || addr == NULL) {
+    return;
+  }
+
+  receive_frame frame = {
+      .addr = *addr,
+      .payload = payload,
+      .port = port,
+      .len = (uint16_t)length,
+  };
+
+  DispatchPacket(&frame);
+}
+
 void MainTask(void *argument);
+
+/* ============================================================================
+ * Packet Handler Configurations (using dispatcher macros)
+ * ============================================================================
+ */
+
+PACKET_HANDLER_CONFIG_STATIC(arm_control_handler, 
+                             PBEnvelope_arm_ctrl_tag, 
+                             arm_ctrl,
+                             handle_arm_control_signals);
+
+PACKET_HANDLER_CONFIG_STATIC(arm_diag_handler, 
+                             PBEnvelope_arm_diag_tag, 
+                             arm_diag,
+                             handle_arm_diagnostics);
+
+PACKET_HANDLER_CONFIG_STATIC(drive_diag_handler, 
+                             PBEnvelope_drive_diag_tag, 
+                             drive_diag,
+                             handle_drive_diagnostics);
+
+PACKET_HANDLER_CONFIG_STATIC(sensor_ph_handler,
+                             PBEnvelope_ph_info_tag,
+                             ph_info,
+                             handle_sensor_ph_info);
+
+PACKET_HANDLER_CONFIG_STATIC(sensor_gps_handler,
+                             PBEnvelope_gps_info_tag,
+                             gps_info,
+                             handle_sensor_gps_info);
+
+PACKET_HANDLER_CONFIG_STATIC(sensor_imu_handler,
+                             PBEnvelope_imu_info_tag,
+                             imu_info,
+                             handle_sensor_imu_info);
 
 extern TIM_HandleTypeDef htim1;
 COM_InitTypeDef BspCOMInit;
@@ -127,6 +271,25 @@ void MainTask(void *argument) {
 
   LOGI(TAG, "Sensor board taking off...");
 
+  // Initialize packet dispatcher to handle incoming control/diagnostic messages
+  packet_handler_config_t handler_configs[] = {
+      arm_control_handler,
+      arm_diag_handler,
+      drive_diag_handler,
+      sensor_ph_handler,
+      sensor_gps_handler,
+      sensor_imu_handler,
+  };
+  
+  result_t dispatcher_result =
+      PacketDispatcherInit(handler_configs,
+                           sizeof(handler_configs) / sizeof(handler_configs[0]));
+  if (dispatcher_result != RESULT_OK) {
+    LOGE(TAG, "Packet dispatcher init failed: %s", result_to_short_str(dispatcher_result));
+  } else {
+    LOGI(TAG, "Packet dispatcher initialized successfully");
+  }
+
   // Initialize sensors
   imu_data_t imu_data;
   LOGI(TAG, "Initializing IMU...");
@@ -161,7 +324,9 @@ void MainTask(void *argument) {
                                          txStorage1, &txStruct1);
 
   QueueHandle_t send_queues[ETHERNET_SQ_PRIORITY_BUFFERS] = {tx0, tx1};
-  result_t udp_init = ETH_udp_init(ETHERNET_SQ_PRIORITY_BUFFERS, send_queues, NULL);
+  result_t udp_init =
+      ETH_udp_init(ETHERNET_SQ_PRIORITY_BUFFERS, send_queues,
+                   sensor_udp_rx_callback);
   if (udp_init != RESULT_OK) {
     LOGE(TAG, "UDP init failed: %s", result_to_short_str(udp_init));
   }
