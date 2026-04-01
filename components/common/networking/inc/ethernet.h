@@ -26,7 +26,7 @@ void ETH_init(linkstatus_callback_t link_state_change_callback);
  * @param[in] receiver_callback The callback function for received mpackets
  */
 void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-                  receiver_callback_t receiver_callback);
+                  receive_callback_t receiver_callback);
 
 /**
  * @brief Send a udp message
