@@ -147,6 +147,7 @@ static packet_handler_config_t handler_configs[] = {
      .queue_length = 5,
      .queue_buffer = packet1_buffer}};
 
+extern int receive_counter;
 void MainTask(void *argument) {
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
@@ -178,7 +179,8 @@ void MainTask(void *argument) {
 
   while (1) {
     __asm__ __volatile__("nop");
-    // LOGI(TAG, "in while loop");
+    LOGI(TAG, "Total messages send: %d", outgoing_counter);
+    LOGI(TAG, "Total messages received: %d", receive_counter);
     osDelay(300);
   }
 }
