@@ -28,7 +28,7 @@
  *
  * @return result_t Result of the handler execution.
  */
-typedef result_t (*packet_handler_t)(void *buffer);
+typedef result_t (*packet_handler_t)(void* buffer);
 
 /**
  * @brief Configuration for a packet handler task.
@@ -45,19 +45,19 @@ typedef result_t (*packet_handler_t)(void *buffer);
  *       by the caller.
  */
 typedef struct {
-  packet_handler_t handler; /**< Callback invoked for this packet type */
-  const char *task_name;    /**< Name of the FreeRTOS task */
-  pb_size_t packet_type;    /**< Nanopb oneof discriminator / packet type */
+    packet_handler_t handler; /**< Callback invoked for this packet type */
+    const char* task_name;    /**< Name of the FreeRTOS task */
+    pb_size_t packet_type;    /**< Nanopb oneof discriminator / packet type */
 
-  UBaseType_t task_priority; /**< FreeRTOS task priority (optional) */
-  configSTACK_DEPTH_TYPE task_stack_depth; /**< Task stack depth (optional) */
+    UBaseType_t task_priority; /**< FreeRTOS task priority (optional) */
+    configSTACK_DEPTH_TYPE task_stack_depth; /**< Task stack depth (optional) */
 
-  size_t item_size; /**< Size of a single queue item (decoded payload) */
-  UBaseType_t queue_length; /**< Number of items the queue can hold */
+    size_t item_size; /**< Size of a single queue item (decoded payload) */
+    UBaseType_t queue_length; /**< Number of items the queue can hold */
 
-  uint8_t *queue_buffer;      /**< Backing buffer for static queue storage */
-  StaticQueue_t queue_struct; /**< Internal static queue control structure */
-  QueueHandle_t queue; /**< Handle to the created queue (set internally) */
+    uint8_t* queue_buffer;      /**< Backing buffer for static queue storage */
+    StaticQueue_t queue_struct; /**< Internal static queue control structure */
+    QueueHandle_t queue; /**< Handle to the created queue (set internally) */
 } packet_handler_config_t;
 
 /**
@@ -76,7 +76,7 @@ typedef struct {
  * @note If the queue for a given packet type is full, the packet may be dropped
  *       depending on the internal implementation.
  */
-void DispatchPacket(receive_frame_t *incoming_packet);
+void DispatchPacket(receive_frame* incoming_packet);
 
 /**
  * @brief Initialize the packet dispatcher and spawn handler tasks.
@@ -96,6 +96,6 @@ void DispatchPacket(receive_frame_t *incoming_packet);
  * @note The handlers array must remain valid for the lifetime of the system,
  *       as internal references to its elements may be used.
  */
-result_t PacketDispatcherInit(packet_handler_config_t *handlers,
+result_t PacketDispatcherInit(packet_handler_config_t* handlers,
                               size_t handler_count);
 #endif
