@@ -19,6 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
+#include "components/common/packet_dispatcher/packet_dispatcher.h"
+#include "components/sensor_board/gps_sensor.pb.h"
+#include "components/sensor_board/ph_sensor.pb.h"
 #include "ethernet.h"
 #include "gpio.h"
 #include "ip_mac_constants.h"
@@ -102,13 +105,54 @@ int main(void) {
   while (1) {
   }
 }
+static int incomming_counter = 0;
+static int outgoing_counter = 0;
+static result_t HandleType1Packet(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
 
-void set_mac(int mac[6]) {}
+  SensorBoardGPSInfo *packet = (SensorBoardGPSInfo *)buffer;
+  incomming_counter += 1;
+  printf("Envelope of type gps info has value: %f\n", packet->speed);
+  printf("This is packet: %d\n", incomming_counter);
+  return RESULT_OK;
+}
+
+static result_t HandleType2Packet(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  SensorBoardPHInfo *packet = (SensorBoardPHInfo *)buffer;
+  printf("envelope of type ph info has value: %f\n", packet->ph_value);
+  return RESULT_OK;
+}
+
+static uint8_t packet1_payload[] = {
+    0x62, 0x2C, 0x09, 0x13, 0xF2, 0x41, 0xCF, 0x66, 0x1D, 0x4A, 0x40, 0x11,
+    0x2C, 0x65, 0x19, 0xE2, 0x58, 0x97, 0x1B, 0x40, 0x1D, 0x00, 0x00, 0x0C,
+    0x42, 0x2D, 0x00, 0x00, 0x87, 0x43, 0x35, 0x9A, 0x99, 0x99, 0x3F, 0x3D,
+    0x66, 0x66, 0xE6, 0x3F, 0x40, 0x09, 0x48, 0x01, 0x50, 0x01};
+
+static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
+static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
+
+static packet_handler_config_t handler_configs[] = {
+    {.handler = HandleType1Packet,
+     .task_name = "GPS Handler",
+     .packet_type = PBEnvelope_gps_info_tag,
+     .item_size = SensorBoardGPSInfo_size,
+     .task_priority = tskIDLE_PRIORITY + 2U,
+     .queue_length = 5,
+     .queue_buffer = packet1_buffer}};
+
+extern int receive_counter;
 void MainTask(void *argument) {
 
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
+<<<<<<< HEAD
   static StaticQueue_t txStruct0;
   static uint8_t txStorage0[ETHERNET_SQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
   QueueHandle_t tx0 = xQueueCreateStatic(ETHERNET_SQ_LENGTH,
@@ -140,5 +184,23 @@ void MainTask(void *argument) {
                  "oooooooooooooooooooooooooooooongest WASAAPPPPPPPP SHISHIR HERE AND "
                  "THERE AND EVERYWHERE");
     osDelay(100);
+=======
+  PacketDispatcherInit(handler_configs, 1);
+
+  ETH_udp_init(2, queues, DispatchPacket);
+  ETH_add_arp(ip, mac);
+  while (outgoing_counter < 100) {
+    ETH_udp_send(ip, 8, packet1_payload, 46, 1);
+    osDelay(100);
+    outgoing_counter += 1;
+    LOGI(TAG, "%d", outgoing_counter);
+  }
+
+  while (1) {
+    __asm__ __volatile__("nop");
+    LOGI(TAG, "Total messages send: %d", outgoing_counter);
+    LOGI(TAG, "Total messages received: %d", receive_counter);
+    osDelay(300);
+>>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
   }
 }

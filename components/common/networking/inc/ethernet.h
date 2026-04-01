@@ -22,13 +22,10 @@ void ETH_init(linkstatus_callback_t link_state_change_callback);
 /**
  * @brief Initializes the udp stack with a priority send queue.
  *
- * @param[in] sender_prio_num number of priority buckets
- * @param[in] send_queues array of queues, length sender_prio_num
- * @param[in] callback UDP receive callback (NULL uses default logger)
- * @return result_t
+ * @param[in] sender_prio_num Number of priority queues for sending messages
+ * @param[in] send_queues priority queues for sending
  */
-result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-                      udp_receiver_callback callback);
+void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues);
 
 /**
  * @brief Send a udp message using the priority send queue

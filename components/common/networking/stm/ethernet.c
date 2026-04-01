@@ -19,6 +19,7 @@ extern uint8_t IP_ADDRESS[4];
 
 struct udp_pcb *upcb;
 
+<<<<<<< HEAD
 result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
                       udp_receiver_callback callback) {
   result_t err = udp_client_init(&upcb, IP_ADDRESS, callback);
@@ -29,6 +30,11 @@ result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
   if (err != RESULT_OK) {
     return err;
   }
+=======
+void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
+                  receive_callback_t receiver_callback) {
+  udp_client_init(&upcb, sender_prio_buf, send_queues, receiver_callback);
+>>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
   return RESULT_OK;
