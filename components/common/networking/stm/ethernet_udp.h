@@ -15,7 +15,7 @@ typedef struct {
   u16_t port;
   uint16_t len;
 
-} receive_frame;
+} receive_frame_t;
 
 typedef struct {
   ip_addr_t addr;
@@ -24,8 +24,9 @@ typedef struct {
   uint8_t *payload;
   struct udp_pcb *upcb;
 
+} send_frame_t;
 
-} send_frame;
+typedef void (*receive_callback_t)(receive_frame_t *receive_frame);
 
 /**
  * @brief sends a udp packet, it tries to resolve the mac adress first
@@ -50,11 +51,13 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4],
  * @param[out] upcb pointer to a UDP handler
  * @param[in] send_prio_num Number of priorities buffer for the sender queue
  * @param[in] send_queues Priority queues for udp sending.
+ * @param[in] receiver_callback Callback for receivering packets
  *
  * @Note Amount of queues in send_queues has to be the same as send_prio_num
  * @return result_t
  */
 result_t udp_client_init(struct udp_pcb **upcb, uint8_t send_prio_num,
-                         QueueHandle_t *send_queues);
+                         QueueHandle_t *send_queues,
+                         receive_callback_t receiver_callback);
 
 #endif // !ETHERNET_UDP
