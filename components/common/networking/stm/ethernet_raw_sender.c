@@ -1,4 +1,5 @@
 
+#ifdef ETHERNET_RAW_SENDER_IMPLEMENTATION
 #include "ethernet_raw.h"
 #include "err.h"
 #include "ethernet_diagnostics.h"
@@ -107,3 +108,4 @@ result_t raw_packet_send_binary(struct netif *netif, ETH_HandleTypeDef *heth,
   free(frame);
   return err;
 }
+#endif // ETHERNET_RAW_SENDER_IMPLEMENTATION

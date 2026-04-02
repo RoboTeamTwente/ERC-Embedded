@@ -25,7 +25,8 @@ void ETH_init(linkstatus_callback_t link_state_change_callback);
  * @param[in] sender_prio_num Number of priority queues for sending messages
  * @param[in] send_queues priority queues for sending
  */
-void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues);
+result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
+					  udp_receiver_callback callback);
 
 /**
  * @brief Send a udp message using the priority send queue

@@ -15,17 +15,11 @@
 
 udp_receiver_callback r_callback;
 extern ETH_HandleTypeDef heth;
-receive_callback_t r_callback;
 
-<<<<<<< HEAD
 static struct udp_pcb *udp_sender_pcb;
 
 bucketed_pqueue_t udp_receiver_queue;
 bucketed_pqueue_t udp_sender_queue;
-=======
-int receive_counter = 0;
-// receive queue variables
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
 static StaticQueue_t xStaticQueue;
 QueueHandle_t udp_queue;
 uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
@@ -34,37 +28,26 @@ uint8_t ucQueueStorageArea[ETHERNET_RQ_LENGTH * ETHERNET_RQ_ITEM_SIZE];
 StaticTask_t xTaskBuffer;
 StackType_t xStack[STACK_SIZE];
 
-<<<<<<< HEAD
 #define TX_STACK_SIZE 256
 StaticTask_t txTaskBuffer;
 StackType_t txStack[TX_STACK_SIZE];
-=======
-// send queue varialbes
-bucketed_pqueue_t udp_send_bqueue;
-TaskHandle_t send_notifier = NULL;
 
-StaticTask_t sendTaskBuffer;
-StackType_t sendStack[STACK_SIZE];
-
-int counter = 0; // A counter for the send packet debug message
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
-
-void udp_receiver_callback_example(receive_frame_t *rf) {
-
-  uint8_t *bytes = (uint8_t *)(rf->payload);
+void udp_receiver_callback_example(void *payload, size_t length,
+                                   const ip_addr_t *addr, u16_t port) {
+  uint8_t *bytes = (uint8_t *)(payload);
   // Each byte becomes two hex characters, plus null terminator
-  char *hex_str = malloc((rf->len) * 2 + 1);
+  char *hex_str = malloc(length * 2 + 1);
   if (!hex_str)
     return;
 
-  for (size_t i = 0; i < rf->len; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     sprintf(&hex_str[i * 2], "%02X", bytes[i]);
   }
 
   LOGI(TAG, "DATA RECEIVED: %s\n", hex_str);
-  LOGI(TAG, "Address: %d.%d.%d.%d - Port: %d", (uint8_t)(rf->addr.addr),
-       (uint8_t)((rf->addr.addr) >> 8), (uint8_t)(rf->addr.addr >> 16),
-       (uint8_t)(rf->addr.addr >> 24), rf->port);
+  LOGI(TAG, "Address: %d.%d.%d.%d - Port: %d", (uint8_t)(addr->addr),
+       (uint8_t)((addr->addr) >> 8), (uint8_t)(addr->addr >> 16),
+       (uint8_t)(addr->addr >> 24), port);
   LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
   LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
   free(hex_str);
@@ -84,12 +67,8 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
   LOGI(TAG, "Port: %d", port);
   result_t err = RESULT_OK;
-<<<<<<< HEAD
-  receive_frame buffer = { .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len };
-=======
   receive_frame_t buffer = {
       .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
   if ((&buffer)->payload == NULL) {
     LOGE(TAG, "Couldn't allocate receive buffer");
     return;
@@ -111,28 +90,17 @@ void udp_receiver_task(void *pvParameters) {
   configASSERT((uint32_t)pvParameters == 1UL);
 
   for (;;) {
-    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-<<<<<<< HEAD
+    uint32_t notify_value = 0U;
+    (void)xTaskNotifyWait(0U, UINT32_MAX, &notify_value, portMAX_DELAY);
     for (;;) {
-      receive_frame frame;
+      receive_frame_t frame;
       result_t r = bucketed_pqueue_pop(&udp_receiver_queue, &frame);
       if (r != RESULT_OK) {
         break;
       }
       r_callback(frame.payload, frame.len, &(frame.addr), frame.port);
-=======
-    LOGI(TAG, "UDP receiver notification received");
-    receive_frame_t frame;
-    BaseType_t r = xQueueReceive(udp_receiver_queue, &frame, 10);
-    if (r != pdPASS) {
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
       free(frame.payload);
-      continue;
     }
-    r_callback(&frame);
-    receive_counter += 1;
-    LOGI(TAG, "Received message: %d", receive_counter);
-    free(frame.payload);
   }
 }
 
@@ -141,8 +109,8 @@ void udp_sender_task(void *pvParameters) {
   configASSERT((uint32_t)pvParameters == 1UL);
 
   for (;;) {
-    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-<<<<<<< HEAD
+    uint32_t notify_value = 0U;
+    (void)xTaskNotifyWait(0U, UINT32_MAX, &notify_value, portMAX_DELAY);
     for (;;) {
       udp_send_frame_t frame;
       result_t r = bucketed_pqueue_pop(&udp_sender_queue, &frame);
@@ -160,53 +128,12 @@ void udp_sender_task(void *pvParameters) {
         LOGE(TAG, "UDP send failed: %s", result_to_short_str(r));
       }
       free(frame.payload);
-=======
-    LOGI(TAG, "UDP message being send %d", counter);
-    counter += 1;
-    send_frame_t frame;
-    result_t r = bucketed_pqueue_pop(&udp_send_bqueue, &frame);
-
-    if (r != RESULT_OK) {
-      free(frame.payload);
-      LOGE(TAG, "Queue couldn't be popped");
-      continue;
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
     }
-
-    struct pbuf *txBuf;
-
-    int len = frame.payload_len;
-    txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
-
-    if (txBuf != NULL) {
-      err_t err = pbuf_take(txBuf, frame.payload, len);
-      if (err != ERR_OK) {
-        LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
-        pbuf_free(txBuf);
-        free(frame.payload);
-        continue;
-      }
-    } else {
-      LOGE(TAG, "cannot allocate a pbuffer");
-      free(frame.payload);
-      continue;
-    }
-    free(frame.payload);
-
-    err_t err = udp_sendto(frame.upcb, txBuf, &frame.addr, frame.port);
-    if (err != ERR_OK) {
-      LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
-    }
-    pbuf_free(txBuf);
   }
 }
 
 result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
-<<<<<<< HEAD
                                udp_receiver_callback udp_callback) {
-=======
-                               receive_callback_t receiver_callback) {
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
 
   udp_queue = xQueueCreateStatic(ETHERNET_RQ_LENGTH, ETHERNET_RQ_ITEM_SIZE,
                                  ucQueueStorageArea, &xStaticQueue);
@@ -231,19 +158,14 @@ result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
   if (udp_queue == NULL || xHandle == NULL) {
     return RESULT_ERR_BUFF;
   }
-  r_callback = receiver_callback != NULL ? receiver_callback
-                                         : udp_receiver_callback_example;
+  r_callback = udp_callback != NULL ? udp_callback
+                                    : udp_receiver_callback_example;
 
   result_t err = bucketed_pqueue_init(&udp_receiver_queue, &udp_queue,
                                       ETHERNET_RQ_PRIORITY_BUFFERS, xHandle);
   if (err != RESULT_OK) {
     LOGE(TAG, "pbuffer failed to initialize with error code: %s",
          result_to_short_str(err));
-  }
-  if (udp_callback != NULL) {
-    r_callback = udp_callback;
-  } else {
-    r_callback = udp_receiver_callback_example;
   }
   udp_recv(pcb, udp_receiver, NULL);
   return RESULT_OK;
@@ -303,7 +225,6 @@ result_t udp_sender_init(uint8_t prio_num, QueueHandle_t *send_queues) {
   return bucketed_pqueue_init(&udp_sender_queue, send_queues, prio_num, xHandle);
 }
 
-<<<<<<< HEAD
 result_t udp_client_send_enqueue(uint8_t dest_ip[4], uint8_t port,
                                  const void *payload, size_t length,
                                  uint8_t prio) {
@@ -315,23 +236,12 @@ result_t udp_client_send_enqueue(uint8_t dest_ip[4], uint8_t port,
   }
   if (prio >= udp_sender_queue.num_buckets) {
     return RESULT_ERR_INVALID_ARG;
-=======
-result_t udp_client_init(struct udp_pcb **upcb, uint8_t prio_num,
-                         QueueHandle_t *send_queues,
-                         receive_callback_t receiver_callback) {
-
-  *upcb = udp_new(); // TODO: return error if this is NULL
-  if (upcb == NULL) {
-    LOGE(TAG, "Cannot create new udp handler");
-    return RESULT_FAIL;
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
   }
 
   void *payload_copy = malloc(length);
   if (payload_copy == NULL) {
     return RESULT_ERR_NO_MEM;
   }
-<<<<<<< HEAD
   memcpy(payload_copy, payload, length);
 
   udp_send_frame_t frame = {
@@ -346,11 +256,6 @@ result_t udp_client_init(struct udp_pcb **upcb, uint8_t prio_num,
     free(payload_copy);
   }
   return r;
-=======
-  ETH_udp_receiver_init(*upcb, receiver_callback);
-  ETH_udp_send_init(*upcb, prio_num, send_queues);
-  return RESULT_OK;
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
 }
 
 result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
@@ -364,7 +269,6 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
   int len = sprintf(data, "%s", payload);
   txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
 
-<<<<<<< HEAD
   if (txBuf != NULL) {
     err = pbuf_take(txBuf, data, len);
     if (err != ERR_OK) {
@@ -372,13 +276,6 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
       pbuf_free(txBuf);
       return RESULT_ERR_BUFF;
     }
-=======
-  send_frame_t buffer = {.addr = destIPaddr,
-                         .payload = txBuf,
-                         .payload_len = payload_len,
-                         .upcb = upcb,
-                         .port = port};
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
 
     ip_addr_t destIPaddr;
     IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);

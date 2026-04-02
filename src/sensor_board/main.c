@@ -186,7 +186,7 @@ static void sensor_udp_rx_callback(void *payload, size_t length,
     return;
   }
 
-  receive_frame frame = {
+  receive_frame_t frame = {
       .addr = *addr,
       .payload = payload,
       .port = port,
@@ -194,6 +194,111 @@ static void sensor_udp_rx_callback(void *payload, size_t length,
   };
 
   DispatchPacket(&frame);
+}
+
+/**
+ * @brief Send SensorBoardDiagnostics wrapped in PBEnvelope via UDP
+ * 
+ * @param dest_ip Destination IP address
+ * @param port Destination port
+ * @param diagnostics Pointer to SensorBoardDiagnostics message
+ * @param prio Priority bucket for sending
+ * @return result_t RESULT_OK on success
+ */
+static result_t send_sensor_diagnostics_udp(uint8_t dest_ip[4], uint8_t port,
+                                            const SensorBoardDiagnostics* diagnostics,
+                                            uint8_t prio) {
+  if (diagnostics == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  // Create envelope and set the payload
+  PBEnvelope envelope = PBEnvelope_init_zero;
+  envelope.which_payload = PBEnvelope_sensor_diag_tag;
+  envelope.payload.sensor_diag = *diagnostics;
+
+  // Encode the envelope
+  uint8_t* encoded_envelope = NULL;
+  size_t envelope_size = 0;
+  result_t encode_result = pb_message_encode(&envelope, PBEnvelope_fields,
+                                             &encoded_envelope, &envelope_size);
+  if (encode_result != RESULT_OK) {
+    LOGE(TAG, "Failed to encode sensor diagnostics envelope: %s", 
+         result_to_short_str(encode_result));
+    return encode_result;
+  }
+
+  // Send via UDP
+  result_t send_result = ETH_udp_send_binary(dest_ip, port, encoded_envelope,
+                                             envelope_size, prio);
+  
+  if (send_result != RESULT_OK) {
+    LOGE(TAG, "Sensor diagnostics UDP send failed: %s", 
+         result_to_short_str(send_result));
+  }
+
+  free(encoded_envelope);
+  return send_result;
+}
+
+/**
+ * @brief Send SensorBoardLoadCellInfo wrapped in PBEnvelope via UDP
+ */
+static result_t send_load_cell_info_udp(uint8_t dest_ip[4], uint8_t port,
+                                        const SensorBoardLoadCellInfo* load_cell_info,
+                                        uint8_t prio) {
+  if (load_cell_info == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  PBEnvelope envelope = PBEnvelope_init_zero;
+  envelope.which_payload = PBEnvelope_load_cell_info_tag;
+  envelope.payload.load_cell_info = *load_cell_info;
+
+  uint8_t* encoded_envelope = NULL;
+  size_t envelope_size = 0;
+  result_t encode_result = pb_message_encode(&envelope, PBEnvelope_fields,
+                                             &encoded_envelope, &envelope_size);
+  if (encode_result != RESULT_OK) {
+    LOGE(TAG, "Failed to encode load cell envelope: %s", 
+         result_to_short_str(encode_result));
+    return encode_result;
+  }
+
+  result_t send_result = ETH_udp_send_binary(dest_ip, port, encoded_envelope,
+                                             envelope_size, prio);
+  free(encoded_envelope);
+  return send_result;
+}
+
+/**
+ * @brief Send SensorBoardPressureInfo wrapped in PBEnvelope via UDP
+ */
+static result_t send_pressure_info_udp(uint8_t dest_ip[4], uint8_t port,
+                                       const SensorBoardPressureInfo* pressure_info,
+                                       uint8_t prio) {
+  if (pressure_info == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  PBEnvelope envelope = PBEnvelope_init_zero;
+  envelope.which_payload = PBEnvelope_pressure_info_tag;
+  envelope.payload.pressure_info = *pressure_info;
+
+  uint8_t* encoded_envelope = NULL;
+  size_t envelope_size = 0;
+  result_t encode_result = pb_message_encode(&envelope, PBEnvelope_fields,
+                                             &encoded_envelope, &envelope_size);
+  if (encode_result != RESULT_OK) {
+    LOGE(TAG, "Failed to encode pressure info envelope: %s", 
+         result_to_short_str(encode_result));
+    return encode_result;
+  }
+
+  result_t send_result = ETH_udp_send_binary(dest_ip, port, encoded_envelope,
+                                             envelope_size, prio);
+  free(encoded_envelope);
+  return send_result;
 }
 
 void MainTask(void *argument);
@@ -292,6 +397,9 @@ void init_board() {
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};
   ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+  uint8_t laptop_ip[4] = {192, 168, 0, 100};
+  uint8_t laptop_mac[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
+  (void)ETH_add_arp(laptop_ip, laptop_mac);
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
@@ -364,12 +472,9 @@ void MainTask(void *argument) {
 
   BSP_LED_Toggle(LED_GREEN);
 
-  uint32_t loop_count = 0;
-  LOGI(TAG, "Starting main sensor loop...");
-
-  // UDP destination (update when network params are finalized)
-  uint8_t dest_ip[4] = {192, 168, 0, 100};
-
+  // ========== UDP Initialization (BEFORE main loop) ==========
+  LOGI(TAG, "Initializing UDP...");
+  
   static StaticQueue_t txStruct0;
   static uint8_t txStorage0[ETHERNET_SQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
   QueueHandle_t tx0 = xQueueCreateStatic(ETHERNET_SQ_LENGTH,
@@ -382,26 +487,60 @@ void MainTask(void *argument) {
                                          ETHERNET_SQ_ITEM_SIZE,
                                          txStorage1, &txStruct1);
 
+  if (tx0 == NULL || tx1 == NULL) {
+    LOGE(TAG, "CRITICAL: Failed to create UDP send queues!");
+    Error_Handler();
+  }
+
   QueueHandle_t send_queues[ETHERNET_SQ_PRIORITY_BUFFERS] = {tx0, tx1};
   result_t udp_init =
       ETH_udp_init(ETHERNET_SQ_PRIORITY_BUFFERS, send_queues,
                    sensor_udp_rx_callback);
   if (udp_init != RESULT_OK) {
     LOGE(TAG, "UDP init failed: %s", result_to_short_str(udp_init));
+    Error_Handler();
+  } else {
+    LOGI(TAG, "UDP initialized successfully");
   }
 
+  // ========== Main Loop Variables ==========
+  uint32_t loop_count = 0;
+  LOGI(TAG, "Starting main sensor loop...");
+  const bool skip_sensor_polling = true;
+  static bool skip_logged = false;
+
+  // UDP destination (update when network params are finalized)
+  uint8_t dest_ip[4] = {192, 168, 0, 255};
+  uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
   while (1) {
+    // Check heap status
+    uint32_t free_heap = xPortGetFreeHeapSize();
+    
     loop_count++;
-    LOGI(TAG, "Loop iteration: %lu", loop_count);
+    
+    // Check for critically low heap (less than 8KB with new 64KB heap)
+    if (free_heap < 8192) {
+      LOGE(TAG, "CRITICAL: Low heap detected! Free: %lu bytes", free_heap);
+      osDelay(10000);
+      continue; // Skip this iteration
+    }
+    
     BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
     BSP_LED_Toggle(LED_RED);
+    
+    ETH_raw_send(bcast_mac, "HELLO_FROM_SENSOR_BOARD");
 
     // Initialize sensor diagnostics message
     SensorBoardDiagnostics diagnostics = SensorBoardDiagnostics_init_zero;
     diagnostics.state = SensorBoardDiagnostics_State_OPERATING;
 
-    LOGI(TAG, "========== Sensor Board Reading ==========");
+    if (skip_sensor_polling) {
+      diagnostics.has_ph_sensor = false;
+      diagnostics.has_gps_sensor_1 = false;
+      diagnostics.has_imu_sensor = false;
+    } else {
 
     // Read and log pH sensor
     float ph_value, ph_voltage;
@@ -427,13 +566,12 @@ void MainTask(void *argument) {
       if (ph_sensor_get_value(&ph_sensor, &ph_value) == RESULT_OK) {
         ph_sensor_get_voltage(&ph_sensor, &ph_voltage);
         if (validate_ph_value(ph_value) == RESULT_OK) {
-          LOGI(TAG, "pH Sensor - Value: %.2f, Voltage: %.3fV", ph_value, ph_voltage);
           diagnostics.ph_sensor.ph_value = ph_value;
           diagnostics.ph_sensor.voltage = ph_voltage;
           diagnostics.ph_sensor.state = SensorState_SENSOR_OPERATING;
           diagnostics.ph_sensor.error_code = PHErrorCode_PH_NO_ERROR;
         } else {
-          LOGI(TAG, "pH Sensor - Invalid value: %.2f", ph_value);
+          LOGW(TAG, "pH Sensor - Invalid value: %.2f", ph_value);
           diagnostics.ph_sensor.ph_value = ph_value;
           diagnostics.ph_sensor.voltage = ph_voltage;
           diagnostics.ph_sensor.state = SensorState_SENSOR_ERROR;
@@ -481,25 +619,20 @@ void MainTask(void *argument) {
       diagnostics.gps_sensor_1.error_code = GPSErrorCode_GPS_NO_ERROR;
 
       if (gps_sensor_get_coordinates(&gps_data, &lat, &lon) == RESULT_OK) {
-        LOGI(TAG, "GPS - Lat: %.6f°, Lon: %.6f°", lat, lon);
         diagnostics.gps_sensor_1.latitude = lat;
         diagnostics.gps_sensor_1.longitude = lon;
       }
       if (gps_sensor_get_altitude(&gps_data, &altitude) == RESULT_OK) {
-        LOGI(TAG, "GPS - Altitude: %.2f m", altitude);
         diagnostics.gps_sensor_1.altitude = altitude;
       }
       if (gps_sensor_get_velocity(&gps_data, &speed, &heading) == RESULT_OK) {
-        LOGI(TAG, "GPS - Speed: %.2f m/s, Heading: %.1f°", speed, heading);
         diagnostics.gps_sensor_1.speed = speed;
         diagnostics.gps_sensor_1.heading = heading;
       }
       if (gps_sensor_get_fix_info(&gps_data, &fix_quality, &satellites) == RESULT_OK) {
-        LOGI(TAG, "GPS - Fix Quality: %d, Satellites: %ld", fix_quality, satellites);
         diagnostics.gps_sensor_1.fix_quality = (GPSFixQuality)fix_quality;
         diagnostics.gps_sensor_1.satellites = satellites;
       }
-      LOGI(TAG, "GPS - HDOP: %.2f, VDOP: %.2f", gps_data.hdop, gps_data.vdop);
       diagnostics.gps_sensor_1.hdop = gps_data.hdop;
       diagnostics.gps_sensor_1.vdop = gps_data.vdop;
     } else {
@@ -542,13 +675,6 @@ void MainTask(void *argument) {
       diagnostics.imu_sensor.mag_z = 0.0f;
     } else {
       // Sensor is operating normally
-      LOGI(TAG, "IMU - Accel (m/s²): X=%.2f, Y=%.2f, Z=%.2f", 
-           imu_data.accel[0], imu_data.accel[1], imu_data.accel[2]);
-      LOGI(TAG, "IMU - Gyro (°/s): X=%.2f, Y=%.2f, Z=%.2f", 
-           imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2]);
-      LOGI(TAG, "IMU - Mag (µT): X=%.2f, Y=%.2f, Z=%.2f", 
-           imu_data.mag[0], imu_data.mag[1], imu_data.mag[2]);
-
       diagnostics.imu_sensor.accel_x = imu_data.accel[0];
       diagnostics.imu_sensor.accel_y = imu_data.accel[1];
       diagnostics.imu_sensor.accel_z = imu_data.accel[2];
@@ -607,9 +733,6 @@ void MainTask(void *argument) {
                                       &load_cell_tare) == RESULT_OK) {
           load_cell_sensor_is_valid(&load_cell_data[i], &load_cell_valid);
           if (load_cell_valid) {
-            LOGI(TAG, "Load cell %lu - Force: %.2f N, Mass: %.2f g, Counts: %ld",
-                 (unsigned long)i, load_cell_force, load_cell_mass,
-                 (long)load_cell_counts);
             load_cell_info.state = SensorState_SENSOR_OPERATING;
             load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_NO_ERROR;
           } else {
@@ -631,28 +754,12 @@ void MainTask(void *argument) {
       load_cell_info.tare_offset_counts = load_cell_tare;
       load_cell_info.is_calibrated = load_cell_data[i].is_calibrated;
 
-      uint8_t *load_cell_encoded = NULL;
-      size_t load_cell_encoded_size = 0;
-      result_t load_cell_encode_result =
-          pb_message_encode(&load_cell_info, SensorBoardLoadCellInfo_fields,
-                            &load_cell_encoded, &load_cell_encoded_size);
-      if (load_cell_encode_result == RESULT_OK) {
-        result_t send_result = ETH_udp_send_binary(dest_ip, SENSOR_UDP_DEST_PORT,
-                                                   load_cell_encoded,
-                                                   load_cell_encoded_size, 1);
-        if (send_result == RESULT_OK) {
-          LOGI(TAG,
-               "Load cell %lu info sent (%d bytes) to %u.%u.%u.%u:%u",
-               (unsigned long)i, load_cell_encoded_size, dest_ip[0], dest_ip[1],
-               dest_ip[2], dest_ip[3], SENSOR_UDP_DEST_PORT);
-        } else {
-          LOGE(TAG, "Load cell %lu UDP send failed: %s",
-               (unsigned long)i, result_to_short_str(send_result));
-        }
-        free(load_cell_encoded);
-      } else {
-        LOGE(TAG, "Failed to encode load cell %lu info: %d",
-             (unsigned long)i, load_cell_encode_result);
+      // Send load cell info wrapped in PBEnvelope
+      result_t send_result = send_load_cell_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
+                                                      &load_cell_info, 1);
+      if (send_result != RESULT_OK) {
+        LOGE(TAG, "Load cell %lu UDP send failed: %s",
+             (unsigned long)i, result_to_short_str(send_result));
       }
 
       // Read and log pressure sensor data
@@ -682,9 +789,6 @@ void MainTask(void *argument) {
             pressure_sensor_get_voltage(&pressure_data[i], &pressure_voltage) == RESULT_OK) {
           pressure_sensor_is_valid(&pressure_data[i], &pressure_valid);
           if (pressure_valid) {
-            LOGI(TAG, "Pressure %lu - %.2f kPa, Temp: %.2f C, V: %.3f",
-                 (unsigned long)i, pressure_kpa, pressure_temperature,
-                 pressure_voltage);
             pressure_info.state = SensorState_SENSOR_OPERATING;
             pressure_info.error_code = PressureErrorCode_PRESSURE_NO_ERROR;
           } else {
@@ -704,58 +808,20 @@ void MainTask(void *argument) {
       pressure_info.voltage = pressure_voltage;
       pressure_info.is_calibrated = pressure_data[i].is_calibrated;
 
-      uint8_t *pressure_encoded = NULL;
-      size_t pressure_encoded_size = 0;
-      result_t pressure_encode_result =
-          pb_message_encode(&pressure_info, SensorBoardPressureInfo_fields,
-                            &pressure_encoded, &pressure_encoded_size);
-      if (pressure_encode_result == RESULT_OK) {
-        result_t send_result = ETH_udp_send_binary(dest_ip, SENSOR_UDP_DEST_PORT,
-                                                   pressure_encoded,
-                                                   pressure_encoded_size, 1);
-        if (send_result == RESULT_OK) {
-          LOGI(TAG,
-               "Pressure %lu info sent (%d bytes) to %u.%u.%u.%u:%u",
-               (unsigned long)i, pressure_encoded_size, dest_ip[0], dest_ip[1],
-               dest_ip[2], dest_ip[3], SENSOR_UDP_DEST_PORT);
-        } else {
-          LOGE(TAG, "Pressure %lu UDP send failed: %s",
-               (unsigned long)i, result_to_short_str(send_result));
-        }
-        free(pressure_encoded);
-      } else {
-        LOGE(TAG, "Failed to encode pressure %lu info: %d",
-             (unsigned long)i, pressure_encode_result);
+      // Send pressure info wrapped in PBEnvelope
+      send_result = send_pressure_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
+                                           &pressure_info, 1);
+      if (send_result != RESULT_OK) {
+        LOGE(TAG, "Pressure %lu UDP send failed: %s",
+             (unsigned long)i, result_to_short_str(send_result));
       }
     }
 
-    LOGI(TAG, "==========================================");
+    }
 
-    // Encode protobuf message
-    uint8_t *encoded_data = NULL;
-    size_t encoded_size = 0;
-    result_t encode_result = pb_message_encode(&diagnostics, SensorBoardDiagnostics_fields, 
-                                                &encoded_data, &encoded_size);
+    // Send sensor diagnostics wrapped in PBEnvelope
+    send_sensor_diagnostics_udp(dest_ip, SENSOR_UDP_DEST_PORT, &diagnostics, 1);
 
-        if (encode_result == RESULT_OK) {
-          // Send encoded protobuf message via UDP
-          result_t send_result = ETH_udp_send_binary(dest_ip, SENSOR_UDP_DEST_PORT,
-                                                     encoded_data, encoded_size, 1);
-          if (send_result == RESULT_OK) {
-            LOGI(TAG, "Sensor diagnostics sent (%d bytes) to %u.%u.%u.%u:%u", 
-                 encoded_size, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3],
-                 SENSOR_UDP_DEST_PORT);
-          } else {
-            LOGE(TAG, "UDP send failed: %s", result_to_short_str(send_result));
-          }
-          free(encoded_data);
-        } else {
-          LOGE(TAG, "Failed to encode sensor diagnostics: %d", encode_result);
-        }
-
-
-    LOGI(TAG, "Delaying for 5 seconds...");
-    LOGI(TAG, " ");
     osDelay(MAIN_TASK_DELAY_MS);
   }
 }

@@ -6,8 +6,8 @@
 #include "result.h"
 #include <stdint.h>
 
-// Custom EtherType for sensor data packets (0xEEEE = experimental)
-#define ETHERTYPE_SENSOR_DATA 0xEEEE
+// Use IPv4 EtherType during capture to avoid NIC/stack filtering
+#define ETHERTYPE_SENSOR_DATA 0x0800
 
 /**
  * @brief The typedef of the callback function for receiving a message

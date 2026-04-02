@@ -6,6 +6,7 @@
 #include "netif.h"
 #include "pbuf.h"
 #include "result.h"
+#include "FreeRTOS.h"
 #include <stdint.h>
 #include <string.h>
 #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
@@ -31,12 +32,14 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
   ethernet_frame_t *frame = malloc(data_size);
   if (!frame) {
     err = RESULT_ERR_NO_MEM;
-    LOGE("Could not send the message: %s \n", result_to_short_str(err));
+    LOGE(TAG, "CRITICAL: malloc failed for ethernet_frame_t (%zu bytes)", data_size);
+    LOGE(TAG, "Available heap: %lu bytes", (unsigned long)xPortGetFreeHeapSize());
     return err;
   }
 
   memcpy(frame->dest_mac, mac_address, 6);
   memcpy(frame->src_mac, heth->Init.MACAddr, 6);
+  frame->ethertype = htons(ETHERTYPE_SENSOR_DATA);
   memcpy(frame->payload, payload, payload_len);
 
   struct pbuf *txBuf;
@@ -57,6 +60,8 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
       if (err_default != ERR_OK) {
         LOGE(TAG, "Could not send the message: %s", lwip_strerr(err_default));
         err = RESULT_FAIL;
+      } else {
+        LOGI(TAG, "Raw frame sent (%lu bytes)", (unsigned long)data_size);
       }
     } else {
       err = RESULT_ERR_COMMS;
@@ -64,7 +69,8 @@ result_t raw_packet_send(struct netif *netif, ETH_HandleTypeDef *heth,
     }
   } else {
     err = RESULT_ERR_BUFF;
-    LOGE(TAG, "Could not send the message: %s \n", result_to_short_str(err));
+    LOGE(TAG, "CRITICAL: pbuf_alloc failed (%zu bytes)", data_size);
+    LOGE(TAG, "Available heap: %lu bytes", (unsigned long)xPortGetFreeHeapSize());
     free(frame);
     return err;
   }
@@ -84,7 +90,8 @@ result_t raw_packet_send_binary(struct netif *netif, ETH_HandleTypeDef *heth,
   ethernet_frame_t *frame = malloc(data_size);
   if (!frame) {
     err = RESULT_ERR_NO_MEM;
-    LOGE(TAG, "Could not allocate memory for frame\n");
+    LOGE(TAG, "CRITICAL: malloc failed for ethernet_frame_t (%zu bytes)", data_size);
+    LOGE(TAG, "Available heap: %lu bytes", (unsigned long)xPortGetFreeHeapSize());
     return err;
   }
 
@@ -118,7 +125,8 @@ result_t raw_packet_send_binary(struct netif *netif, ETH_HandleTypeDef *heth,
     }
   } else {
     err = RESULT_ERR_BUFF;
-    LOGE(TAG, "Could not allocate pbuffer\n");
+    LOGE(TAG, "CRITICAL: pbuf_alloc failed (%zu bytes)", data_size);
+    LOGE(TAG, "Available heap: %lu bytes", (unsigned long)xPortGetFreeHeapSize());
     free(frame);
     return err;
   }

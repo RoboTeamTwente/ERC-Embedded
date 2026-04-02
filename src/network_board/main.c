@@ -152,7 +152,6 @@ void MainTask(void *argument) {
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
-<<<<<<< HEAD
   static StaticQueue_t txStruct0;
   static uint8_t txStorage0[ETHERNET_SQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
   QueueHandle_t tx0 = xQueueCreateStatic(ETHERNET_SQ_LENGTH,
@@ -184,23 +183,5 @@ void MainTask(void *argument) {
                  "oooooooooooooooooooooooooooooongest WASAAPPPPPPPP SHISHIR HERE AND "
                  "THERE AND EVERYWHERE");
     osDelay(100);
-=======
-  PacketDispatcherInit(handler_configs, 1);
-
-  ETH_udp_init(2, queues, DispatchPacket);
-  ETH_add_arp(ip, mac);
-  while (outgoing_counter < 100) {
-    ETH_udp_send(ip, 8, packet1_payload, 46, 1);
-    osDelay(100);
-    outgoing_counter += 1;
-    LOGI(TAG, "%d", outgoing_counter);
-  }
-
-  while (1) {
-    __asm__ __volatile__("nop");
-    LOGI(TAG, "Total messages send: %d", outgoing_counter);
-    LOGI(TAG, "Total messages received: %d", receive_counter);
-    osDelay(300);
->>>>>>> 2aab4a75d8b73e7179c9866939b138f2fe84fea4
   }
 }
