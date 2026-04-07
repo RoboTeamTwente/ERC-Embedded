@@ -8,7 +8,8 @@
 #include "pb_encode.h"
 #include "result.h"
 
-result_t pb_message_encode(const void* src_struct, const pb_msgdesc_t* fields,
+result_t 
+pb_message_encode(const void* src_struct, const pb_msgdesc_t* fields,
                            uint8_t** out_data, size_t* out_length) {
     bool status;
 
