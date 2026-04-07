@@ -20,7 +20,6 @@
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
 #include "components/common/networking/inc/ethernet.h"
-#include "components/common/packet_dispatcher/packet_dispatcher.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
 #include "gpio.h"
@@ -28,8 +27,8 @@
 #include "logging.h"
 #include "netif.h"
 #include "networking_constants.h"
+#include "packet_dispatcher.h"
 #include "queue.h"
-#include "stm/ethernet_udp.h"
 #include "tim.h"
 #include <stdint.h>
 #include <time.h>
