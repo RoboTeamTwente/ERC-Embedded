@@ -15,8 +15,9 @@
  * @param[in] link_state_change_callback callback function for when the physical
  *                                       Ethernet link state changes
  *                                       I.e. cable connects/disconnects
+ * @return ethernet error
  */
-void ETH_init(linkstatus_callback_t link_state_change_callback);
+HAL_StatusTypeDef ETH_init(linkstatus_callback_t link_state_change_callback, uint8_t ip[4],  uint8_t netmask[4],  uint8_t gateway[4], uint8_t mac_address[6]);
 
 /**
  * @brief Initialzes the udp protocol control block

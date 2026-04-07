@@ -19,10 +19,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
+#include "components/common/networking/inc/ethernet.h"
 #include "components/common/packet_dispatcher/packet_dispatcher.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
-#include "ethernet.h"
 #include "gpio.h"
 #include "ip_mac_constants.h"
 #include "logging.h"
@@ -94,7 +94,11 @@ int main(void) {
 
   uart_setup();
   LOG_init(&huart_com);
-  ETH_init(ethernet_linkstatus_callback);
+  uint8_t ip[4] = NETWORK_IP;
+  uint8_t netmask[4] = NETMASK;
+  uint8_t gateway[4] = GATEWAY;
+  uint8_t mac[6] = NETWORK_MAC;
+  ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
   ETH_raw_init(NULL);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
