@@ -66,7 +66,8 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-void ethernet_linkstatus_callback(struct netif *netif) {
+void ethernet_linkstatus_callback(void *arg) {
+  struct netif *netif = (struct netif *)arg;
   if (netif_is_up(netif)) {
     LOGI(TAG, "Physical ethernet link is up");
   } else {
