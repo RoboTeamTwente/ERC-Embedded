@@ -2,6 +2,7 @@
 #include "result.h"
 #include <stdbool.h>
 #include "pb_message.h"
+#include "components/common/envelope.pb.h"
 
 #ifdef UNIT_TEST
 void pb_control_test_reset(void) {
