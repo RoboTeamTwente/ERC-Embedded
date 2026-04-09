@@ -2,6 +2,7 @@
 #define ILI9341_H
 
 #include "ili9341_fonts.h"
+#include "result.h"
 #include "stm32h7xx_hal.h"
 
 #define ILI9341_SCREEN_HEIGHT 240
@@ -78,4 +79,13 @@ void ILI9341_Draw_Colour_Array(const uint16_t *Colour, uint32_t PixelCount);
 void ILI9341_Draw_Bitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
                          const uint8_t *bitmap, uint16_t Color,
                          uint16_t BgColor);
+
+void ILI9341_Draw_Rounded_Rectangle(uint16_t X, uint16_t Y, uint16_t Width,
+                                    uint16_t Height, uint8_t thickness,
+                                    uint8_t radius, uint16_t Colour);
+
+result_t ILI9341_Draw_Rectangle_Rounded_Corner(
+    uint16_t X, uint16_t Y, uint16_t Width, uint16_t Height, uint8_t thickness,
+    uint8_t radius, uint8_t *corner_buffer, size_t corner_buffer_size,
+    uint16_t Colour, uint16_t Bg_Colour);
 #endif

@@ -10,7 +10,8 @@ typedef enum {
   RESULT_FAIL = 1, // Generic failure, pick this if none other fit
 
   // --- Specific Errors ---
-  RESULT_ERR_ACCESS_DENIED = 2, // Operation not permitted (e.g., file permissions)
+  RESULT_ERR_ACCESS_DENIED =
+      2, // Operation not permitted (e.g., file permissions)
   RESULT_ERR_ALREADY_EXISTS = 3, // The resource to be created already exists
   RESULT_ERR_BAD_FORMAT = 4,     // Data is corrupt or in an unexpected format
   RESULT_ERR_BUSY = 5,           // The resource is busy, try again later
@@ -27,12 +28,18 @@ typedef enum {
                             // or buffer)
   RESULT_ERR_BUFFER_TOO_SMALL = 14, // If a provided buffer is too small
 
-  RESULT_ERR_TIMEOUT = 15, // The operation did not complete in the expected time
+  RESULT_ERR_TIMEOUT =
+      15, // The operation did not complete in the expected time
   RESULT_ERR_UNIMPLEMENTED = 16, // Function/operation is not implemented
 
-  RESULT_ERR_MUTEX = 17, // A mutex operation failed
-  RESULT_ERR_INVALID_DATA = 18,   // Data is invalid or out of range
-  RESULT_ERR_BUFF = 19, //general buffer error
+  RESULT_ERR_MUTEX = 17,        // A mutex operation failed
+  RESULT_ERR_INVALID_DATA = 18, // Data is invalid or out of range
+  RESULT_ERR_BUFF = 19,         // general buffer error
+
+  RESULT_ERR_WATCHDOG = 20,     // watchdog timeout
+  RESULT_ERR_NON_TERMINAL = 21, // None terminal error
+  RESULT_ERR_INVALID_PACKET = 22, // Invalid Packet
+
 
 } result_t;
 

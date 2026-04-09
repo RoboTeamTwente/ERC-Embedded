@@ -21,3 +21,9 @@ void menu_driver_draw_ribbon() {
                       menu_driver_ui_ribbon, MENU_DRIVER_FOREGROUND_COLOR,
                       MENU_DRIVER_BACKGROUND_COLOR);
 }
+
+void menu_manager_init_display() {
+  ILI9341_Init();
+  ILI9341_Set_Rotation(SCREEN_HORIZONTAL_1);
+  ILI9341_Fill_Screen(MENU_DRIVER_BACKGROUND_COLOR);
+}

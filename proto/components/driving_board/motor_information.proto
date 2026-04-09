@@ -1,7 +1,0 @@
-syntax = "proto3";
-message DrivingBoardMotorInformation {
-  float motor_id = 1;
-  float current = 2;
-  float rpm = 3;
-  float back_emf = 4;
-  }

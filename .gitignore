@@ -1,4 +1,5 @@
 .pio
+.clang-format
 .clang_complete
 .gcc-flags.json
 .ccls

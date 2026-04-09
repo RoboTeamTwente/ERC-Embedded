@@ -1,89 +1,55 @@
 #include "pb_control.h"
 #include "result.h"
 #include <stdbool.h>
+#include "pb_message.h"
 
 #ifdef UNIT_TEST
 void pb_control_test_reset(void) {
-  memset(DispatchTable, 0, sizeof(DispatchTable));
-  DispachTableSize = 0;
+  memset(DispatchTableEntries, 0, sizeof(DispatchTableEntries));
+  memset(DispatchTableHandlers, 0, sizeof(DispatchTableHandlers));
+  DispatchTableSize = 0;
 }
 #endif
 
-result_t pb_control_initialize(uint16_t *packet_types,
-                               packet_handler_t *handlers,
+result_t pb_control_initialize(const pb_size_t *processable_types,
+                               const packet_handler_t *handlers,
                                uint16_t num_packet_types) {
   if (num_packet_types > MAX_PROCESSABLE_PACKET_TYPES) {
-    return RESULT_ERR_INVALID_ARG;
+        return RESULT_ERR_INVALID_ARG;
+
   }
 
-  if (num_packet_types > 0U && (packet_types == NULL || handlers == NULL)) {
-    return RESULT_ERR_INVALID_ARG;
+  if ((num_packet_types > 0U) &&
+        (processable_types == NULL || handlers == NULL)) {
+        return RESULT_ERR_INVALID_ARG;
   }
+  memset(DispatchTableEntries, 0, sizeof(DispatchTableEntries));
+  memset(DispatchTableHandlers, 0, sizeof(DispatchTableHandlers));
+  memcpy(DispatchTableEntries, processable_types, sizeof(pb_size_t)*num_packet_types);
+  memcpy(DispatchTableHandlers, handlers, sizeof(packet_handler_t)*num_packet_types);
+  DispatchTableSize = num_packet_types;
 
-  for (uint16_t i = 0U; i < num_packet_types; i++) {
-    if (handlers[i] == NULL) {
-      return RESULT_ERR_INVALID_ARG;
-    }
-
-    DispatchTable[i].type = packet_types[i];
-    DispatchTable[i].handler = handlers[i];
-  }
-
-  /* Selection sort by type (ascending), in-place to allow for bin search
-   * later*/
-  for (uint16_t i = 0U; i < num_packet_types; i++) {
-    uint16_t min_index = i;
-
-    for (uint16_t j = (uint16_t)(i + 1U); j < num_packet_types; j++) {
-      if (DispatchTable[j].type < DispatchTable[min_index].type) {
-        min_index = j;
-      }
-    }
-    if (i > 0 && DispatchTable[min_index].type == DispatchTable[i - 1U].type) {
-      /* Duplicate packet type */
-      return RESULT_ERR_INVALID_ARG;
-    }
-
-    if (min_index == i) {
-      continue;
-    }
-
-    handler_entry_t tmp = DispatchTable[i];
-    DispatchTable[i] = DispatchTable[min_index];
-    DispatchTable[min_index] = tmp;
-  }
-
-  DispachTableSize = num_packet_types;
   return RESULT_OK;
 }
 
-result_t pb_control_process_incoming_packet(const uint8_t *packet_data,
-                                            size_t packet_size) {
-  if (packet_data == NULL || packet_size < 3) {
+
+static PBEnvelope CurrentEnvelope;
+
+result_t pb_control_process_incoming_packet(const void* packet_buffer, size_t size) {
+  if (packet_buffer == NULL || size > PBEnvelope_size ) {
     return RESULT_ERR_INVALID_ARG;
   }
-  if (DispachTableSize == 0U) {
+  if (!pb_control_is_initialized()) {
     return RESULT_ERR_NOT_INITIALIZED;
   }
-
-  uint16_t packet_type = (packet_data[0] << 8) | packet_data[1];
-  uint16_t lhs = 0U;
-  uint16_t rhs = DispachTableSize;
-  uint16_t mid;
-  while (lhs < rhs) {
-    mid = (uint16_t)(lhs + ((uint16_t)(rhs - lhs) >> 1));
-    if (DispatchTable[mid].type == packet_type) {
-      if (DispatchTable[mid].handler == NULL) {
-        return RESULT_FAIL;
-      }
-      return DispatchTable[mid].handler(packet_data + 2, packet_size - 2);
-    } else if (DispatchTable[mid].type < packet_type) {
-      lhs = (uint16_t)(mid + 1U);
-    } else {
-      rhs = mid;
+  
+  TRY(pb_message_decode_into(packet_buffer, size, PBEnvelope_fields, PBEnvelope_size, &CurrentEnvelope));
+  for (int i=0; i< DispatchTableSize; i++) {
+    if (CurrentEnvelope.which_payload == DispatchTableEntries[i]) {
+      return DispatchTableHandlers[i](&CurrentEnvelope.payload);
     }
   }
-  return RESULT_ERR_NOT_FOUND;
+  return RESULT_ERR_INVALID_PACKET;
 }
 
-bool pb_control_is_initialized(void) { return DispachTableSize > 0; }
+bool pb_control_is_initialized(void) { return DispatchTableSize > 0; }

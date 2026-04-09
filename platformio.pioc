@@ -5,16 +5,22 @@ lib_dir = lib
 
 
 [extra]
-common_lib_deps = Nanopb
+common_lib_deps = https://github.com/nanopb/nanopb.git#d68cd4e954ae1d376275d9fce206d554710ca4dd
 
 [env]
 platform = ststm32
 framework = stm32cube
-custom_nanopb_options = --error-on-unmatched
+custom_nanopb_preserve_directory_hierarchy = true
+custom_nanopb_project_dir = ${{project_absolute_path}}$/ERC-Protobufs
+custom_nanopb_options = 
+    --error-on-unmatched
+
 test_build_src = True
+monitor_speed = 115200
 
 [env:network_board]
 board = nucleo_h753zi
+custom_nanopb_protos = +<components/**/*.proto>
 board_build.stm32cube.custom_config_header = yes
 board_build.ldscript = components/network_board/firmware/STM32H753XX_FLASH.ld
 build_src_filter = +<src/${this.__env__}/**/*.c>
@@ -46,12 +52,12 @@ lib_deps = ${extra.common_lib_deps}
 test_filter = sensor_board/*
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/stm/**/*.c>
     +<components/common/*.c>
     +<components/sensor_board/**>
     -<components/sensor_board/firmware/Drivers/**>
     +<components/sensor_board/firmware/Drivers/BSP/**>
-custom_nanopb_protos = +<proto/${this.__env__}.proto>
-    +<proto/common.proto>
+custom_nanopb_protos = +<components/**/*.proto>
 build_flags = 
     +<components/common/*/inc>
     +<components/common/*>
@@ -75,8 +81,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
-custom_nanopb_protos = +<proto/${this.__env__}.proto>
-    +<proto/common.proto>
+custom_nanopb_protos = +<components/**/*.proto>
 lib_deps = ${extra.common_lib_deps}
 build_flags=
     +<components/arm_board/**>
@@ -101,8 +106,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
-custom_nanopb_protos = +<proto/${this.__env__}.proto>
-    +<proto/common.proto>
+custom_nanopb_protos = +<components/**/*.proto>
 test_filter = driving_board/*
 lib_deps = ${extra.common_lib_deps}
 build_flags=
@@ -120,14 +124,14 @@ build_flags=
 
 [env:debugging_board]
 board = nucleo_h753zi
+custom_nanopb_protos = +<components/**/*.proto>
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
     +<components/debugging_board/**>
     -<components/debugging_board/firmware/Drivers/**>
     +<components/debugging_board/firmware/Drivers/BSP/**>
-custom_nanopb_protos = +<proto/${this.__env__}.proto>
-    +<proto/common.proto>
+
 lib_deps = ${extra.common_lib_deps}
 test_filter = common/*
 build_flags=

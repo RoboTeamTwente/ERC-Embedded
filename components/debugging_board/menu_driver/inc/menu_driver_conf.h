@@ -1,4 +1,5 @@
 #ifndef MENU_DRIVER_CONF_H
+#include "ili9341_fonts.h"
 #define MENU_DRIVER_CONF_H
 
 #define MENU_DRIVER_BACKGROUND_COLOR 0x0000 // Black
