@@ -19,7 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "cubemx_main.h"
 #include "lwip/opt.h"
 #include "lwip/mem.h"
 #include "lwip/memp.h"

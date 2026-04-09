@@ -90,6 +90,8 @@ build_flags=
     +<components/common/*>
     +<components/common/*/inc>
     +<components/common/*/arm_board/**>
+    +<components/common/*/stm/**/*.c>
+    +<components/common/*.c>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp

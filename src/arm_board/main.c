@@ -26,30 +26,56 @@
 #include "pb_message.h"
 #include "components/arm_board/movement_feedback.pb.h"
 
-#define TAG "MAIN"
+#define TAG "ARM_BOARD_MAIN"
+
+extern COM_InitTypeDef BspCOMInit;
+UART_HandleTypeDef huart_com;
 
 int main(void) {
 
-    do_pwm();
-    test_ethernet();
+    HAL_Init();
+    MX_GPIO_Init();
+    SystemClock_Config();
+
+    /* Initialize COM1 port */
+    BspCOMInit.BaudRate = 115200;
+    BspCOMInit.WordLength = COM_WORDLENGTH_8B;
+    BspCOMInit.StopBits = COM_STOPBITS_1;
+    BspCOMInit.Parity = COM_PARITY_NONE;
+    BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
+    if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
+        Error_Handler();
+    }
+    MX_USART3_Init(&huart_com, &BspCOMInit);
+    LOG_init(&huart_com);
+
+    // while(1) {
+    //     LOGE(TAG, "hello");
+    //     HAL_Delay(100);
+    // }
+
+    // do_pwm();
+    while(1) {
+        test_ethernet();
+    }
     
 }
 
 void test_ethernet() {
 
     //init
-    ETH_Init();
-    ETH_udp_init();
+    // ETH_Init();
+    // ETH_udp_init();
 
-    uint8_t ip[4] = {0, 0, 0, 0};
-    uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
+    // uint8_t ip[4] = {0, 0, 0, 0};
+    // uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
 
     while (1) {
-        ETH_udp_send(ip, 7, "udp message");
-        osDelay(100);
-        ETH_raw_send(mac, "ggg");
-        ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
-        osDelay(100); 
+        // ETH_udp_send(ip, 7, "udp message");
+        // osDelay(100);
+        // ETH_raw_send(mac, "ggg");
+        // ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
+        // osDelay(100); 
 
         ArmBoardActualPositions pos;
         pos.base_actual_position = 10;
@@ -71,9 +97,9 @@ void test_ethernet() {
             return;
         }
         
-        struct _ArmBoardActualPositions structVar = {0};
+        struct _ArmBoardActualPositions* structVar = {0};
         size_t struct_len = 0;
-        res = pb_message_decode(&encoded_data, encoded_length, ArmBoardActualPositions_fields, struct_len, structVar);
+        res = pb_message_decode(&encoded_data, encoded_length, ArmBoardActualPositions_fields, struct_len, &structVar);
 
         if (res != RESULT_OK) {
             free(encoded_data);
@@ -81,10 +107,10 @@ void test_ethernet() {
             return;
         }
 
-        LOGE(TAG, structVar);
+        LOGE(TAG, "%zu", structVar->stepper_top_actual_position);
 
-        ETH_udp_send(ip, 7, encoded_data);
-        free(encoded_data);
+        // ETH_udp_send(ip, 7, encoded_data);
+        // free(encoded_data);
         
     }
 }
