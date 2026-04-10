@@ -75,7 +75,7 @@ void ethernet_linkstatus_callback(void *arg) {
   }
 }
 
-int main(void) {
+ int main(void) {
 
   MPU_Config_wrapper();
 
@@ -103,7 +103,7 @@ int main(void) {
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
-  // ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
@@ -167,7 +167,7 @@ void MainTask(void *argument) {
                          ucQueueStorageArea2, &xStaticQueue2);
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  uint8_t ip[4] = SAMPLE_BOARD_IP;
+  uint8_t ip[4] = NETWORK_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
   PacketDispatcherInit(handler_configs, 1);

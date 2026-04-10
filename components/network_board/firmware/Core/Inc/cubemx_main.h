@@ -73,7 +73,7 @@ void Error_Handler(void);
 /* ---- START firmware_definitions ---- */
 
 // #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
-
+#define LWIP_DEBUG 1
 /* ---- END firmware_definitions ---- */
 
 #endif /* __MAIN_H */
