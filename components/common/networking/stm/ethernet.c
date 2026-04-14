@@ -28,7 +28,9 @@ void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
 }
-void ETH_raw_init(raw_receiver_callback callback) { raw_init(callback); }
+void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
+  raw_init(callback);
+}
 void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
                   uint16_t payload_len, uint8_t prio_num,
                   QueueHandle_t *send_queues) {
@@ -82,7 +84,8 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]) {
   }
 }
 
-void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4], uint8_t gateway[4], uint8_t mac_address[6]) {
+void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
+                      uint8_t gateway[4], uint8_t mac_address[6]) {
   netif_set_down(&gnetif);
   IP4_ADDR(&ipaddr, ip[0], ip[1], ip[2], ip[3]);
   IP4_ADDR(&netmask, netmask_addr[0], netmask_addr[1], netmask_addr[2],
@@ -94,32 +97,32 @@ void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4], uint8_t gateway[4]
   netif_set_netmask(&gnetif, &netmask);
   netif_set_gw(&gnetif, &gw);
 
-
   heth.Init.MACAddr = &mac_address[0];
-  
-  gnetif.hwaddr[0] =  heth.Init.MACAddr[0];
-  gnetif.hwaddr[1] =  heth.Init.MACAddr[1];
-  gnetif.hwaddr[2] =  heth.Init.MACAddr[2];
-  gnetif.hwaddr[3] =  heth.Init.MACAddr[3];
-  gnetif.hwaddr[4] =  heth.Init.MACAddr[4];
-  gnetif.hwaddr[5] =  heth.Init.MACAddr[5];
+
+  gnetif.hwaddr[0] = heth.Init.MACAddr[0];
+  gnetif.hwaddr[1] = heth.Init.MACAddr[1];
+  gnetif.hwaddr[2] = heth.Init.MACAddr[2];
+  gnetif.hwaddr[3] = heth.Init.MACAddr[3];
+  gnetif.hwaddr[4] = heth.Init.MACAddr[4];
+  gnetif.hwaddr[5] = heth.Init.MACAddr[5];
 
   netif_set_up(&gnetif);
 }
 
-HAL_StatusTypeDef ETH_init(
-    linkstatus_callback_t link_state_change_callback, uint8_t ip[4],  uint8_t netmask[4],  uint8_t gateway[4], uint8_t mac_address[6]) { // TODO: return an error
+HAL_StatusTypeDef ETH_init(linkstatus_callback_t link_state_change_callback,
+                           uint8_t ip[4], uint8_t netmask[4],
+                           uint8_t gateway[4],
+                           uint8_t mac_address[6]) { // TODO: return an error
   LOGI(TAG, "Setting up ethernet...\n");
   MX_LWIP_Init();
-  ETH_address_init(ip,netmask,gateway,mac_address);
+  ETH_address_init(ip, netmask, gateway, mac_address);
 
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
   HAL_StatusTypeDef err = HAL_ETH_Start_IT(&heth);
-  if(err != ERR_OK){
+  if (err != ERR_OK) {
     LOGE(TAG, "Cannot start ethernet");
     return err;
   }
   LOGI(TAG, "Ethernet is set up!\n");
   return err;
-  
 }
