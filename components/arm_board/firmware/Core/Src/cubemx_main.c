@@ -18,12 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "cubemx_main.h"
+#include "string.h"
 #include "cmsis_os.h"
-#include "dma.h"
-#include "lwip.h"
-#include "tim.h"
-#include "usart.h"
-#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -46,9 +42,36 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+#if defined ( __ICCARM__ ) /*!< IAR Compiler */
+#pragma location=0x30000000
+ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
+#pragma location=0x30000080
+ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
-COM_InitTypeDef BspCOMInit;
+#elif defined ( __CC_ARM )  /* MDK ARM Compiler */
 
+__attribute__((at(0x30000000))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
+__attribute__((at(0x30000080))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
+
+#elif defined ( __GNUC__ ) /* GNU Compiler */
+
+ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT] __attribute__((section(".RxDescripSection"))); /* Ethernet Rx DMA Descriptors */
+ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDescripSection")));   /* Ethernet Tx DMA Descriptors */
+#endif
+
+ETH_TxPacketConfig TxConfig;
+
+ETH_HandleTypeDef heth;
+
+TIM_HandleTypeDef htim2;
+
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+.name = "defaultTask",
+.stack_size = 128 * 4,
+.priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -60,7 +83,23 @@ void MPU_Config_wrapper(void) {
     MPU_Config();
 }
 
-void MX_FREERTOS_Init(void);
+static void MX_GPIO_Init(void);
+void MX_GPIO_Init_wrapper(void) {
+    MX_GPIO_Init();
+}
+
+static void MX_TIM2_Init(void);
+void MX_TIM2_Init_wrapper(void) {
+    MX_TIM2_Init();
+}
+
+static void MX_ETH_Init(void);
+void MX_ETH_Init_wrapper(void) {
+    MX_ETH_Init();
+}
+
+void StartDefaultTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -90,25 +129,26 @@ HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
 
 /** Configure the main internal regulator output voltage
 */
-__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
+__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
 
 while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
 /** Initializes the RCC Oscillators according to the specified parameters
 * in the RCC_OscInitTypeDef structure.
 */
-RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
+RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
 RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-RCC_OscInitStruct.PLL.PLLM = 1;
-RCC_OscInitStruct.PLL.PLLN = 21;
+RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+RCC_OscInitStruct.PLL.PLLM = 4;
+RCC_OscInitStruct.PLL.PLLN = 10;
 RCC_OscInitStruct.PLL.PLLP = 2;
-RCC_OscInitStruct.PLL.PLLQ = 4;
+RCC_OscInitStruct.PLL.PLLQ = 2;
 RCC_OscInitStruct.PLL.PLLR = 2;
 RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
 RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOMEDIUM;
-RCC_OscInitStruct.PLL.PLLFRACN = 0;
+RCC_OscInitStruct.PLL.PLLFRACN = 4096;
 if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
 {
 Error_Handler();
@@ -124,7 +164,7 @@ RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
 RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV1;
 RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV1;
 RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
-RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
+RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV1;
 RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV1;
 
 if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
@@ -133,9 +173,156 @@ Error_Handler();
 }
 }
 
+/**
+* @brief ETH Initialization Function
+* @param None
+* @retval None
+*/
+static void MX_ETH_Init(void)
+{
+
+/* USER CODE BEGIN ETH_Init 0 */
+
+/* USER CODE END ETH_Init 0 */
+
+static uint8_t MACAddr[6];
+
+/* USER CODE BEGIN ETH_Init 1 */
+
+/* USER CODE END ETH_Init 1 */
+heth.Instance = ETH;
+MACAddr[0] = 0x00;
+MACAddr[1] = 0x80;
+MACAddr[2] = 0xE1;
+MACAddr[3] = 0x00;
+MACAddr[4] = 0x00;
+MACAddr[5] = 0x00;
+heth.Init.MACAddr = &MACAddr[0];
+heth.Init.MediaInterface = HAL_ETH_RMII_MODE;
+heth.Init.TxDesc = DMATxDscrTab;
+heth.Init.RxDesc = DMARxDscrTab;
+heth.Init.RxBuffLen = 1536;
+
+/* USER CODE BEGIN MACADDRESS */
+
+/* USER CODE END MACADDRESS */
+
+if (HAL_ETH_Init(&heth) != HAL_OK)
+{
+Error_Handler();
+}
+
+memset(&TxConfig, 0 , sizeof(ETH_TxPacketConfig));
+TxConfig.Attributes = ETH_TX_PACKETS_FEATURES_CSUM | ETH_TX_PACKETS_FEATURES_CRCPAD;
+TxConfig.ChecksumCtrl = ETH_CHECKSUM_IPHDR_PAYLOAD_INSERT_PHDR_CALC;
+TxConfig.CRCPadCtrl = ETH_CRC_PAD_INSERT;
+/* USER CODE BEGIN ETH_Init 2 */
+
+/* USER CODE END ETH_Init 2 */
+
+}
+
+/**
+* @brief TIM2 Initialization Function
+* @param None
+* @retval None
+*/
+static void MX_TIM2_Init(void)
+{
+
+/* USER CODE BEGIN TIM2_Init 0 */
+
+/* USER CODE END TIM2_Init 0 */
+
+TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+TIM_MasterConfigTypeDef sMasterConfig = {0};
+TIM_OC_InitTypeDef sConfigOC = {0};
+
+/* USER CODE BEGIN TIM2_Init 1 */
+
+/* USER CODE END TIM2_Init 1 */
+htim2.Instance = TIM2;
+htim2.Init.Prescaler = 84-1;
+htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+htim2.Init.Period = 65535-1;
+htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+{
+Error_Handler();
+}
+sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+{
+Error_Handler();
+}
+if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+{
+Error_Handler();
+}
+sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+{
+Error_Handler();
+}
+sConfigOC.OCMode = TIM_OCMODE_PWM1;
+sConfigOC.Pulse = 0;
+sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+{
+Error_Handler();
+}
+/* USER CODE BEGIN TIM2_Init 2 */
+
+/* USER CODE END TIM2_Init 2 */
+HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
+* @brief GPIO Initialization Function
+* @param None
+* @retval None
+*/
+static void MX_GPIO_Init(void)
+{
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+
+/* USER CODE END MX_GPIO_Init_1 */
+
+/* GPIO Ports Clock Enable */
+__HAL_RCC_GPIOC_CLK_ENABLE();
+__HAL_RCC_GPIOA_CLK_ENABLE();
+__HAL_RCC_GPIOB_CLK_ENABLE();
+
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+
+/* USER CODE END MX_GPIO_Init_2 */
+}
+
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+* @brief  Function implementing the defaultTask thread.
+* @param  argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+/* USER CODE BEGIN 5 */
+/* Infinite loop */
+for(;;)
+{
+osDelay(1);
+}
+/* USER CODE END 5 */
+}
 
 /* MPU Configuration */
 
@@ -150,11 +337,11 @@ HAL_MPU_Disable();
 */
 MPU_InitStruct.Enable = MPU_REGION_ENABLE;
 MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-MPU_InitStruct.BaseAddress = 0x30000000;
-MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
-MPU_InitStruct.SubRegionDisable = 0x0;
-MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+MPU_InitStruct.BaseAddress = 0x0;
+MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
+MPU_InitStruct.SubRegionDisable = 0x87;
+MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
 MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
 MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
