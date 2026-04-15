@@ -24,11 +24,7 @@
 #include "tim.h"
 #include <stdint.h>
 #include "stepper.h"
-<<<<<<< HEAD
-#include "components/arm_board/movement_software_feedback.pb.h"
-=======
-#include "components/arm_board/control_signals.pb.h"
->>>>>>> 974b41f423614370b343f1f044d031398047aedb
+#include "components/arm_board/movement_control_in.pb.h"
 
 #define TAG "ARM_BOARD"
 
