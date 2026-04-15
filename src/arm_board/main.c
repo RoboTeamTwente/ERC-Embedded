@@ -24,72 +24,83 @@
 #include "tim.h"
 #include <stdint.h>
 #include "stepper.h"
+<<<<<<< HEAD
 #include "components/arm_board/movement_software_feedback.pb.h"
+=======
+#include "components/arm_board/control_signals.pb.h"
+>>>>>>> 974b41f423614370b343f1f044d031398047aedb
 
 #define TAG "ARM_BOARD"
 
 extern COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
 
-void test_ethernet() {
+void test_ethernet()
+{
 
-    //init
-    ETH_Init();
-    ETH_udp_init();
+    LOGI(TAG, "Testing ethernet");
+    HAL_Delay(1000);
+
+    // init
+    //  ETH_Init();
+    //  ETH_udp_init();
 
     // uint8_t ip[4] = {0, 0, 0, 0};
     // uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
 
-    while (1) {
-        // ETH_udp_send(ip, 7, "udp message");
-        // osDelay(100);
-        // ETH_raw_send(mac, "ggg");
-        // ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
-        // osDelay(100); 
+    // ETH_udp_send(ip, 7, "udp message");
+    // osDelay(100);
+    // ETH_raw_send(mac, "ggg");
+    // ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
+    // osDelay(100);
 
-        ArmBoardActualPositions pos;
-        pos.base_actual_position = 10;
-        pos.gripper_pitch_actual_position = 20;
-        pos.gripper_rotation_actual_position = 30;
-        pos.jaw_actual_position = 40;
-        pos.jaw_open = 1;
-        pos.stepper_bottom_actual_position = 50;
-        pos.stepper_top_actual_position = 100;
+    //Populated protobuf
+    ArmBoardControlSignals* sig;
+    sig->control_base = 10.0f;
+    sig->control_gripper_pitch = 20.0f;
+    sig->control_gripper_rotation = 30.0f;
+    sig->control_jaw = 40.0f;
+    sig->stepper_bottom_ena = 1;
+    sig->stepper_bottom_rev = 1;
+    sig->stepper_top_ena = 1;
+    sig->stepper_top_rev = 1;
 
-        //sending packet
-        uint8_t *encoded_data = NULL;
-        size_t encoded_length = 0;
-        result_t res = pb_message_encode(&pos, ArmBoardActualPositions_fields, &encoded_data, &encoded_length);
+    // sending packet
+    uint8_t** encoded_data = NULL;
+    size_t* encoded_length = 0;
+    result_t res = pb_message_encode(sig, ArmBoardControlSignals_fields, &encoded_data, &encoded_length);
 
-        if (res != RESULT_OK) {
-            free(encoded_data);
-            LOGE(TAG, "Encoding failed for diag");
-            return;
-        }
-        
-        struct _ArmBoardActualPositions* structVar = {0};
-        size_t struct_len = 0;
-        res = pb_message_decode(encoded_data, encoded_length, ArmBoardActualPositions_fields, struct_len, (void**) &structVar);
-
-        if (res != RESULT_OK) {
-            free(encoded_data);
-            LOGE(TAG, "Decoding failed for diag");
-            return;
-        }
-
-        LOGE(TAG, "%zu", structVar->stepper_top_actual_position);
-
-        // ETH_udp_send(ip, 7, encoded_data);
-        // free(encoded_data);
-        
+    if (res != RESULT_OK) {
+        free(encoded_data);
+        LOGE(TAG, "Encoding failed");
+        return;
     }
+
+    LOGI(TAG, "Encoding successfull");
+
+    control_signals_t* structVar = {0};
+    size_t struct_len = 0;
+    res = pb_message_decode(encoded_data, encoded_length, ArmBoardControlSignals_fields, struct_len, (void **) &structVar);
+
+    if (res != RESULT_OK) {
+        free(encoded_data);
+        LOGE(TAG, "Decoding failed");
+        return;
+    }
+    LOGI(TAG, "Decoding successfull");
+
+    LOGI(TAG, "Message says: %s %d %f", structVar->stepper_bottom_ENA);
+
+    // ETH_udp_send(ip, 7, encoded_data);
+    // free(encoded_data);
 }
 
-int main(void) {
+int main(void)
+{
 
     HAL_Init();
     MX_GPIO_Init();
-    // SystemClock_Config();
+    SystemClock_Config();
 
     /* Initialize COM1 port */
     BspCOMInit.BaudRate = 115200;
@@ -97,7 +108,8 @@ int main(void) {
     BspCOMInit.StopBits = COM_STOPBITS_1;
     BspCOMInit.Parity = COM_PARITY_NONE;
     BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
-    if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
+    if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
+    {
         Error_Handler();
     }
     MX_USART3_Init(&huart_com, &BspCOMInit);
@@ -109,9 +121,9 @@ int main(void) {
     // }
 
     // do_pwm();
-    while(1) {
+    while (1)
+    {
         test_ethernet();
+        HAL_Delay(1000);
     }
-    
 }
-

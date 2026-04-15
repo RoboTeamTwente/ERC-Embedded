@@ -55,7 +55,10 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+<<<<<<< HEAD
 extern TIM_HandleTypeDef htim2;
+=======
+>>>>>>> 974b41f423614370b343f1f044d031398047aedb
 extern TIM_HandleTypeDef htim14;
 
 /* USER CODE BEGIN EV */
@@ -161,6 +164,7 @@ void DebugMon_Handler(void)
 /******************************************************************************/
 
 /**
+<<<<<<< HEAD
   * @brief This function handles TIM2 global interrupt.
   */
 void TIM2_IRQHandler(void)
@@ -175,6 +179,8 @@ void TIM2_IRQHandler(void)
 }
 
 /**
+=======
+>>>>>>> 974b41f423614370b343f1f044d031398047aedb
   * @brief This function handles TIM8 trigger and commutation interrupts and TIM14 global interrupt.
   */
 void TIM8_TRG_COM_TIM14_IRQHandler(void)
