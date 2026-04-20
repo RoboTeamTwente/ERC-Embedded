@@ -75,7 +75,7 @@ void ethernet_linkstatus_callback(void *arg) {
   }
 }
 
- int main(void) {
+int main(void) {
 
   MPU_Config_wrapper();
 
@@ -99,7 +99,6 @@ void ethernet_linkstatus_callback(void *arg) {
   uint8_t gateway[4] = GATEWAY;
   uint8_t mac[6] = NETWORK_MAC;
   ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
-  ETH_raw_init(NULL);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
