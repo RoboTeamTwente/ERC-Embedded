@@ -37,7 +37,7 @@ build_flags=
     +<components/network_board/**>
     -<components/network_board/firmware/Drivers/**>
     +<components/network_board/firmware/Drivers/BSP/**>
-    +<components/common/*>
+    +<components/common/**>
     +<components/common/*/inc>
     +<components/common/*/network_board/**>
     -mthumb
