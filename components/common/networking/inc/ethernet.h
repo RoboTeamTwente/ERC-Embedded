@@ -103,6 +103,9 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]);
  * @param[in] mac
  *      MAC address (array of 6 integers).
  *
+ * @param[in] retry_count
+ *      The amount of times the function will try to add the static ARP entry.
+ *
  * @return RESULT_OK
  *      Entry successfully added.
  *
@@ -110,7 +113,7 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]);
  *      Failed to add the entry.
  */
 
-result_t ETH_add_arp(int ip[4], int mac[6]);
+result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count);
 
 /**
  * @brief Send a raw Ethernet frame.

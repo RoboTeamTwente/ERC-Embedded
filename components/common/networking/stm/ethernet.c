@@ -65,23 +65,28 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]) {
   }
 }
 
-result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]) {
+result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count) {
   ip4_addr_t ipaddr;
   struct eth_addr macaddr;
 
   IP4_ADDR(&ipaddr, ip[0], ip[1], ip[2], ip[3]);
   memcpy(macaddr.addr, mac, 6);
 
-  err_t err = etharp_add_static_entry(&ipaddr, &macaddr);
-  if (err == ERR_OK) {
-    LOGI(TAG, "Static ARP entry added successfully with IP: %u.%u.%u.%u",
-         (uint8_t)ipaddr.addr, (uint8_t)(ipaddr.addr >> 8),
-         (uint8_t)(ipaddr.addr >> 16), (uint8_t)(ipaddr.addr >> 24));
-    return RESULT_OK;
-  } else {
-    LOGE(TAG, "Failed to add static ARP entry: %d\n", result_to_short_str(err));
-    return RESULT_ERR_COMMS;
+  for (int i = 0; i < retry_count; i++) {
+
+    LOGI(TAG, "Trying to add static ARP entry with IP: %s; try %d",
+         ip4addr_ntoa(&ipaddr), i);
+    err_t err = etharp_add_static_entry(&ipaddr, &macaddr);
+    if (err == ERR_OK) {
+      LOGI(TAG, "Static ARP entry added successfully with IP: %s",
+           ip4addr_ntoa(&ipaddr));
+      return RESULT_OK;
+    } else {
+      LOGE(TAG, "Failed to add static ARP entry: %d\n",
+           result_to_short_str(err));
+    }
   }
+  return RESULT_ERR_COMMS;
 }
 
 void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],

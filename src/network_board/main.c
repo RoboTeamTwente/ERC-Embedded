@@ -68,8 +68,11 @@ const osThreadAttr_t mainTask_attributes = {
 
 void ethernet_linkstatus_callback(void *arg) {
   struct netif *netif = (struct netif *)arg;
+  uint8_t ip[4] = NETWORK_IP;
+  uint8_t mac[6] = SAMPEL_BOARD_MAC;
   if (netif_is_up(netif)) {
     LOGI(TAG, "Physical ethernet link is up");
+    ETH_add_arp(ip, mac, 5);
   } else {
     LOGE(TAG, "Physical ethernet link is down");
   }
@@ -172,8 +175,8 @@ void MainTask(void *argument) {
   PacketDispatcherInit(handler_configs, 1);
 
   ETH_udp_init(2, queues, DispatchPacket);
-  ETH_add_arp(ip, mac);
-  while (outgoing_counter < 100) {
+  ETH_add_arp(ip, mac, 5);
+  while (outgoing_counter < 10000) {
     ETH_udp_send(ip, 8, packet1_payload, 46, 1);
     osDelay(100);
     outgoing_counter += 1;
