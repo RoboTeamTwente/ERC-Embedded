@@ -8,6 +8,7 @@
 #include "packet_dispatcher.h"
 #include "packet_dispatcher_macros.h"
 #include "portmacro.h"
+#include "spi.h"
 #include "stm/ethernet_udp.h"
 #ifndef UNIT_TEST
 #include "FreeRTOS.h"
@@ -106,8 +107,9 @@ static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
 //     }};
 PACKET_HANDLER_CONFIG_STATIC(gps_handler, PBEnvelope_gps_info_tag, gps_info,
                              HandleType1Packet);
-PACKET_HANDLER_CONFIG_STATIC(ph_handler, PBEnvelope_ph_info_tag, ph_info,
-                             HandleType2Packet);
+
+PACKET_HANDLER_CONFIG_STATIC_QUEUE(ph_handler, PBEnvelope_ph_info_tag, ph_info,
+                                   HandleType2Packet, 10);
 
 void MainTask(void* argument) {
     LOGI(TAG, "In main");
@@ -120,12 +122,12 @@ void MainTask(void* argument) {
         LOGI(TAG, "Sending packets");
 
         DispatchPacket(&packet1);
-        LOGI(TAG, "Sent packet1: %ld", (long)ok);
+        LOGI(TAG, "Sent packet1");
 
         osDelay(1);
 
         DispatchPacket(&packet2);
-        LOGI(TAG, "Sent packet2: %ld", (long)ok);
+        LOGI(TAG, "Sent packet2");
         osDelay(500);
     }
 }
