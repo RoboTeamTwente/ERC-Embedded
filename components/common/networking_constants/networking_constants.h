@@ -14,8 +14,8 @@
 // PACKET IDS
 
 // EHTERNET CONFIGURATION
+#define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame_t)
+#define ETHERNET_SQ_ITEM_SIZE sizeof(send_frame_t)
+#define RQ_ETHERNET_PRIO 1
 #define ETHERNET_RQ_LENGTH 80
-#define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame)
-#define ETHERNET_RQ_PRIORITY_BUFFERS 2
-#define MAX_ETH_PAYLOAD_SIZE 80
 #endif // !NETWORKING_CONSTANTS_H

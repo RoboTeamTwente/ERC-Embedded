@@ -58,7 +58,7 @@ void PacketHandlerTask(void* pvParameters) {
     }
 }
 
-void DispatchPacket(receive_frame* incoming_packet) {
+void DispatchPacket(receive_frame_t* incoming_packet) {
     if (incoming_packet->len > PBEnvelope_size || incoming_packet->len == 0 ||
         incoming_packet->payload == NULL) {
         LOGE(TAG,

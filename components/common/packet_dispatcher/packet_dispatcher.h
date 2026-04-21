@@ -76,7 +76,7 @@ typedef struct {
  * @note If the queue for a given packet type is full, the packet may be dropped
  *       depending on the internal implementation.
  */
-void DispatchPacket(receive_frame* incoming_packet);
+void DispatchPacket(receive_frame_t* incoming_packet);
 
 /**
  * @brief Initialize the packet dispatcher and spawn handler tasks.

@@ -20,6 +20,7 @@ monitor_speed = 115200
 
 [env:network_board]
 board = nucleo_h753zi
+custom_nanopb_protos = +<components/**/*.proto>
 board_build.stm32cube.custom_config_header = yes
 board_build.ldscript = components/network_board/firmware/STM32H753XX_FLASH.ld
 build_src_filter = +<src/${this.__env__}/**/*.c>
@@ -36,7 +37,7 @@ build_flags=
     +<components/network_board/**>
     -<components/network_board/firmware/Drivers/**>
     +<components/network_board/firmware/Drivers/BSP/**>
-    +<components/common/*>
+    +<components/common/**>
     +<components/common/*/inc>
     +<components/common/*/network_board/**>
     -mthumb

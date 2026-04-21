@@ -1,3 +1,5 @@
+#ifndef UNIT_TEST
+
 #include <stddef.h>
 #include <stdio.h>
 
@@ -10,7 +12,6 @@
 #include "portmacro.h"
 #include "spi.h"
 #include "stm/ethernet_udp.h"
-#ifndef UNIT_TEST
 #include "FreeRTOS.h"
 #include "bucketed_pqueue.h"
 #include "cmsis_os2.h"  // FreeRTOS wrapper header (v2)
