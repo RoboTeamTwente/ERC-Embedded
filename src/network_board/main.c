@@ -19,15 +19,15 @@
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
-#include "components/common/packet_dispatcher/packet_dispatcher.h"
+#include "components/common/networking/inc/ethernet.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
-#include "ethernet.h"
 #include "gpio.h"
 #include "ip_mac_constants.h"
 #include "logging.h"
 #include "netif.h"
 #include "networking_constants.h"
+#include "packet_dispatcher.h"
 #include "queue.h"
 #include "tim.h"
 #include <stdint.h>
@@ -66,9 +66,13 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-void ethernet_linkstatus_callback(struct netif *netif) {
+void ethernet_linkstatus_callback(void *arg) {
+  struct netif *netif = (struct netif *)arg;
+  uint8_t ip[4] = NETWORK_IP;
+  uint8_t mac[6] = SAMPEL_BOARD_MAC;
   if (netif_is_up(netif)) {
     LOGI(TAG, "Physical ethernet link is up");
+    ETH_add_arp(ip, mac, 5);
   } else {
     LOGE(TAG, "Physical ethernet link is down");
   }
@@ -93,12 +97,15 @@ int main(void) {
 
   uart_setup();
   LOG_init(&huart_com);
-  ETH_init(ethernet_linkstatus_callback);
-  ETH_raw_init(NULL);
+  uint8_t ip[4] = NETWORK_IP;
+  uint8_t netmask[4] = NETMASK;
+  uint8_t gateway[4] = GATEWAY;
+  uint8_t mac[6] = NETWORK_MAC;
+  ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
-  // ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
@@ -149,7 +156,7 @@ static packet_handler_config_t handler_configs[] = {
 extern int receive_counter;
 void MainTask(void *argument) {
 
-  uint8_t ip[4] = SAMPLE_BOARD_IP;
+  uint8_t ip[4] = NETWORK_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
   static StaticQueue_t txStruct0;
@@ -158,6 +165,7 @@ void MainTask(void *argument) {
                                          ETHERNET_SQ_ITEM_SIZE,
                                          txStorage0, &txStruct0);
 
+<<<<<<< HEAD
   static StaticQueue_t txStruct1;
   static uint8_t txStorage1[ETHERNET_SQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
   QueueHandle_t tx1 = xQueueCreateStatic(ETHERNET_SQ_LENGTH,
@@ -169,6 +177,15 @@ void MainTask(void *argument) {
       ETH_udp_init(ETHERNET_SQ_PRIORITY_BUFFERS, send_queues, NULL);
   if (udp_init != RESULT_OK) {
     LOGE(TAG, "UDP init failed: %s", result_to_short_str(udp_init));
+=======
+  ETH_udp_init(2, queues, DispatchPacket);
+  ETH_add_arp(ip, mac, 5);
+  while (outgoing_counter < 100) {
+    ETH_udp_send(ip, 8, packet1_payload, 46, 1);
+    osDelay(100);
+    outgoing_counter += 1;
+    LOGI(TAG, "%d", outgoing_counter);
+>>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
   }
 
   ETH_add_arp(ip, mac);

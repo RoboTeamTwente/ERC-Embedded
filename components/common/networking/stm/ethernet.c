@@ -19,6 +19,7 @@ extern uint8_t IP_ADDRESS[4];
 
 struct udp_pcb *upcb;
 
+<<<<<<< HEAD
 result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
                       udp_receiver_callback callback) {
   result_t err = udp_client_init(&upcb, IP_ADDRESS, callback);
@@ -29,10 +30,20 @@ result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
   if (err != RESULT_OK) {
     return err;
   }
+=======
+ip4_addr_t ipaddr;
+ip4_addr_t netmask;
+ip4_addr_t gw;
+
+void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
+                  receive_callback_t receiver_callback) {
+  udp_client_init(&upcb, sender_prio_buf, send_queues, receiver_callback);
+>>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
   return RESULT_OK;
 }
+<<<<<<< HEAD
 void ETH_raw_init(raw_receiver_callback callback) { raw_init(callback); }
 result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload,
                       uint8_t prio) {
@@ -44,6 +55,15 @@ result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload,
 result_t ETH_udp_send_binary(uint8_t ip[4], uint8_t port, const void *payload,
                              size_t length, uint8_t prio) {
   return udp_client_send_enqueue(ip, port, payload, length, prio);
+=======
+void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
+  raw_init(callback);
+}
+void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
+                  uint16_t payload_len, uint8_t prio_num,
+                  QueueHandle_t *send_queues) {
+  udp_client_send(upcb, ip, port, payload, payload_len, prio_num);
+>>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
 }
 
 void ETH_raw_send(uint8_t *mac, char *payload) {
@@ -78,31 +98,69 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]) {
   }
 }
 
-result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]) {
+result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count) {
   ip4_addr_t ipaddr;
   struct eth_addr macaddr;
 
   IP4_ADDR(&ipaddr, ip[0], ip[1], ip[2], ip[3]);
   memcpy(macaddr.addr, mac, 6);
 
-  err_t err = etharp_add_static_entry(&ipaddr, &macaddr);
-  if (err == ERR_OK) {
-    LOGI(TAG, "Static ARP entry added successfully with IP: %u.%u.%u.%u",
-         (uint8_t)ipaddr.addr, (uint8_t)(ipaddr.addr >> 8),
-         (uint8_t)(ipaddr.addr >> 16), (uint8_t)(ipaddr.addr >> 24));
-    return RESULT_OK;
-  } else {
-    LOGE(TAG, "Failed to add static ARP entry: %d\n", result_to_short_str(err));
-    return RESULT_ERR_COMMS;
+  for (int i = 0; i < retry_count; i++) {
+
+    LOGI(TAG, "Trying to add static ARP entry with IP: %s; try %d",
+         ip4addr_ntoa(&ipaddr), i);
+    err_t err = etharp_add_static_entry(&ipaddr, &macaddr);
+    if (err == ERR_OK) {
+      LOGI(TAG, "Static ARP entry added successfully with IP: %s",
+           ip4addr_ntoa(&ipaddr));
+      return RESULT_OK;
+    } else {
+      LOGE(TAG, "Failed to add static ARP entry: %d\n",
+           result_to_short_str(err));
+    }
   }
+  return RESULT_ERR_COMMS;
 }
 
-void ETH_init(
-    linkstatus_callback_t link_state_change_callback) { // TODO: return an error
+void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
+                      uint8_t gateway[4], uint8_t mac_address[6]) {
+  netif_set_down(&gnetif);
+  IP4_ADDR(&ipaddr, ip[0], ip[1], ip[2], ip[3]);
+  IP4_ADDR(&netmask, netmask_addr[0], netmask_addr[1], netmask_addr[2],
+           netmask_addr[3]);
+  IP4_ADDR(&gw, gateway[0], gateway[1], gateway[2], gateway[3]);
+
+  /* add the network interface (IPv4/IPv6) with RTOS */
+  netif_set_ipaddr(&gnetif, &ipaddr);
+  netif_set_netmask(&gnetif, &netmask);
+  netif_set_gw(&gnetif, &gw);
+
+  heth.Init.MACAddr = &mac_address[0];
+
+  gnetif.hwaddr[0] = heth.Init.MACAddr[0];
+  gnetif.hwaddr[1] = heth.Init.MACAddr[1];
+  gnetif.hwaddr[2] = heth.Init.MACAddr[2];
+  gnetif.hwaddr[3] = heth.Init.MACAddr[3];
+  gnetif.hwaddr[4] = heth.Init.MACAddr[4];
+  gnetif.hwaddr[5] = heth.Init.MACAddr[5];
+
+  netif_set_up(&gnetif);
+}
+
+HAL_StatusTypeDef ETH_init(linkstatus_callback_t link_state_change_callback,
+                           uint8_t ip[4], uint8_t netmask[4],
+                           uint8_t gateway[4],
+                           uint8_t mac_address[6]) { // TODO: return an error
   LOGI(TAG, "Setting up ethernet...\n");
   MX_LWIP_Init();
-  ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
-  HAL_ETH_Start_IT(&heth);
+  ETH_address_init(ip, netmask, gateway, mac_address);
 
+  ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
+  HAL_StatusTypeDef err = HAL_ETH_Start_IT(&heth);
+  if (err != ERR_OK) {
+    LOGE(TAG, "Cannot start ethernet");
+    return err;
+  }
   LOGI(TAG, "Ethernet is set up!\n");
+  return err;
 }

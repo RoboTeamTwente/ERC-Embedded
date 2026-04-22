@@ -1,1 +1,2 @@
 // #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
+// #define LWIP_DEBUG 1
