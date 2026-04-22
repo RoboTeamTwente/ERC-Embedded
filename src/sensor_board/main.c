@@ -391,15 +391,20 @@ void init_board() {
   char *boot_msg = "\r\n[BOOT] System Initialized. Starting Kernel...\r\n";
   HAL_UART_Transmit(&huart_com, (uint8_t*)boot_msg, strlen(boot_msg), 100);
 
-  // Initialize Ethernet with MAC address filtering
-  ETH_init(NULL);
+
+  // Example network parameters (replace with actual values as needed)
+  uint8_t ip[4] = {192, 168, 0, 10};
+  uint8_t netmask[4] = {255, 255, 255, 0};
+  uint8_t gateway[4] = {192, 168, 0, 1};
+  uint8_t mac_address[6] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x00};
+  ETH_init(NULL, ip, netmask, gateway, mac_address);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};
   ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
   uint8_t laptop_ip[4] = {192, 168, 0, 100};
   uint8_t laptop_mac[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
-  (void)ETH_add_arp(laptop_ip, laptop_mac);
+  (void)ETH_add_arp(laptop_ip, laptop_mac, 3);
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
@@ -493,21 +498,13 @@ void MainTask(void *argument) {
   }
 
   QueueHandle_t send_queues[ETHERNET_SQ_PRIORITY_BUFFERS] = {tx0, tx1};
-  result_t udp_init =
-      ETH_udp_init(ETHERNET_SQ_PRIORITY_BUFFERS, send_queues,
-                   sensor_udp_rx_callback);
-  if (udp_init != RESULT_OK) {
-    LOGE(TAG, "UDP init failed: %s", result_to_short_str(udp_init));
-    Error_Handler();
-  } else {
-    LOGI(TAG, "UDP initialized successfully");
-  }
+  ETH_udp_init(ETHERNET_SQ_PRIORITY_BUFFERS, send_queues, sensor_udp_rx_callback);
+  LOGI(TAG, "UDP initialized successfully");
 
   // ========== Main Loop Variables ==========
   uint32_t loop_count = 0;
   LOGI(TAG, "Starting main sensor loop...");
   const bool skip_sensor_polling = true;
-  static bool skip_logged = false;
 
   // UDP destination (update when network params are finalized)
   uint8_t dest_ip[4] = {192, 168, 0, 255};

@@ -32,24 +32,6 @@ HAL_StatusTypeDef ETH_init(linkstatus_callback_t link_state_change_callback,
                            uint8_t gateway[4], uint8_t mac_address[6]);
 
 /**
-<<<<<<< HEAD
- * @brief Initializes the udp stack with a priority send queue.
- *
- * @param[in] sender_prio_num Number of priority queues for sending messages
- * @param[in] send_queues priority queues for sending
- */
-result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-					  udp_receiver_callback callback);
-
-/**
- * @brief Send a udp message using the priority send queue
- *
- * @param ip[4]    Destination ip, 1 byte per entry
- * @param port     Destination port
- * @param payload  payload of the message
- * @param prio     priority bucket
- * @return result_t
-=======
  * @brief Initialize the UDP protocol control block.
  *
  * Configures the UDP subsystem, including priority-based transmit queues
@@ -66,7 +48,7 @@ result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
  *      Callback function invoked when a UDP packet is received.
  */
 void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-                  receive_callback_t receiver_callback);
+                  udp_receiver_callback receiver_callback);
 
 /**
  * @brief Send a UDP message.
@@ -89,7 +71,6 @@ void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
  * @param[in] prio_num
  *      Priority level used for transmission. Must be less than the value
  *      specified in ETH_udp_init().
->>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
  */
 result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload,
 					  uint8_t prio);
@@ -145,12 +126,8 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]);
  * @return RESULT_ERR_COMMS
  *      Failed to add the entry.
  */
-<<<<<<< HEAD
-result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]);
-=======
 
 result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count);
->>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
 
 /**
  * @brief Send a raw Ethernet frame.

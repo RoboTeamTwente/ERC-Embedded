@@ -1,3 +1,4 @@
+
 #include "ethernet.h"
 #include "api_msg.h"
 #include "ethernet_diagnostics.h"
@@ -19,51 +20,22 @@ extern uint8_t IP_ADDRESS[4];
 
 struct udp_pcb *upcb;
 
-<<<<<<< HEAD
-result_t ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-                      udp_receiver_callback callback) {
-  result_t err = udp_client_init(&upcb, IP_ADDRESS, callback);
-  if (err != RESULT_OK) {
-    return err;
-  }
-  err = udp_sender_init(sender_prio_num, send_queues);
-  if (err != RESULT_OK) {
-    return err;
-  }
-=======
 ip4_addr_t ipaddr;
 ip4_addr_t netmask;
 ip4_addr_t gw;
 
-void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
-                  receive_callback_t receiver_callback) {
-  udp_client_init(&upcb, sender_prio_buf, send_queues, receiver_callback);
->>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
-  osDelay(3000); // TODO: very ugly but udp doesn't
-                 // start right after the init
-  return RESULT_OK;
+void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
+                  udp_receiver_callback receiver_callback) {
+  udp_sender_init(sender_prio_num, send_queues);
+  udp_client_init(&upcb, IP_ADDRESS, receiver_callback);
+  osDelay(3000); // TODO: very ugly but udp doesn't start right after the init
 }
-<<<<<<< HEAD
-void ETH_raw_init(raw_receiver_callback callback) { raw_init(callback); }
-result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload,
-                      uint8_t prio) {
-  if (payload == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
-  return udp_client_send_enqueue(ip, port, payload, strlen(payload), prio);
-}
-result_t ETH_udp_send_binary(uint8_t ip[4], uint8_t port, const void *payload,
-                             size_t length, uint8_t prio) {
-  return udp_client_send_enqueue(ip, port, payload, length, prio);
-=======
 void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
   raw_init(callback);
 }
-void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
-                  uint16_t payload_len, uint8_t prio_num,
-                  QueueHandle_t *send_queues) {
-  udp_client_send(upcb, ip, port, payload, payload_len, prio_num);
->>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
+
+result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload, uint8_t prio) {
+  return udp_client_send_enqueue(ip, port, payload, strlen(payload), prio);
 }
 
 void ETH_raw_send(uint8_t *mac, char *payload) {
@@ -120,6 +92,10 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count) {
     }
   }
   return RESULT_ERR_COMMS;
+}
+// Send a UDP message with binary data using the priority send queue
+result_t ETH_udp_send_binary(uint8_t ip[4], uint8_t port, const void *payload, size_t length, uint8_t prio) {
+  return udp_client_send_enqueue(ip, port, payload, length, prio);
 }
 
 void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
