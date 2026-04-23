@@ -19,17 +19,16 @@
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
-#include "components/common/packet_dispatcher/packet_dispatcher.h"
+#include "components/common/networking/inc/ethernet.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
-#include "ethernet.h"
 #include "gpio.h"
 #include "ip_mac_constants.h"
 #include "logging.h"
 #include "netif.h"
 #include "networking_constants.h"
+#include "packet_dispatcher.h"
 #include "queue.h"
-#include "stm/ethernet_udp.h"
 #include "tim.h"
 #include <stdint.h>
 #include <time.h>
@@ -67,9 +66,13 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-void ethernet_linkstatus_callback(struct netif *netif) {
+void ethernet_linkstatus_callback(void *arg) {
+  struct netif *netif = (struct netif *)arg;
+  uint8_t ip[4] = NETWORK_IP;
+  uint8_t mac[6] = SAMPEL_BOARD_MAC;
   if (netif_is_up(netif)) {
     LOGI(TAG, "Physical ethernet link is up");
+    ETH_add_arp(ip, mac, 5);
   } else {
     LOGE(TAG, "Physical ethernet link is down");
   }
@@ -94,12 +97,15 @@ int main(void) {
 
   uart_setup();
   LOG_init(&huart_com);
-  ETH_init(ethernet_linkstatus_callback);
-  ETH_raw_init(NULL);
+  uint8_t ip[4] = NETWORK_IP;
+  uint8_t netmask[4] = NETMASK;
+  uint8_t gateway[4] = GATEWAY;
+  uint8_t mac[6] = NETWORK_MAC;
+  ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
-  // ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
@@ -163,13 +169,13 @@ void MainTask(void *argument) {
                          ucQueueStorageArea2, &xStaticQueue2);
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  uint8_t ip[4] = SAMPLE_BOARD_IP;
+  uint8_t ip[4] = NETWORK_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
   PacketDispatcherInit(handler_configs, 1);
 
   ETH_udp_init(2, queues, DispatchPacket);
-  ETH_add_arp(ip, mac);
+  ETH_add_arp(ip, mac, 5);
   while (outgoing_counter < 100) {
     ETH_udp_send(ip, 8, packet1_payload, 46, 1);
     osDelay(100);
