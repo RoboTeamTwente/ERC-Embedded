@@ -18,9 +18,9 @@ extern struct netif gnetif;
 
 struct udp_pcb *upcb;
 
-ip4_addr_t ipaddr;
-ip4_addr_t netmask;
-ip4_addr_t gw;
+ip4_addr_t IPADDR;
+ip4_addr_t NETMASK;
+ip4_addr_t GW;
 
 void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
                   receive_callback_t receiver_callback) {
@@ -92,15 +92,15 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count) {
 void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
                       uint8_t gateway[4], uint8_t mac_address[6]) {
   netif_set_down(&gnetif);
-  IP4_ADDR(&ipaddr, ip[0], ip[1], ip[2], ip[3]);
-  IP4_ADDR(&netmask, netmask_addr[0], netmask_addr[1], netmask_addr[2],
+  IP4_ADDR(&IPADDR, ip[0], ip[1], ip[2], ip[3]);
+  IP4_ADDR(&NETMASK, netmask_addr[0], netmask_addr[1], netmask_addr[2],
            netmask_addr[3]);
-  IP4_ADDR(&gw, gateway[0], gateway[1], gateway[2], gateway[3]);
+  IP4_ADDR(&GW, gateway[0], gateway[1], gateway[2], gateway[3]);
 
   /* add the network interface (IPv4/IPv6) with RTOS */
-  netif_set_ipaddr(&gnetif, &ipaddr);
-  netif_set_netmask(&gnetif, &netmask);
-  netif_set_gw(&gnetif, &gw);
+  netif_set_ipaddr(&gnetif, &IPADDR);
+  netif_set_netmask(&gnetif, &NETMASK);
+  netif_set_gw(&gnetif, &GW);
 
   heth.Init.MACAddr = &mac_address[0];
 
@@ -111,7 +111,7 @@ void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
   gnetif.hwaddr[4] = heth.Init.MACAddr[4];
   gnetif.hwaddr[5] = heth.Init.MACAddr[5];
 
-  netif_set_up(&gnetif);
+  HAL_ETH_SetSourceMACAddrMatch(&heth, 0, mac_address);
 }
 
 HAL_StatusTypeDef ETH_init(linkstatus_callback_t link_state_change_callback,
