@@ -97,10 +97,10 @@ int main(void) {
 
   uart_setup();
   LOG_init(&huart_com);
+  uint8_t mac[6] = NETWORK_MAC;
   uint8_t ip[4] = NETWORK_IP;
   uint8_t netmask[4] = NETMASK;
   uint8_t gateway[4] = GATEWAY;
-  uint8_t mac[6] = NETWORK_MAC;
   ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
@@ -169,7 +169,7 @@ void MainTask(void *argument) {
                          ucQueueStorageArea2, &xStaticQueue2);
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  uint8_t ip[4] = NETWORK_IP;
+  uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
   PacketDispatcherInit(handler_configs, 1);
