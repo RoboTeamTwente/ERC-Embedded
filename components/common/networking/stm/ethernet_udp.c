@@ -73,7 +73,6 @@ void udp_receiver_callback_example(receive_frame_t *rf) {
  */
 void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
-  LOGI(TAG, "Port: %d", port);
   result_t err = RESULT_OK;
   receive_frame_t buffer = {
       .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};

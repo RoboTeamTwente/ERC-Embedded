@@ -29,6 +29,7 @@
 #include "networking_constants.h"
 #include "packet_dispatcher.h"
 #include "queue.h"
+#include "stm32h7xx_hal_eth.h"
 #include "tim.h"
 #include <stdint.h>
 #include <time.h>
@@ -44,7 +45,7 @@ extern TIM_HandleTypeDef htim1;
 extern COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
 extern struct netif gnetif;
-
+extern ETH_HandleTypeDef heth;
 void uart_setup() {
 
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity
@@ -123,15 +124,9 @@ static result_t HandleType1Packet(void *buffer) {
   incomming_counter += 1;
   printf("Envelope of type gps info has value: %f\n", packet->speed);
   printf("This is packet: %d\n", incomming_counter);
-  return RESULT_OK;
-}
 
-static result_t HandleType2Packet(void *buffer) {
-  if (buffer == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
-  SensorBoardPHInfo *packet = (SensorBoardPHInfo *)buffer;
-  printf("envelope of type ph info has value: %f\n", packet->ph_value);
+  LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
+  LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
   return RESULT_OK;
 }
 
@@ -142,7 +137,6 @@ static uint8_t packet1_payload[] = {
     0x66, 0x66, 0xE6, 0x3F, 0x40, 0x09, 0x48, 0x01, 0x50, 0x01};
 
 static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
-static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
 
 static packet_handler_config_t handler_configs[] = {
     {.handler = HandleType1Packet,
@@ -176,9 +170,9 @@ void MainTask(void *argument) {
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
-  while (outgoing_counter < 100) {
+  while (outgoing_counter < 1000) {
     ETH_udp_send(ip, 8, packet1_payload, 46, 1);
-    osDelay(100);
+    osDelay(10);
     outgoing_counter += 1;
     LOGI(TAG, "%d", outgoing_counter);
   }
