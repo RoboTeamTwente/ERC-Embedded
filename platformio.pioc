@@ -27,7 +27,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/stm/**/*.c>
     +<components/common/*/*.c>
-    +<components/${this.__env__}/*>
+    +<components/${this.__env__}/**>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>

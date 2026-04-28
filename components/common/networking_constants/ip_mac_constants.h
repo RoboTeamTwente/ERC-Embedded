@@ -13,5 +13,9 @@
 
 #define GATEWAY {192, 168, 0, 1}
 #define NETMASK {255, 255, 255, 0}
+<<<<<<< HEAD
 >>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
+=======
+
+>>>>>>> 6e7e4ce13fe4e041a5b9f7ba0ac86a547a058263
 #endif //! IP_MAC_CONSTANTS

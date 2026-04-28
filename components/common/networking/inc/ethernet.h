@@ -26,8 +26,10 @@
  * @param gateway The gateway of the board
  * @param mac_address The mac_address of the board
  * @return An ethernet error
+ *         RESULT_ERROR_COMMS: if starting ethernet threw an error
+ *         RESULT_OK: if ethernet started properly
  */
-HAL_StatusTypeDef ETH_init(linkstatus_callback_t link_state_change_callback,
+result_t ETH_init(linkstatus_callback_t link_state_change_callback,
                            uint8_t ip[4], uint8_t netmask[4],
                            uint8_t gateway[4], uint8_t mac_address[6]);
 
