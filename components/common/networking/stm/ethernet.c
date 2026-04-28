@@ -32,8 +32,7 @@ void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
   raw_init(callback);
 }
 void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
-                  uint16_t payload_len, uint8_t prio_num,
-                  QueueHandle_t *send_queues) {
+                  uint16_t payload_len, uint8_t prio_num) {
   udp_client_send(upcb, ip, port, payload, payload_len, prio_num);
 }
 
@@ -112,9 +111,11 @@ void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
   gnetif.hwaddr[5] = heth.Init.MACAddr[5];
 
   HAL_ETH_SetSourceMACAddrMatch(&heth, 0, mac_address);
+  netif_set_up(&gnetif);
+
 }
 
-HAL_StatusTypeDef ETH_init(linkstatus_callback_t link_state_change_callback,
+result_t ETH_init(linkstatus_callback_t link_state_change_callback,
                            uint8_t ip[4], uint8_t netmask[4],
                            uint8_t gateway[4],
                            uint8_t mac_address[6]) { // TODO: return an error
@@ -123,11 +124,18 @@ HAL_StatusTypeDef ETH_init(linkstatus_callback_t link_state_change_callback,
   ETH_address_init(ip, netmask, gateway, mac_address);
 
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
-  HAL_StatusTypeDef err = HAL_ETH_Start_IT(&heth);
-  if (err != ERR_OK) {
-    LOGE(TAG, "Cannot start ethernet");
-    return err;
+  uint32_t err = HAL_ETH_GetError(&heth);
+  HAL_StatusTypeDef state = HAL_ETH_GetState(&heth);
+  for (int i = 0; i < 5; i++){
+    if(state != HAL_ETH_STATE_BUSY){break;}
+    LOGI(TAG, "Waiting for ethernet to start...");
+    osDelay(100);
   }
+  if (err != HAL_ETH_ERROR_NONE && state == HAL_ETH_STATE_STARTED || state == HAL_ETH_STATE_BUSY) {
+       LOGE(TAG, "Ethernet did not start. Error %d; State %d", err, state);
+       return RESULT_ERR_COMMS;
+  }
+
   LOGI(TAG, "Ethernet is set up!\n");
-  return err;
+  return RESULT_OK;
 }
