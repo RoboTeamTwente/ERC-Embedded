@@ -1,8 +1,8 @@
 #ifndef ETHERNET_RAW_H
 #define ETHERNET_RAW_H
 
-#include "err.h"
-#include "netif.h"
+#include "lwip/err.h"
+#include "lwip/netif.h"
 #include "result.h"
 #include <stdint.h>
 

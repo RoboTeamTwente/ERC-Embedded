@@ -1,10 +1,10 @@
 
 #include "ethernet_raw.h"
-#include "err.h"
+#include "lwip/err.h"
 #include "ethernet_diagnostics.h"
 #include "logging.h"
-#include "netif.h"
-#include "pbuf.h"
+#include "lwip/netif.h"
+#include "lwip/pbuf.h"
 #include "result.h"
 #include "FreeRTOS.h"
 #include <stdint.h>

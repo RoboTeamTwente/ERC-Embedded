@@ -146,7 +146,6 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count);
 void ETH_raw_send(uint8_t mac[6], char *payload);
 
 /**
-<<<<<<< HEAD
  * @brief Send a raw ethernet frame with binary data
  *
  * @param mac[6] Destination mac address
@@ -156,10 +155,7 @@ void ETH_raw_send(uint8_t mac[6], char *payload);
 void ETH_raw_send_binary(uint8_t mac[6], void *payload, size_t length);
 
 /**
- * @brief initilaizes raw ethernet
-=======
  * @brief Register custom protocol callback.
->>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
  *
  * registers a callback for incoming frames with custom protocols.
  *
