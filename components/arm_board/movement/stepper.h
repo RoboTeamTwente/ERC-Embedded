@@ -4,7 +4,8 @@
 //1:1 recration of protobuf
 typedef struct {
     uint32_t current_angle;
-    uint32_t pwm;
+    uint32_t duty_cycle; //Value of 1-100%
+    uint8_t timer_number; //Value from 1-17; The timer that gets used for the interrupt
 } stepper_t;
 
 //1:1 recration of protobuf
@@ -20,12 +21,6 @@ typedef struct {
     float stepper_bottom_REV;             
 } control_signals_t;
 
-stepper_t stepper;
-
-result_t init_stepper();
-
-result_t control_signals_handler (control_signals_t signals);
-
 /**
  * @brief turning the stepper using half drive mode
  * 
@@ -38,34 +33,7 @@ uint32_t stepper_make_steps(uint32_t angle);
 /**
  * @brief calculates the rotation for the stepper and uses stepper_make_steps to turn
  * 
- * @param target_angle 
+ * @param target_angle_absolute
  * @return uint32_t 
  */
-void rotate_stepper(uint32_t target_angle);
-
-void do_pwm();
-
-//placeholder 
-void delayMicroseconds (uint32_t ms);
-
-void delay_by_rpm();
-
-//NOTE: for sequence half drive
-/**
- * @brief returns if the PWM should be on or off for 2 pins
- * Placeholder bc it can only be implemented with the actual motors
- * 
- * @param step 
- */
-void sequence_placeholder(int step);
-
-//NOTE: for sequence half drive
-/**
- * @brief returns if the PWM pins should be on/off 
- * 
- * @param step 
- */
-void sequence(int step);
-
-//NOTE: temporary method, will be replaced by HAL code
-void set_pin(int pinname, char what);
+result_t rotate_stepper(uint32_t target_angle_absolute);

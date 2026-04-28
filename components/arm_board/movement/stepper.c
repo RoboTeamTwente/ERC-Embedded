@@ -2,6 +2,7 @@
 #include "result.h"
 #include "stepper.h"
 #include "tim.h"
+#include "logging.h"
 
 
 //Alledgedly, the steppers will be using CL57T drivers!
@@ -21,148 +22,79 @@
 #define ENA_PIN 4 //Enable signal
 #define ALM_PIN 5 //Alarm signal (OUT)
 
-//NOTE: placeholder values
-#define PWM_FREQ 1000
-#define DUTY_CYCLE 50
+#define DEGREES_PER_STEP 1.8 //One step turns the motor 1.8 degrees
+#define STEPS_PER_REV (360/DEGREES_PER_STEP) //At 1.8, this is 200
 
-#define STEPS_PER_REV 200 //In steps / rev
-#define MICRO_STEP 16
-#define TOTAL_STEP STEPS_PER_REV * MICRO_STEP
-#define DEGREE_PER_MICROSTEP 360 / TOTAL_STEP
+#define RPM 100 //Rotations per minute
 
-#define RPM 100
+#define TAG "STEPPER"
 
 TIM_HandleTypeDef htim2;
 
-int32_t ARR = 65535;
+/* Class variables */
+int64_t pulse_ctr = 0; //counts the amt of pulses that happened
+int64_t amt_steps = 100; //amount of pulses that we want, DEFAULT VAL FOR TESTING
 
-void SystemClock_Config(void);
-void MX_GPIO_Init(void);
-void MX_TIM2_Init(void);
+//Custom interrupt function definition
+void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef *htim);
 
+stepper_t* stepper; //Our stepper struct :)
 
-result_t init_stepper() {
-    set_pin(ENA_PIN, "HIGH");
-    stepper.current_angle = 0;
-    stepper.pwm = 0;
+void init_stepper() {
+    stepper->current_angle = 0; //Default angle is 0
+    stepper->duty_cycle = 50; //Default duty cycle is 50;
+
+    MX_TIM2_Init(); //Init the timer
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //Start the timer for PWM
+
+    //Register callback
+    HAL_TIM_RegisterCallback(&htim2, HAL_TIM_PERIOD_ELAPSED_CB_ID, User_TIMPeriodElapsedCallback); //This links the PERIOD_ELAPSED_CB_ID (period elapsed callback) to user defined function
+    HAL_TIM_Base_Start_IT(&htim2); //Start the timer in interrupt mode!
 }
 
-uint32_t stepper_make_steps(uint32_t angle) {
-    angle = angle % 360;
-    uint32_t steps_for_angle = angle / DEGREE_PER_MICROSTEP;
+result_t rotate_stepper(uint32_t target_angle_absolute) {
 
-    uint32_t seconds_for_angle = steps_for_angle / PWM_FREQ;
+    uint32_t CW_angle = target_angle_absolute - stepper->current_angle; //relative clockwise turn
+    uint32_t CCW_angle = 360 - CW_angle; //relative counterclockwise turn
+
+    uint32_t target_angle_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle;
+    bool pin_val = (CW_angle < CCW_angle) ? 1 : 0; //set pin to 1 for clockwise, 0 for counterclockwise
+
+    set_pin(DIR_PIN, pin_val); //set direction of turn
+
     
-    return seconds_for_angle;
-}
-
-void rotate_stepper(uint32_t target_angle) {
-
-    uint32_t current_angle = stepper.current_angle;
-    uint32_t CW_angle = target_angle - current_angle;
-    uint32_t CCW_angle = 360 - CW_angle;
-
-    uint32_t seconds;
-    if (CW_angle < CCW_angle) {
-        seconds = stepper_make_steps(CW_angle);
-        set_pin(DIR_PIN, 1); //1 for clockwise, 0 for counterclockwise
-    } else if (CCW_angle < CW_angle) {
-        seconds = stepper_make_steps(CCW_angle);
-        set_pin(DIR_PIN, 0); //1 for clockwise, 0 for counterclockwise
-    }
-    stepper.current_angle = target_angle;
-
+    amt_steps = target_angle_relative; //set the amount of steps to turn for the interrupt to happen
+    stepper->current_angle = target_angle_absolute; //update the angle in the struct //TODO: ONLY set once movement completed!
+    
     do_pwm();
-}
+    //Execution should not reach here, since do_pwm will go into infinite loop
 
-//NOTE: HAVE TO SET PIN TO GPIO OUT
-void do_pwm_manual() {
-
-    HAL_Init();
-    SystemClock_Config();
-    MX_GPIO_Init();
-
-    float frequency = 100; //total length of up/down wave (in us)
-    float dutyCycle = 0.5; //percentage of up compared to down
-
-    while (1) {
-        // PIN ON
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
-        HAL_Delay(frequency*dutyCycle);
-        // PIN OFF
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
-        HAL_Delay(frequency*(1-dutyCycle));
-    }
-
-}
-
-//NOTE: HAVE TO SET DMA
-void do_pwm_dma() {
-    HAL_Init();
-    SystemClock_Config();
-    MX_GPIO_Init();
-    MX_TIM2_Init();
-  
-	float DutyCycle = 0.5;
-	int32_t CH1_DC = DutyCycle * ARR;
-
-    // Sawtooth wave PWM duty cycle (0 to 1599)
-    uint16_t sawtooth_duty[5] = {0*ARR, 0.25*ARR, 0.5*ARR, 0.75*ARR, ARR};
-    
-    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, (uint32_t*)&sawtooth_duty,5);
-
-    // while (1) {
-    // 	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, CH1_DC);
-    // 	HAL_Delay(1);
-    // }
 }
 
 void do_pwm() {
-    HAL_Init();
-    SystemClock_Config();
-    MX_GPIO_Init();
-    MX_TIM2_Init();
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
-	float DutyCycle = 0.5;
-	int32_t CH1_DC = DutyCycle * ARR;
+    //NOTE: the ARR (counter register) value is set in CubeMX!
+    float ARR_val = TIM2->ARR + 1;
+    float duty_cycle = stepper->duty_cycle / 100; //Percentage -> multiplier
+	int32_t CH1_Duty_Cycle = 0.5 * ARR_val; //TODO: CHANGE to NOT hardcoded
 
     while (1) {
-    	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, CH1_DC);
+    	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, CH1_Duty_Cycle);
     	HAL_Delay(1);
     }
 }
 
-void do_pwm_timed() {
-    HAL_Init();
-    SystemClock_Config();
-    MX_GPIO_Init();
-    MX_TIM2_Init();
+void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+    LOGI(TAG, "Interrupt %d %u", pulse_ctr);
+    pulse_ctr++;
 
-    // Setup slave timer
-    TIM1->CCER = TIM_CCER_CC1E; // Enable OC1 output
-    TIM1->BDTR = TIM_BDTR_MOE; // Needed for timers with break functionality
-    TIM1->ARR = 50; //us period value
-    TIM1->CCR1 = (TIM1->ARR / 2) + 1; // 50% duty cycle
-    TIM1->CCMR1 = (7 << TIM_CCMR1_OC1M_Pos); // Inverted PWM mode (pulse is right justified inside period)
-    TIM1->SMCR = (1 << TIM_SMCR_TS_Pos) | (5 << TIM_SMCR_SMS_Pos); // Use internal trigger 1 (TIM2), slave gated mode
-    TIM1->CR1 = TIM_CR1_CEN; // Enable counter (it will not start counting immediately, as it waits for the signal from master timer)
-
-    // Setup master timer
-    TIM2->ARR = 50; //ms period value
-    TIM2->CR1 = TIM_CR1_OPM; // One pulse mode
-    TIM2->CR2 = (1 << TIM_CR2_MMS_Pos); // Master mode, trig out = counter enable
-    TIM2->CR1 |= TIM_CR1_CEN; // Enable counter, this signals slave counter to start and thus produce pulses
-
-     TIM1->CNT = 0; // Reset the slave counter, as it might be slightly over 0 after automatic disable
-    // TIM2->ARR = Optionally change for how long to produce pulses
-    TIM2->CR1 |= TIM_CR1_CEN; // Re-enable counters
-
-}
-
-void delay_by_rpm() {
-    int ms_in_minute = 60000000;
-    delayMicroseconds(ms_in_minute/STEPS_PER_REV/RPM);
+    if (pulse_ctr >= amt_steps) {
+        LOGI(TAG, "Interrupt %d %u", pulse_ctr);
+        while (1) {
+            pulse_ctr = 0;
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
+        }
+    }
 }
 
 void set_pin(int pinname, char what) {
