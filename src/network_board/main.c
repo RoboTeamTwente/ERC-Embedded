@@ -33,6 +33,7 @@
 #include "tim.h"
 #include <stdint.h>
 #include <time.h>
+#include "task_constants.h"
 #define TAG "MAIN"
 
 extern void MX_FREERTOS_Init(void);
@@ -143,7 +144,7 @@ static packet_handler_config_t handler_configs[] = {
      .task_name = "GPS Handler",
      .packet_type = PBEnvelope_gps_info_tag,
      .item_size = SensorBoardGPSInfo_size,
-     .task_priority = tskIDLE_PRIORITY + 2U,
+     .task_priority = PACKET_HANDLER_PRIORITY,
      .queue_length = 5,
      .queue_buffer = packet1_buffer}};
 

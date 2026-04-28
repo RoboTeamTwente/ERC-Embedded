@@ -39,7 +39,8 @@ StaticTask_t sendTaskBuffer;
 StackType_t sendStack[STACK_SIZE];
 
 int counter = 0; // A counter for the send packet debug message
-
+int rx_packet_counter = 0;
+int rx_errored_packet_counter = 0;
 void udp_receiver_callback_example(receive_frame_t *rf) {
 
   uint8_t *bytes = (uint8_t *)(rf->payload);
@@ -74,6 +75,8 @@ void udp_receiver_callback_example(receive_frame_t *rf) {
 void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
   result_t err = RESULT_OK;
+  rx_packet_counter += 1;
+
   receive_frame_t buffer = {
       .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
   if ((&buffer)->payload == NULL) {
@@ -84,6 +87,7 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
   if ((&buffer)->payload != NULL) {
     if (xQueueSend(udp_receiver_queue, &buffer, 10) != pdPASS) {
       err = RESULT_ERR_OVERFLOW;
+      rx_errored_packet_counter += 1;
     } else {
       (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)RQ_ETHERNET_PRIO),
                         eSetBits);
@@ -180,7 +184,7 @@ result_t ETH_udp_receiver_init(struct udp_pcb *pcb,
 
       (void *)1, /* Parameter passed into the task. */
 
-      tskIDLE_PRIORITY, /* Priority at which the task is created. */
+      RX_NOTIFIER_PRIORITY, /* Priority at which the task is created. */
 
       xStack, /* Array to use as the task's stack. */
 
@@ -266,7 +270,7 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4],
                          .upcb = upcb,
                          .port = port};
 
-  err = bucketed_pqueue_push(&udp_send_bqueue, prio_buf, &buffer, 10U);
+  err = bucketed_pqueue_push(&udp_send_bqueue, prio_buf, &buffer, 100U);
   if (err != RESULT_OK) {
     LOGE(TAG, "Could not push send message to queue");
     free(txBuf);
