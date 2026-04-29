@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
- ******************************************************************************
- * @file           : main.h
- * @brief          : Header for main.c file.
- *                   This file contains the common defines of the application.
- ******************************************************************************
- * @attention
- *
- * Copyright (c) 2026 STMicroelectronics.
- * All rights reserved.
- *
- * This software is licensed under terms that can be found in the LICENSE file
- * in the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
- *
- ******************************************************************************
- */
+  ******************************************************************************
+  * @file           : main.h
+  * @brief          : Header for main.c file.
+  *                   This file contains the common defines of the application.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -69,9 +69,14 @@ void Error_Handler(void);
 }
 #endif
 
+
 /* ---- START firmware_definitions ---- */
 
 // #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
+// #define LWIP_DEBUG 1
+#define LWIP_HOOK_VLAN_SET(pcb, hdr, netif, src, dst, eth_hdr_len)             \
+  get_vlan_header(pcb, hdr, netif, src, dst, eth_hdr_len)
+
 /* ---- END firmware_definitions ---- */
 
 #endif /* __MAIN_H */

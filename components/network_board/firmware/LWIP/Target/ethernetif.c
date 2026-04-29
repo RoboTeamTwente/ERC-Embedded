@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * File Name          : ethernetif.c
-  * Description        : This file provides code for the configuration
-  *                      of the ethernetif.c MiddleWare.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * File Name          : ethernetif.c
+ * Description        : This file provides code for the configuration
+ *                      of the ethernetif.c MiddleWare.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -43,7 +43,7 @@
 #define ETHIF_TX_TIMEOUT (2000U)
 /* USER CODE BEGIN OS_THREAD_STACK_SIZE_WITH_RTOS */
 /* Stack size of the interface thread */
-#define INTERFACE_THREAD_STACK_SIZE ( 350 )
+#define INTERFACE_THREAD_STACK_SIZE (350)
 /* USER CODE END OS_THREAD_STACK_SIZE_WITH_RTOS */
 /* Network interface name */
 #define IFNAME0 's'
@@ -597,15 +597,12 @@ void pbuf_free_custom(struct pbuf *p)
 /* USER CODE BEGIN 6 */
 
 /**
-* @brief  Returns the current time in milliseconds
-*         when LWIP_TIMERS == 1 and NO_SYS == 1
-* @param  None
-* @retval Current Time value
-*/
-u32_t sys_now(void)
-{
-  return HAL_GetTick();
-}
+ * @brief  Returns the current time in milliseconds
+ *         when LWIP_TIMERS == 1 and NO_SYS == 1
+ * @param  None
+ * @retval Current Time value
+ */
+u32_t sys_now(void) { return HAL_GetTick(); }
 
 /* USER CODE END 6 */
 
@@ -872,18 +869,15 @@ void HAL_ETH_RxAllocateCallback(uint8_t **buff)
 {
 /* USER CODE BEGIN HAL ETH RxAllocateCallback */
   struct pbuf_custom *p = LWIP_MEMPOOL_ALLOC(RX_POOL);
-  if (p)
-  {
+  if (p) {
     /* Get the buff from the struct pbuf address. */
     *buff = (uint8_t *)p + offsetof(RxBuff_t, buff);
     p->custom_free_function = pbuf_free_custom;
     /* Initialize the struct pbuf.
-    * This must be performed whenever a buffer's allocated because it may be
-    * changed by lwIP or the app, e.g., pbuf_free decrements ref. */
+     * This must be performed whenever a buffer's allocated because it may be
+     * changed by lwIP or the app, e.g., pbuf_free decrements ref. */
     pbuf_alloced_custom(PBUF_RAW, 0, PBUF_REF, p, *buff, ETH_RX_BUFFER_SIZE);
-  }
-  else
-  {
+  } else {
     RxAllocStatus = RX_ALLOC_ERROR;
     *buff = NULL;
   }
@@ -905,27 +899,24 @@ void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff, uint16_t 
   p->len = Length;
 
   /* Chain the buffer. */
-  if (!*ppStart)
-  {
+  if (!*ppStart) {
     /* The first buffer of the packet. */
     *ppStart = p;
-  }
-  else
-  {
+  } else {
     /* Chain the buffer to the end of the packet. */
     (*ppEnd)->next = p;
   }
-  *ppEnd  = p;
+  *ppEnd = p;
 
-
-  /* Update the total length of all the buffers of the chain. Each pbuf in the chain should have its tot_len
-   * set to its own length, plus the length of all the following pbufs in the chain. */
-  for (p = *ppStart; p != NULL; p = p->next)
-  {
+  /* Update the total length of all the buffers of the chain. Each pbuf in the
+   * chain should have its tot_len set to its own length, plus the length of all
+   * the following pbufs in the chain. */
+  for (p = *ppStart; p != NULL; p = p->next) {
     p->tot_len += Length;
   }
 
-  /* Invalidate data cache because Rx DMA's writing to physical memory makes it stale. */
+  /* Invalidate data cache because Rx DMA's writing to physical memory makes it
+   * stale. */
   SCB_InvalidateDCache_by_Addr((uint32_t *)buff, Length);
 
 /* USER CODE END HAL ETH RxLinkCallback */

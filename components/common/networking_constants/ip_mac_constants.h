@@ -9,4 +9,5 @@
 
 #define GATEWAY {192, 168, 0, 1}
 #define NETMASK {255, 255, 255, 0}
+
 #endif //! IP_MAC_CONSTANTS
