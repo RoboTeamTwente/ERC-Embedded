@@ -3,23 +3,23 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "FreeRTOS.h"
+#include "bucketed_pqueue.h"
+#include "cmsis_os2.h"  // FreeRTOS wrapper header (v2)
 #include "components/common/envelope.pb.h"
 #include "components/common/packet_dispatcher/packet_dispatcher.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
-#include "packet_dispatcher.h"
-#include "packet_dispatcher_macros.h"
-#include "portmacro.h"
-#include "spi.h"
-#include "stm/ethernet_udp.h"
-#include "FreeRTOS.h"
-#include "bucketed_pqueue.h"
-#include "cmsis_os2.h"  // FreeRTOS wrapper header (v2)
 #include "cubemx_main.h"
 #include "gpio.h"
 #include "ili9341.h"
 #include "logging.h"
+#include "packet_dispatcher.h"
+#include "packet_dispatcher_macros.h"
+#include "portmacro.h"
 #include "result.h"
+#include "spi.h"
+#include "stm/ethernet_udp.h"
 #include "string.h"
 #include "task.h"
 
@@ -77,15 +77,16 @@ static uint8_t packet1_payload[] = {
     0x2C, 0x65, 0x19, 0xE2, 0x58, 0x97, 0x1B, 0x40, 0x1D, 0x00, 0x00, 0x0C,
     0x42, 0x2D, 0x00, 0x00, 0x87, 0x43, 0x35, 0x9A, 0x99, 0x99, 0x3F, 0x3D,
     0x66, 0x66, 0xE6, 0x3F, 0x40, 0x09, 0x48, 0x01, 0x50, 0x01};
-static receive_frame packet1 = {.payload = packet1_payload,
-                                .len = sizeof(packet1_payload)};
+static receive_frame_t packet1 = {.payload = packet1_payload,
+
+                                  .len = sizeof(packet1_payload)};
 
 static uint8_t packet2_payload[] = {
 
     0x0A, 0x11, 0x0D, 0x66, 0x66, 0xE6, 0x40, 0x15, 0x00, 0x00,
     0x00, 0x44, 0x1D, 0x00, 0x00, 0xAC, 0x41, 0x20, 0x01};
-static receive_frame packet2 = {.payload = packet2_payload,
-                                .len = sizeof(packet2_payload)};
+static receive_frame_t packet2 = {.payload = packet2_payload,
+                                  .len = sizeof(packet2_payload)};
 static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
 static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
 
@@ -163,8 +164,8 @@ void main() {
 
     osKernelInitialize();
     LOGI(TAG, "Kernel Initialized");
-    osThreadNew(MainTask, NULL, &mainTask_attributes);
-    // menu_driver_task_spawn();
+    // osThreadNew(MainTask, NULL, &mainTask_attributes);
+    menu_driver_task_spawn();
     osKernelStart();
     while (1) {
     }
