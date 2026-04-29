@@ -59,6 +59,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     -<components/sensor_board/firmware/Drivers/**>
     +<components/sensor_board/firmware/Drivers/BSP/**>
 custom_nanopb_protos = +<components/**/*.proto>
+board_build.ldscript = components/sensor_board/firmware/STM32H753XX_FLASH.ld
 build_flags = 
     +<components/common/*/inc>
     +<components/common/*>

@@ -206,7 +206,7 @@ SECTIONS
     libgcc.a ( * )
   }
 
-  .lwip_sec (NOLOAD) :
+.lwip_sec (NOLOAD) :
   {
       . = ABSOLUTE(0x30000000);
       *(.RxDecripSection)
