@@ -1,4 +1,3 @@
-
 #include "ethernet.h"
 #include "api_msg.h"
 #include "ethernet_diagnostics.h"
@@ -7,7 +6,6 @@
 #include "logging.h"
 #include "lwip.h"
 #include "queue.h"
-// #include "tim.h"
 #include "udp.h"
 #include <stdint.h>
 #include <string.h>
@@ -16,7 +14,6 @@
 
 extern ETH_HandleTypeDef heth;
 extern struct netif gnetif;
-extern uint8_t IP_ADDRESS[4];
 
 struct udp_pcb *upcb;
 
@@ -24,11 +21,11 @@ ip4_addr_t IPADDR;
 ip4_addr_t NETMASK;
 ip4_addr_t GW;
 
-void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-                  udp_receiver_callback receiver_callback) {
-  udp_sender_init(sender_prio_num, send_queues);
-  udp_client_init(&upcb, IP_ADDRESS, receiver_callback);
-  osDelay(3000); // TODO: very ugly but udp doesn't start right after the init
+void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
+                  receive_callback_t receiver_callback) {
+  udp_client_init(&upcb, sender_prio_buf, send_queues, receiver_callback);
+  osDelay(3000); // TODO: very ugly but udp doesn't
+                 // start right after the init
 }
 void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
   raw_init(callback);
@@ -42,15 +39,11 @@ void ETH_raw_send(uint8_t *mac, char *payload) {
   raw_packet_send(&gnetif, &heth, mac, payload);
 }
 
-void ETH_raw_send_binary(uint8_t mac[6], void *payload, size_t length) {
-  raw_packet_send_binary(&gnetif, &heth, mac, payload, length);
-}
-
 void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]) {
   ETH_MACFilterConfigTypeDef macfilterconfig;
   HAL_ETH_GetMACFilterConfig(&heth, &macfilterconfig);
   macfilterconfig.HachOrPerfectFilter = DISABLE;
-  macfilterconfig.PromiscuousMode = ENABLE;  // Enable promiscuous mode for testing
+  macfilterconfig.PromiscuousMode = DISABLE;
   HAL_ETH_SetMACFilterConfig(&heth, &macfilterconfig);
 
   if (mac1 != NULL) {
@@ -93,10 +86,6 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count) {
   }
   return RESULT_ERR_COMMS;
 }
-// Send a UDP message with binary data using the priority send queue
-result_t ETH_udp_send_binary(uint8_t ip[4], uint8_t port, const void *payload, size_t length, uint8_t prio) {
-  return udp_client_send_enqueue(ip, port, payload, length, prio);
-}
 
 void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
                       uint8_t gateway[4], uint8_t mac_address[6]) {
@@ -122,13 +111,11 @@ void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
 
   HAL_ETH_SetSourceMACAddrMatch(&heth, 0, mac_address);
   netif_set_up(&gnetif);
-
 }
 
 result_t ETH_init(linkstatus_callback_t link_state_change_callback,
-                           uint8_t ip[4], uint8_t netmask[4],
-                           uint8_t gateway[4],
-                           uint8_t mac_address[6]) { // TODO: return an error
+                  uint8_t ip[4], uint8_t netmask[4], uint8_t gateway[4],
+                  uint8_t mac_address[6]) { // TODO: return an error
   LOGI(TAG, "Setting up ethernet...\n");
   MX_LWIP_Init();
   ETH_address_init(ip, netmask, gateway, mac_address);
@@ -136,14 +123,17 @@ result_t ETH_init(linkstatus_callback_t link_state_change_callback,
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
   uint32_t err = HAL_ETH_GetError(&heth);
   HAL_StatusTypeDef state = HAL_ETH_GetState(&heth);
-  for (int i = 0; i < 5; i++){
-    if(state != HAL_ETH_STATE_BUSY){break;}
+  for (int i = 0; i < 5; i++) {
+    if (state != HAL_ETH_STATE_BUSY) {
+      break;
+    }
     LOGI(TAG, "Waiting for ethernet to start...");
     osDelay(100);
   }
-  if (err != HAL_ETH_ERROR_NONE && state == HAL_ETH_STATE_STARTED || state == HAL_ETH_STATE_BUSY) {
-       LOGE(TAG, "Ethernet did not start. Error %d; State %d", err, state);
-       return RESULT_ERR_COMMS;
+  if (err != HAL_ETH_ERROR_NONE && state == HAL_ETH_STATE_STARTED ||
+      state == HAL_ETH_STATE_BUSY) {
+    LOGE(TAG, "Ethernet did not start. Error %d; State %d", err, state);
+    return RESULT_ERR_COMMS;
   }
 
   LOGI(TAG, "Ethernet is set up!\n");

@@ -1,5 +1,5 @@
 [platformio]
-default_envs = network_board
+default_envs = sensor_board
 src_dir = .
 lib_dir = lib
 

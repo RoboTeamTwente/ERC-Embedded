@@ -6,15 +6,14 @@
 #ifndef ETHERNET_H
 #define ETHERNET_H
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "result.h"
 #include "stm/ethernet_diagnostics.h"
 #include "stm/ethernet_raw.h"
 #include "stm/ethernet_udp.h"
+#include <stdint.h>
+#include <sys/types.h>
 /**
  * @brief Initializes ethernet
  *
@@ -30,8 +29,8 @@
  *         RESULT_OK: if ethernet started properly
  */
 result_t ETH_init(linkstatus_callback_t link_state_change_callback,
-                           uint8_t ip[4], uint8_t netmask[4],
-                           uint8_t gateway[4], uint8_t mac_address[6]);
+                  uint8_t ip[4], uint8_t netmask[4], uint8_t gateway[4],
+                  uint8_t mac_address[6]);
 
 /**
  * @brief Initialize the UDP protocol control block.
@@ -50,7 +49,7 @@ result_t ETH_init(linkstatus_callback_t link_state_change_callback,
  *      Callback function invoked when a UDP packet is received.
  */
 void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-                  udp_receiver_callback receiver_callback);
+                  receive_callback_t receiver_callback);
 
 /**
  * @brief Send a UDP message.
@@ -74,21 +73,8 @@ void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
  *      Priority level used for transmission. Must be less than the value
  *      specified in ETH_udp_init().
  */
-result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload,
-					  uint8_t prio);
-
-/**
- * @brief Send a udp message with binary data using the priority send queue
- *
- * @param ip[4]    Destination ip, 1 byte per entry
- * @param port     Destination port
- * @param payload  pointer to binary data
- * @param length   length of payload in bytes
- * @param prio     priority bucket
- * @return result_t
- */
-result_t ETH_udp_send_binary(uint8_t ip[4], uint8_t port, const void *payload,
-							 size_t length, uint8_t prio);
+void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
+                  uint16_t payload_len, uint8_t prio_num);
 
 /**
  * @brief Configure MAC address filtering.
@@ -144,15 +130,6 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count);
  *      Pointer to raw payload buffer.
  */
 void ETH_raw_send(uint8_t mac[6], char *payload);
-
-/**
- * @brief Send a raw ethernet frame with binary data
- *
- * @param mac[6] Destination mac address
- * @param payload pointer to binary data
- * @param length length of payload in bytes
- */
-void ETH_raw_send_binary(uint8_t mac[6], void *payload, size_t length);
 
 /**
  * @brief Register custom protocol callback.
