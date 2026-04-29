@@ -33,15 +33,9 @@ void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
 void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
   raw_init(callback);
 }
-<<<<<<< HEAD
-
-result_t ETH_udp_send(uint8_t ip[4], uint8_t port, const char *payload, uint8_t prio) {
-  return udp_client_send_enqueue(ip, port, payload, strlen(payload), prio);
-=======
 void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
                   uint16_t payload_len, uint8_t prio_num) {
   udp_client_send(upcb, ip, port, payload, payload_len, prio_num);
->>>>>>> 6e7e4ce13fe4e041a5b9f7ba0ac86a547a058263
 }
 
 void ETH_raw_send(uint8_t *mac, char *payload) {

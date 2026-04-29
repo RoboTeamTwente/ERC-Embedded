@@ -32,11 +32,6 @@ StackType_t xStack[STACK_SIZE];
 StaticTask_t txTaskBuffer;
 StackType_t txStack[TX_STACK_SIZE];
 
-<<<<<<< HEAD
-void udp_receiver_callback_example(void *payload, size_t length,
-                                   const ip_addr_t *addr, u16_t port) {
-  uint8_t *bytes = (uint8_t *)(payload);
-=======
 StaticTask_t sendTaskBuffer;
 StackType_t sendStack[STACK_SIZE];
 
@@ -46,7 +41,6 @@ int rx_errored_packet_counter = 0;
 void udp_receiver_callback_example(receive_frame_t *rf) {
 
   uint8_t *bytes = (uint8_t *)(rf->payload);
->>>>>>> 6e7e4ce13fe4e041a5b9f7ba0ac86a547a058263
   // Each byte becomes two hex characters, plus null terminator
   char *hex_str = malloc(length * 2 + 1);
   if (!hex_str)
@@ -88,9 +82,6 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
   }
   memcpy(((&buffer)->payload), (int8_t *)(p->payload), p->len);
   if ((&buffer)->payload != NULL) {
-<<<<<<< HEAD
-    err = bucketed_pqueue_push(&udp_receiver_queue, 0, &buffer, 0U);
-=======
     if (xQueueSend(udp_receiver_queue, &buffer, 10) != pdPASS) {
       err = RESULT_ERR_OVERFLOW;
       rx_errored_packet_counter += 1;
@@ -98,7 +89,6 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
       (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)RQ_ETHERNET_PRIO),
                         eSetBits);
     }
->>>>>>> 6e7e4ce13fe4e041a5b9f7ba0ac86a547a058263
   } else {
     LOGE(TAG, "Buffer copy failed");
   }
@@ -300,58 +290,11 @@ result_t udp_client_send(struct udp_pcb *upcb, uint8_t dest_ip[4], uint8_t port,
       return RESULT_ERR_BUFF;
     }
 
-<<<<<<< HEAD
-    ip_addr_t destIPaddr;
-    IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
-    err = udp_sendto(upcb, txBuf, &destIPaddr, port);
-    if (err != ERR_OK) {
-      LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
-      pbuf_free(txBuf);
-      return RESULT_ERR_COMMS;
-    }
-    pbuf_free(txBuf);
-  } else {
-    LOGE(TAG, "cannot allocate a pbuffer");
-    return RESULT_ERR_BUFF;
-  }
-
-  return RESULT_OK;
-}
-
-result_t udp_client_send_binary(struct udp_pcb *upcb, uint8_t dest_ip[4],
-                                uint8_t port, void *payload, size_t length) {
-  err_t err = ERR_OK;
-  struct pbuf *txBuf;
-
-  txBuf = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
-
-  if (txBuf != NULL) {
-    err = pbuf_take(txBuf, payload, length);
-    if (err != ERR_OK) {
-      LOGE(TAG, "buffer could not be filled: %s \n", lwip_strerr(err));
-      pbuf_free(txBuf);
-      return RESULT_ERR_BUFF;
-    }
-
-    ip_addr_t destIPaddr;
-    IP_ADDR4(&destIPaddr, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
-    err = udp_sendto(upcb, txBuf, &destIPaddr, port);
-    if (err != ERR_OK) {
-      LOGE(TAG, "Message could not be send: %s \n", lwip_strerr(err));
-      pbuf_free(txBuf);
-      return RESULT_ERR_COMMS;
-    }
-    pbuf_free(txBuf);
-  } else {
-    LOGE(TAG, "cannot allocate a pbuffer");
-    return RESULT_ERR_BUFF;
-=======
   err = bucketed_pqueue_push(&udp_send_bqueue, prio_buf, &buffer, 100U);
   if (err != RESULT_OK) {
     LOGE(TAG, "Could not push send message to queue");
     free(txBuf);
     return err;
->>>>>>> 6e7e4ce13fe4e041a5b9f7ba0ac86a547a058263
   }
 
   return RESULT_OK;

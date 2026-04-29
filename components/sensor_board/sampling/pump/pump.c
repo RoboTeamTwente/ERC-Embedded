@@ -75,7 +75,7 @@ result_t pump_init(pump_data_t *data, const pump_hw_t *hw) {
 
     /* Start PWM output at 0 % duty */
     if (HAL_TIM_PWM_Start(data->hw.htim, data->hw.tim_channel) != HAL_OK) {
-        return RESULT_ERR_HAL;
+        return RESULT_ERR_IO;
     }
     apply_pwm_duty(data, 0U);
 

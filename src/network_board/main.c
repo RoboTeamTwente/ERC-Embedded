@@ -160,19 +160,6 @@ void MainTask(void *argument) {
                                          ETHERNET_SQ_ITEM_SIZE,
                                          txStorage0, &txStruct0);
 
-<<<<<<< HEAD
-  static StaticQueue_t txStruct1;
-  static uint8_t txStorage1[ETHERNET_SQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t tx1 = xQueueCreateStatic(ETHERNET_SQ_LENGTH,
-                                         ETHERNET_SQ_ITEM_SIZE,
-                                         txStorage1, &txStruct1);
-
-  QueueHandle_t send_queues[ETHERNET_SQ_PRIORITY_BUFFERS] = {tx0, tx1};
-  result_t udp_init =
-      ETH_udp_init(ETHERNET_SQ_PRIORITY_BUFFERS, send_queues, NULL);
-  if (udp_init != RESULT_OK) {
-    LOGE(TAG, "UDP init failed: %s", result_to_short_str(udp_init));
-=======
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
   while (outgoing_counter < 1000) {
@@ -180,7 +167,6 @@ void MainTask(void *argument) {
     osDelay(10);
     outgoing_counter += 1;
     LOGI(TAG, "%d", outgoing_counter);
->>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
   }
 
   ETH_add_arp(ip, mac);

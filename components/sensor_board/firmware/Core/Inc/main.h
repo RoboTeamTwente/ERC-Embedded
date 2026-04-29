@@ -55,6 +55,22 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SYNC_in_IMU_Pin GPIO_PIN_13
+#define SYNC_in_IMU_GPIO_Port GPIOF
+#define RESET_Pin GPIO_PIN_14
+#define RESET_GPIO_Port GPIOF
+#define Input_weight_Pin GPIO_PIN_15
+#define Input_weight_GPIO_Port GPIOF
+#define SYNC_out_IMU_Pin GPIO_PIN_9
+#define SYNC_out_IMU_GPIO_Port GPIOE
+#define PPS_Pin GPIO_PIN_11
+#define PPS_GPIO_Port GPIOE
+#define PPS_EXTI_IRQn EXTI15_10_IRQn
+#define DRDY_Pin GPIO_PIN_13
+#define DRDY_GPIO_Port GPIOE
+#define DRDY_EXTI_IRQn EXTI15_10_IRQn
+#define Clock_weight_Pin GPIO_PIN_14
+#define Clock_weight_GPIO_Port GPIOG
 
 /* USER CODE BEGIN Private defines */
 

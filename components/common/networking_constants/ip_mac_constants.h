@@ -1,7 +1,6 @@
 #ifndef IP_MAC_CONSTANTS
 #define IP_MAC_CONSTANTS
 
-<<<<<<< HEAD
 #define SAMPLE_BOARD_IP {192, 168, 0, 50}
 #define SAMPEL_BOARD_MAC {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC}  // PC Ethernet adapter
 =======
@@ -13,9 +12,4 @@
 
 #define GATEWAY {192, 168, 0, 1}
 #define NETMASK {255, 255, 255, 0}
-<<<<<<< HEAD
->>>>>>> cd717df5efd34662931ff14f4e48236512fa2085
-=======
-
->>>>>>> 6e7e4ce13fe4e041a5b9f7ba0ac86a547a058263
 #endif //! IP_MAC_CONSTANTS

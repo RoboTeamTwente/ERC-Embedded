@@ -15,22 +15,10 @@
 
 // PACKET IDS
 
-<<<<<<< HEAD
-// ETHERNET CONFIGURATION
-#define ETHERNET_RQ_LENGTH 80
-#define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame_t)
-#define ETHERNET_RQ_PRIORITY_BUFFERS 2
-
-#define ETHERNET_SQ_LENGTH 80
-#define ETHERNET_SQ_ITEM_SIZE sizeof(udp_send_frame_t)
-#define ETHERNET_SQ_PRIORITY_BUFFERS 2
-#define MAX_ETH_PAYLOAD_SIZE 80
-=======
 // EHTERNET CONFIGURATION
 #define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame_t)
 #define ETHERNET_SQ_ITEM_SIZE sizeof(send_frame_t)
 #define RQ_ETHERNET_PRIO 1
 #define ETHERNET_RQ_LENGTH 1000
 #define RX_NOTIFIER_PRIORITY tskIDLE_PRIORITY + 2U
->>>>>>> 6e7e4ce13fe4e041a5b9f7ba0ac86a547a058263
 #endif // !NETWORKING_CONSTANTS_H
