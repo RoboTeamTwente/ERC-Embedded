@@ -1,11 +1,14 @@
 #include <stdbool.h>
 #include "result.h"
+#include "tim.h"
+#include "string.h"
 
 //1:1 recration of protobuf
 typedef struct {
-    uint32_t current_angle;
-    uint32_t duty_cycle; //Value of 1-100%
-    uint8_t timer_number; //Value from 1-17; The timer that gets used for the interrupt
+    uint8_t stepper_id;
+    uint8_t duty_cycle; //Value of 1-100%
+    uint16_t current_angle; //Value from 0-359
+    TIM_HandleTypeDef* htim; //The timer that is used
 } stepper_t;
 
 //1:1 recration of protobuf
@@ -21,19 +24,6 @@ typedef struct {
     float stepper_bottom_REV;             
 } control_signals_t;
 
-/**
- * @brief turning the stepper using half drive mode
- * 
- * @param angle amount to turn
- * @param direction direction to turn
- * @return uint32_t seconds it takes to turn angle
- */
-uint32_t stepper_make_steps(uint32_t angle);
 
-/**
- * @brief calculates the rotation for the stepper and uses stepper_make_steps to turn
- * 
- * @param target_angle_absolute
- * @return uint32_t 
- */
-result_t rotate_stepper(uint32_t target_angle_absolute);
+result_t init_stepper(stepper_t* stepper, uint8_t id, uint8_t duty_cycle, TIM_HandleTypeDef* tim);
+void rotate_stepper(stepper_t* stepper, uint32_t target_angle_absolute);

@@ -75,7 +75,7 @@ const osThreadAttr_t task3_attributes = {
 /* Private function prototypes */
 void SystemClock_Config(void);
 void MX_GPIO_Init(void);
-void Task2_init(void* argument);
+void test_stepper(void* argument);
 void Task3_init(void* argument);
 void test_ethernet(void* argument);
 
@@ -99,7 +99,7 @@ int main(void) {
     osKernelInitialize();
 
     /* Create the thread(s) */
-    task_2Handle = osThreadNew(Task2_init, NULL, &task2_attributes);
+    task_2Handle = osThreadNew(test_stepper, NULL, &task2_attributes);
     // task_3Handle = osThreadNew(Task3_init, NULL, &task3_attributes);
 
     // // Start scheduler
@@ -178,9 +178,13 @@ void test_ethernet(void* argument) {
     }
 }
 
-void Task2_init(void *argument) {
-    init_stepper();
-    rotate_stepper(20);
+TIM_HandleTypeDef htim2;
+
+void test_stepper(void *argument) {
+    stepper_t* step;
+    MX_TIM2_Init();
+    init_stepper(&step, 1, 50, &htim2);
+    rotate_stepper(&step, 200);
 }
 
 void Task3_init (void* argument) {
