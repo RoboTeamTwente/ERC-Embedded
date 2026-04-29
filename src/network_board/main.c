@@ -17,6 +17,9 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <stdint.h>
+#include <time.h>
+
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
 #include "components/common/networking/inc/ethernet.h"
@@ -30,17 +33,15 @@
 #include "packet_dispatcher.h"
 #include "queue.h"
 #include "stm32h7xx_hal_eth.h"
-#include "tim.h"
-#include <stdint.h>
-#include <time.h>
 #include "task_constants.h"
+#include "tim.h"
 #define TAG "MAIN"
 
 extern void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
 
-void MainTask(void *argument);
+void MainTask(void* argument);
 
 extern TIM_HandleTypeDef htim1;
 extern COM_InitTypeDef BspCOMInit;
@@ -48,18 +49,17 @@ UART_HandleTypeDef huart_com;
 extern struct netif gnetif;
 extern ETH_HandleTypeDef heth;
 void uart_setup() {
-
-  /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity
-   */
-  BspCOMInit.BaudRate = 115200;
-  BspCOMInit.WordLength = COM_WORDLENGTH_8B;
-  BspCOMInit.StopBits = COM_STOPBITS_1;
-  BspCOMInit.Parity = COM_PARITY_NONE;
-  BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
-  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
-    Error_Handler();
-  }
-  MX_USART3_Init(&huart_com, &BspCOMInit);
+    /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity
+     */
+    BspCOMInit.BaudRate = 115200;
+    BspCOMInit.WordLength = COM_WORDLENGTH_8B;
+    BspCOMInit.StopBits = COM_STOPBITS_1;
+    BspCOMInit.Parity = COM_PARITY_NONE;
+    BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
+    if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
+        Error_Handler();
+    }
+    MX_USART3_Init(&huart_com, &BspCOMInit);
 }
 
 const osThreadAttr_t mainTask_attributes = {
@@ -68,67 +68,66 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-void ethernet_linkstatus_callback(void *arg) {
-  struct netif *netif = (struct netif *)arg;
-  uint8_t ip[4] = NETWORK_IP;
-  uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  if (netif_is_up(netif)) {
-    LOGI(TAG, "Physical ethernet link is up");
-    ETH_add_arp(ip, mac, 5);
-  } else {
-    LOGE(TAG, "Physical ethernet link is down");
-  }
+void ethernet_linkstatus_callback(void* arg) {
+    struct netif* netif = (struct netif*)arg;
+    uint8_t ip[4] = NETWORK_IP;
+    uint8_t mac[6] = SAMPEL_BOARD_MAC;
+    if (netif_is_up(netif)) {
+        LOGI(TAG, "Physical ethernet link is up");
+        ETH_add_arp(ip, mac, 5);
+    } else {
+        LOGE(TAG, "Physical ethernet link is down");
+    }
 }
 
 int main(void) {
+    MPU_Config_wrapper();
 
-  MPU_Config_wrapper();
+    SCB_EnableICache();
 
-  SCB_EnableICache();
+    /* Enable D-Cache---------------------------------------------------------*/
+    SCB_EnableDCache();
 
-  /* Enable D-Cache---------------------------------------------------------*/
-  SCB_EnableDCache();
+    HAL_Init();
 
-  HAL_Init();
+    SystemClock_Config();
 
-  SystemClock_Config();
+    MX_GPIO_Init();
+    MX_TIM1_Init();
+    osKernelInitialize();
 
-  MX_GPIO_Init();
-  MX_TIM1_Init();
-  osKernelInitialize();
+    uart_setup();
+    LOG_init(&huart_com);
+    uint8_t mac[6] = NETWORK_MAC;
+    uint8_t ip[4] = NETWORK_IP;
+    uint8_t netmask[4] = NETMASK;
+    uint8_t gateway[4] = GATEWAY;
+    ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
+    int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
+    int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
+    ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
 
-  uart_setup();
-  LOG_init(&huart_com);
-  uint8_t mac[6] = NETWORK_MAC;
-  uint8_t ip[4] = NETWORK_IP;
-  uint8_t netmask[4] = NETMASK;
-  uint8_t gateway[4] = GATEWAY;
-  ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
-  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
-  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
-  int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
-  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
-
-  osThreadNew(MainTask, NULL, &mainTask_attributes);
-  osKernelStart();
-  while (1) {
-  }
+    osThreadNew(MainTask, NULL, &mainTask_attributes);
+    osKernelStart();
+    while (1) {
+    }
 }
 static int incomming_counter = 0;
 static int outgoing_counter = 0;
-static result_t HandleType1Packet(void *buffer) {
-  if (buffer == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
+static result_t HandleType1Packet(void* buffer) {
+    if (buffer == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
 
-  SensorBoardGPSInfo *packet = (SensorBoardGPSInfo *)buffer;
-  incomming_counter += 1;
-  printf("Envelope of type gps info has value: %f\n", packet->speed);
-  printf("This is packet: %d\n", incomming_counter);
+    SensorBoardGPSInfo* packet = (SensorBoardGPSInfo*)buffer;
+    incomming_counter += 1;
+    printf("Envelope of type gps info has value: %f\n", packet->speed);
+    printf("This is packet: %d\n", incomming_counter);
 
-  LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
-  LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
-  return RESULT_OK;
+    LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
+    LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
+    return RESULT_OK;
 }
 
 static uint8_t packet1_payload[] = {
@@ -149,39 +148,39 @@ static packet_handler_config_t handler_configs[] = {
      .queue_buffer = packet1_buffer}};
 
 extern int receive_counter;
-void MainTask(void *argument) {
-  int SendQueueSize = 80;
-  static StaticQueue_t xStaticQueue1;
-  uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue1 =
-      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
-                         ucQueueStorageArea1, &xStaticQueue1);
+void MainTask(void* argument) {
+    int SendQueueSize = 80;
+    static StaticQueue_t xStaticQueue1;
+    uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+    QueueHandle_t udp_receiver_queue1 =
+        xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+                           ucQueueStorageArea1, &xStaticQueue1);
 
-  static StaticQueue_t xStaticQueue2;
-  uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue2 =
-      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
-                         ucQueueStorageArea2, &xStaticQueue2);
-  QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
+    static StaticQueue_t xStaticQueue2;
+    uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+    QueueHandle_t udp_receiver_queue2 =
+        xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+                           ucQueueStorageArea2, &xStaticQueue2);
+    QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  uint8_t ip[4] = SAMPLE_BOARD_IP;
-  uint8_t mac[6] = SAMPEL_BOARD_MAC;
+    uint8_t ip[4] = SAMPLE_BOARD_IP;
+    uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
-  PacketDispatcherInit(handler_configs, 1);
+    PacketDispatcherInit(handler_configs, 1);
 
-  ETH_udp_init(2, queues, DispatchPacket);
-  ETH_add_arp(ip, mac, 5);
-  while (outgoing_counter < 1000) {
-    ETH_udp_send(ip, 8, packet1_payload, 46, 1);
-    osDelay(10);
-    outgoing_counter += 1;
-    LOGI(TAG, "%d", outgoing_counter);
-  }
+    ETH_udp_init(2, queues, DispatchPacket);
+    ETH_add_arp(ip, mac, 5);
+    while (outgoing_counter < 1000) {
+        ETH_udp_send(ip, 8, packet1_payload, 46, 1);
+        osDelay(10);
+        outgoing_counter += 1;
+        LOGI(TAG, "%d", outgoing_counter);
+    }
 
-  while (1) {
-    __asm__ __volatile__("nop");
-    LOGI(TAG, "Total messages send: %d", outgoing_counter);
-    LOGI(TAG, "Total messages received: %d", receive_counter);
-    osDelay(300);
-  }
+    while (1) {
+        __asm__ __volatile__("nop");
+        LOGI(TAG, "Total messages send: %d", outgoing_counter);
+        LOGI(TAG, "Total messages received: %d", receive_counter);
+        osDelay(300);
+    }
 }

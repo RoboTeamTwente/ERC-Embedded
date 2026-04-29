@@ -62,10 +62,12 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define TFT_RESET_Pin GPIO_PIN_6
 #define TFT_RESET_GPIO_Port GPIOC
-#define TFT_DC_Pin GPIO_PIN_7
-#define TFT_DC_GPIO_Port GPIOC
+#define MATRIX_COL_B_Pin GPIO_PIN_7
+#define MATRIX_COL_B_GPIO_Port GPIOC
 #define TFT_CS_Pin GPIO_PIN_8
 #define TFT_CS_GPIO_Port GPIOC
+#define MATRIX_ROW_B_Pin GPIO_PIN_9
+#define MATRIX_ROW_B_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
@@ -78,7 +80,11 @@ void Error_Handler(void);
 
 /* ---- START firmware_definitions ---- */
 
-#define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
+// #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
+// #define LWIP_DEBUG 1
+#define LWIP_HOOK_VLAN_SET(pcb, hdr, netif, src, dst, eth_hdr_len)             \
+  get_vlan_header(pcb, hdr, netif, src, dst, eth_hdr_len)
+
 /* ---- END firmware_definitions ---- */
 
 #endif /* __MAIN_H */
