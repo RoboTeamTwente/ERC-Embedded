@@ -19,7 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "cubemx_main.h"
+#include "main.h"
 #include "lwip/opt.h"
 #include "lwip/timeouts.h"
 #include "netif/ethernet.h"

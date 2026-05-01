@@ -26,7 +26,7 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "cubemx_main.h"
+#include "main.h"
 
 /* USER CODE BEGIN Includes */
 

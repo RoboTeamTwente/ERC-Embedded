@@ -421,7 +421,7 @@ void init_board() {
   }
 }
 
-int main(void) { init_board(); }
+// int main(void) { init_board(); }
 
 /* ============================================================================
  * EXTI ISR glue — place in stm32h7xx_it.c (or here if you prefer)

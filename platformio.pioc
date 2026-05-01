@@ -51,12 +51,11 @@ board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
 lib_deps = ${extra.common_lib_deps}
 test_filter = sensor_board/*
-build_src_filter = +<src/${this.__env__}/**/*.c>
-    +<components/common/*/${this.__env__}/**/*.c>
-    +<components/common/*/stm/**/*.c>
-    +<components/common/*.c>
-    +<components/sensor_board/**>
-    -<components/sensor_board/firmware/Drivers/**>
+build_src_filter =
+    +<src/sensor_board/>
+    +<components/sensor_board/>
+    +<components/common/**>
+    -<components/sensor_board/firmware/Drivers/>
     +<components/sensor_board/firmware/Drivers/BSP/**>
 custom_nanopb_protos = +<components/**/*.proto>
 board_build.ldscript = components/sensor_board/firmware/STM32H753XX_FLASH.ld

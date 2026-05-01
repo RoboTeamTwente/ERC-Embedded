@@ -22,7 +22,7 @@
 #ifndef __LWIPOPTS__H__
 #define __LWIPOPTS__H__
 
-#include "cubemx_main.h"
+#include "main.h"
 
 /*-----------------------------------------------------------------------------*/
 /* Current version of LwIP supported by CubeMx: 2.1.2 -*/
