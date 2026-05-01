@@ -51,8 +51,8 @@ find "$BASE" -type d -name firmware_definitions | while read -r FW_DIR; do
 
         TMP_FILE="$(mktemp)"
 
-        head -n -1 "$CUBEMX_FILE" >> "$TMP_FILE"
-    
+        sed '$d' "$CUBEMX_FILE" >> "$TMP_FILE"
+        echo "after created temp files!!!!"
         echo -e "\n/* ---- START firmware_definitions ---- */\n" >> "$TMP_FILE"
         find "$FW_DIR" -type f -exec cat {} \; >> "$TMP_FILE"
         echo -e "\n/* ---- END firmware_definitions ---- */\n" >> "$TMP_FILE"
