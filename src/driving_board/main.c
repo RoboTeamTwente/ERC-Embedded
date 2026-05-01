@@ -4,17 +4,18 @@
 #include "control.h"
 #include "cubemx_main.h"
 #include "components/common/envelope.pb.h"
-#include "diagnostics.pb.h"
-#include "motor_information.pb.h"
+//#include "diagnostics.pb.h"
+//#include "motor_information.pb.h"
 #include "components/common/packet_dispatcher/packet_dispatcher.h"
 #include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
+#include "ethernet.h"
 //#include "packet_dispatcher.h"
 #include "packet_dispatcher_macros.h"
 #include "ip_mac_constants.h"
-#include "networking_constants.h"
 #include "queue.h"
-#include "ethernet.h"
+#include "netif.h"
+#include "networking_constants.h"
 #include "stm/ethernet_udp.h" //receive_counter
 #include "gpio.h"
 #include "logging.h"
@@ -24,10 +25,11 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "bldc.h"
+#include <time.h>
 #include <stdint.h>
 #include "result.h"
 
-//#include "parser.h"
+
 
 
 #include "calculator.h"
@@ -84,6 +86,15 @@ const osThreadAttr_t drivingEncoderTask_attributes = {
     .stack_size = 256 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
+
+
+void ethernet_linkstatus_callback(struct netif *netif) {
+  if (netif_is_up(netif)) {
+    LOGI(TAG, "Physical ethernet link is up");
+  } else {
+    LOGE(TAG, "Physical ethernet link is down");
+  }
+}
 
 static int incomming_counter = 0;
 static int outgoing_counter = 0;
@@ -163,11 +174,14 @@ void init_board() {
   control_initialize();
 
   //ethernet
-  ETH_init(NULL, NULL);
-  int mac1[6] = {0x11,0x22,0x33,0x44,0x55,0x66};
-  int mac2[6] = {0x12,0x23,0x34,0x45,0x56,0x67};
-  int mac3[6] = {0x13,0x24,0x35,0x46,0x57,0x68};
-  ETH_setup_MAC_address_filtering(mac1,mac2,mac3);
+  ETH_init(ethernet_linkstatus_callback);
+  ETH_raw_init(NULL);
+  /**
+   * int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
+  int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
+   */
+  
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
@@ -223,7 +237,8 @@ void init_board() {
 
 int main(void) { init_board(); }
 
-void FillDiagnostics(DiagnosticsData *diag)
+/**
+ * void FillDiagnostics(DiagnosticsData *diag)
 {
     if (diag == NULL) return;
 
@@ -245,6 +260,8 @@ void FillDiagnostics(DiagnosticsData *diag)
     diag->motors[1].encoder_angle = get_motor_angle(2);
     //add more of the motors later
 }
+ */
+
 
 /**
  * @brief  Main application task
@@ -269,8 +286,8 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
   rtU.dist2goal = 2.0;  // meters
   rtU.steerang  = 1.0;
 
-  uint8_t ip[4] = {0, 0, 0, 0};
-  uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
+  //uint8_t ip[4] = {0, 0, 0, 0};
+  //uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
   //ETH_udp_init();
 
   int SendQueueSize = 80;
