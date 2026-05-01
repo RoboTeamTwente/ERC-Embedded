@@ -1,7 +1,10 @@
+/**
+ * #include "diagnostics.pb.h"
+#include "motor_information.pb.h"
+ */
 #include <result.h>
 #include <pb_message.h>
-#include "diagnostics.pb.h"
-#include "motor_information.pb.h"
+
 #ifndef PARSER_H
 #define PARSER_H
 

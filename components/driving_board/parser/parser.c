@@ -1,7 +1,9 @@
 //logic fr getting the type of message from envelope
 
 //will use that type in the future right now it assumes I got drivingboard msg
-#include "logging.h"
+
+/**
+ * #include "logging.h"
 #include "string.h"
 #include "parser.h"
 #include "diagnostics.pb.h"
@@ -12,6 +14,8 @@
 
 
 static char *TAG = "MAIN";
+
+ */
 
 
 //(result_t pb_message_encode(const void *src_struct, const pb_field_t fields[],uint8_t **out_data, size_t *out_length);
@@ -48,8 +52,8 @@ static char *TAG = "MAIN";
  }
 }
  */
-
-void copy_motor_to_pb(MotorInformation *dst, const MotorDiagnostic *src)//gets the each motor diagnostic struct and puts it in motor information pb
+/**
+ * void copy_motor_to_pb(MotorInformation *dst, const MotorDiagnostic *src)//gets the each motor diagnostic struct and puts it in motor information pb
 {
     dst->state = (MotorInformation_State)src->state;//typecast motor info state
     dst->motor_id = src->motor_id;
@@ -84,3 +88,5 @@ result_t DBMDiagnosticsEncode(const DiagnosticsData *diag, uint8_t **out_data, s
   return RESULT_OK;
 }
 
+
+ */

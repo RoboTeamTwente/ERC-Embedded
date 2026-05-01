@@ -174,13 +174,15 @@ void init_board() {
   control_initialize();
 
   //ethernet
-  ETH_init(ethernet_linkstatus_callback);
-  ETH_raw_init(NULL);
-  /**
-   * int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+  uint8_t mac[6] = NETWORK_MAC;
+  uint8_t ip[4] = NETWORK_IP;
+  uint8_t netmask[4] = NETMASK;
+  uint8_t gateway[4] = GATEWAY;
+  ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
+  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
-   */
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
   
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
@@ -310,7 +312,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
   PacketDispatcherInit(handler_configs, 1);
 
   ETH_udp_init(2, queues, DispatchPacket);
-  ETH_add_arp(ip, mac);
+  ETH_add_arp(ip, mac, 5);
   while (outgoing_counter < 100) {
     ETH_udp_send(ip, 8, packet1_payload, 46, 1);
     osDelay(100);
