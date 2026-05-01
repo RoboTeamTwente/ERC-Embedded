@@ -1,3 +1,8 @@
+/**
+ * @file
+ * @brief The header to be used by any ehternet implementation
+ */
+
 #ifndef ETHERNET_H
 #define ETHERNET_H
 
@@ -15,62 +20,124 @@
  * @param[in] link_state_change_callback callback function for when the physical
  *                                       Ethernet link state changes
  *                                       I.e. cable connects/disconnects
+ * @param ip The ip of the board
+ * @param netmask The netmask of the board
+ * @param gateway The gateway of the board
+ * @param mac_address The mac_address of the board
+ * @return An ethernet error
+ *         RESULT_ERROR_COMMS: if starting ethernet threw an error
+ *         RESULT_OK: if ethernet started properly
  */
-void ETH_init(linkstatus_callback_t link_state_change_callback);
+result_t ETH_init(linkstatus_callback_t link_state_change_callback,
+                           uint8_t ip[4], uint8_t netmask[4],
+                           uint8_t gateway[4], uint8_t mac_address[6]);
 
 /**
- * @brief Initialzes the udp protocol control block
+ * @brief Initialize the UDP protocol control block.
  *
- * @param[in] sender_prio_num Number of priority queues for sending messages
- * @param[in] send_queues priority queues for sending
- * @param[in] receiver_callback The callback function for received mpackets
+ * Configures the UDP subsystem, including priority-based transmit queues
+ * and the receive callback handler.
+ *
+ * @param[in] sender_prio_num
+ *      Number of priority levels for outgoing messages.
+ *
+ * @param[in] send_queues
+ *      Array of queue handles used for prioritized message transmission.
+ *      The array must contain at least @p sender_prio_num elements.
+ *
+ * @param[in] receiver_callback
+ *      Callback function invoked when a UDP packet is received.
  */
 void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
-                  receiver_callback_t receiver_callback);
+                  receive_callback_t receiver_callback);
 
 /**
- * @brief Send a udp message
+ * @brief Send a UDP message.
  *
- * @param ip[4]    Destination ip, 1 byte per entry
- * @param port     Destination port
- * @param payload  payload of the message
- * @param[in] payload_len Length of the payload
- * @param[in] prio_num the priority for this message
+ * Queues a UDP packet for transmission to the specified destination using
+ * the given priority level.
+ *
+ * @param[in] ip
+ *      Destination IPv4 address (array of 4 bytes).
+ *
+ * @param[in] port
+ *      Destination port number.
+ *
+ * @param[in] payload
+ *      Pointer to the payload data buffer.
+ *
+ * @param[in] payload_len
+ *      Length of the payload in bytes.
+ *
+ * @param[in] prio_num
+ *      Priority level used for transmission. Must be less than the value
+ *      specified in ETH_udp_init().
  */
 void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
                   uint16_t payload_len, uint8_t prio_num);
 
 /**
- * @brief Sets registers for perfect mac filtering
+ * @brief Configure MAC address filtering.
  *
- * @param[in] mac1 mac to filter, can be NULL
- * @param[in] mac2 mac to filter, can be NULL
- * @param[in] mac3 mac to filter, can be NULL
+ * Sets up to three MAC addresses for perfect filtering. Only frames with a
+ * destination addres matching one of the configured addresses, or the mac
+ * address configured in ETH_init, will be accepted.
+ *
+ * @param[in] mac1
+ *      Pointer to first MAC address (6 bytes). Can be NULL to disable.
+ *
+ * @param[in] mac2
+ *      Pointer to second MAC address (6 bytes). Can be NULL to disable.
+ *
+ * @param[in] mac3
+ *      Pointer to third MAC address (6 bytes). Can be NULL to disable.
  */
 void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]);
 
 /**
- * @brief Add an IP to the arp table
+ * @brief Add an entry to the ARP table.
  *
- * @param ip  the ip
- * @param mac the mac
- * @return RESULT_OK if the element is succesfully added,
- *         RESULT_ERR_COMMS if it is not succesfully added.
+ * Associates an IPv4 address with a MAC address for future lookups.
+ *
+ * @param[in] ip
+ *      IPv4 address (array of 4 integers).
+ *
+ * @param[in] mac
+ *      MAC address (array of 6 integers).
+ *
+ * @param[in] retry_count
+ *      The amount of times the function will try to add the static ARP entry.
+ *
+ * @return RESULT_OK
+ *      Entry successfully added.
+ *
+ * @return RESULT_ERR_COMMS
+ *      Failed to add the entry.
  */
-result_t ETH_add_arp(int ip[4], int mac[6]);
+
+result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count);
 
 /**
- * @brief Send a raw ethernet frame
+ * @brief Send a raw Ethernet frame.
  *
- * @param mac[6] Destination mac address
- * @param payload payload of the message
+ * Transmits a raw Ethernet payload directly to the specified MAC address.
+ * No protocol headers (e.g., IP/UDP) are added automatically.
+ *
+ * @param[in] mac
+ *      Destination MAC address (6 bytes).
+ *
+ * @param[in] payload
+ *      Pointer to raw payload buffer.
  */
 void ETH_raw_send(uint8_t mac[6], char *payload);
 
 /**
- * @brief initilaizes raw ethernet
+ * @brief Register custom protocol callback.
  *
- * @param callback receiver callback function
+ * registers a callback for incoming frames with custom protocols.
+ *
+ * @param[in] callback
+ *      Function invoked when a frame with an unkown protocol is received.
  */
-void ETH_raw_init(raw_receiver_callback callback);
+void ETH_custom_protocol_receiver(raw_receiver_callback callback);
 #endif

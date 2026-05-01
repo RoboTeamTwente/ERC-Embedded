@@ -17,5 +17,6 @@
 #define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame_t)
 #define ETHERNET_SQ_ITEM_SIZE sizeof(send_frame_t)
 #define RQ_ETHERNET_PRIO 1
-#define ETHERNET_RQ_LENGTH 80
+#define ETHERNET_RQ_LENGTH 1000
+#define RX_NOTIFIER_PRIORITY tskIDLE_PRIORITY + 2U
 #endif // !NETWORKING_CONSTANTS_H

@@ -18,16 +18,21 @@ extern struct netif gnetif;
 
 struct udp_pcb *upcb;
 
+ip4_addr_t IPADDR;
+ip4_addr_t NETMASK;
+ip4_addr_t GW;
+
 void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
                   receive_callback_t receiver_callback) {
   udp_client_init(&upcb, sender_prio_buf, send_queues, receiver_callback);
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
 }
-void ETH_raw_init(raw_receiver_callback callback) { raw_init(callback); }
+void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
+  raw_init(callback);
+}
 void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
-                  uint16_t payload_len, uint8_t prio_num,
-                  QueueHandle_t *send_queues) {
+                  uint16_t payload_len, uint8_t prio_num) {
   udp_client_send(upcb, ip, port, payload, payload_len, prio_num);
 }
 
@@ -59,31 +64,78 @@ void ETH_setup_MAC_address_filtering(int mac1[6], int mac2[6], int mac3[6]) {
   }
 }
 
-result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6]) {
+result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count) {
   ip4_addr_t ipaddr;
   struct eth_addr macaddr;
 
   IP4_ADDR(&ipaddr, ip[0], ip[1], ip[2], ip[3]);
   memcpy(macaddr.addr, mac, 6);
 
-  err_t err = etharp_add_static_entry(&ipaddr, &macaddr);
-  if (err == ERR_OK) {
-    LOGI(TAG, "Static ARP entry added successfully with IP: %u.%u.%u.%u",
-         (uint8_t)ipaddr.addr, (uint8_t)(ipaddr.addr >> 8),
-         (uint8_t)(ipaddr.addr >> 16), (uint8_t)(ipaddr.addr >> 24));
-    return RESULT_OK;
-  } else {
-    LOGE(TAG, "Failed to add static ARP entry: %d\n", result_to_short_str(err));
-    return RESULT_ERR_COMMS;
+  for (int i = 0; i < retry_count; i++) {
+
+    LOGI(TAG, "Trying to add static ARP entry with IP: %s; try %d",
+         ip4addr_ntoa(&ipaddr), i);
+    err_t err = etharp_add_static_entry(&ipaddr, &macaddr);
+    if (err == ERR_OK) {
+      LOGI(TAG, "Static ARP entry added successfully with IP: %s",
+           ip4addr_ntoa(&ipaddr));
+      return RESULT_OK;
+    } else {
+      LOGE(TAG, "Failed to add static ARP entry: %d\n",
+           result_to_short_str(err));
+    }
   }
+  return RESULT_ERR_COMMS;
 }
 
-void ETH_init(
-    linkstatus_callback_t link_state_change_callback) { // TODO: return an error
+void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
+                      uint8_t gateway[4], uint8_t mac_address[6]) {
+  netif_set_down(&gnetif);
+  IP4_ADDR(&IPADDR, ip[0], ip[1], ip[2], ip[3]);
+  IP4_ADDR(&NETMASK, netmask_addr[0], netmask_addr[1], netmask_addr[2],
+           netmask_addr[3]);
+  IP4_ADDR(&GW, gateway[0], gateway[1], gateway[2], gateway[3]);
+
+  /* add the network interface (IPv4/IPv6) with RTOS */
+  netif_set_ipaddr(&gnetif, &IPADDR);
+  netif_set_netmask(&gnetif, &NETMASK);
+  netif_set_gw(&gnetif, &GW);
+
+  heth.Init.MACAddr = &mac_address[0];
+
+  gnetif.hwaddr[0] = heth.Init.MACAddr[0];
+  gnetif.hwaddr[1] = heth.Init.MACAddr[1];
+  gnetif.hwaddr[2] = heth.Init.MACAddr[2];
+  gnetif.hwaddr[3] = heth.Init.MACAddr[3];
+  gnetif.hwaddr[4] = heth.Init.MACAddr[4];
+  gnetif.hwaddr[5] = heth.Init.MACAddr[5];
+
+  HAL_ETH_SetSourceMACAddrMatch(&heth, 0, mac_address);
+  netif_set_up(&gnetif);
+
+}
+
+result_t ETH_init(linkstatus_callback_t link_state_change_callback,
+                           uint8_t ip[4], uint8_t netmask[4],
+                           uint8_t gateway[4],
+                           uint8_t mac_address[6]) { // TODO: return an error
   LOGI(TAG, "Setting up ethernet...\n");
   MX_LWIP_Init();
+  ETH_address_init(ip, netmask, gateway, mac_address);
+
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
-  HAL_ETH_Start_IT(&heth);
+  uint32_t err = HAL_ETH_GetError(&heth);
+  HAL_StatusTypeDef state = HAL_ETH_GetState(&heth);
+  for (int i = 0; i < 5; i++){
+    if(state != HAL_ETH_STATE_BUSY){break;}
+    LOGI(TAG, "Waiting for ethernet to start...");
+    osDelay(100);
+  }
+  if (err != HAL_ETH_ERROR_NONE && state == HAL_ETH_STATE_STARTED || state == HAL_ETH_STATE_BUSY) {
+       LOGE(TAG, "Ethernet did not start. Error %d; State %d", err, state);
+       return RESULT_ERR_COMMS;
+  }
 
   LOGI(TAG, "Ethernet is set up!\n");
+  return RESULT_OK;
 }

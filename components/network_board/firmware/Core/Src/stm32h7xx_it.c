@@ -89,9 +89,12 @@ void HardFault_Handler(void)
   /* USER CODE BEGIN HardFault_IRQn 0 */
   int b = 0;
   /* USER CODE END HardFault_IRQn 0 */
-  while (a==1)
+  while (1)
   {
     /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+      if(a == 0){
+        break;
+      }
       b++;
     /* USER CODE END W1_HardFault_IRQn 0 */
   }

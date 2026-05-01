@@ -27,7 +27,7 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/stm/**/*.c>
     +<components/common/*/*.c>
-    +<components/${this.__env__}/*>
+    +<components/${this.__env__}/**>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
@@ -37,7 +37,7 @@ build_flags=
     +<components/network_board/**>
     -<components/network_board/firmware/Drivers/**>
     +<components/network_board/firmware/Drivers/BSP/**>
-    +<components/common/*>
+    +<components/common/**>
     +<components/common/*/inc>
     +<components/common/*/network_board/**>
     -mthumb
