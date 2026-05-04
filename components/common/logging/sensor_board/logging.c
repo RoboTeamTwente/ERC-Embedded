@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static UART_HandleTypeDef huart_handler;
+static UART_HandleTypeDef *huart_handler_ptr = NULL;
 // Char=byte, system doesnt seem to have bool;
 static char initialized = 0;
 
@@ -19,10 +19,10 @@ static char initialized = 0;
  */
 int _write(int file, char *ptr, int len) {
   // Only handle stdout (standard output), which has a file descriptor of 1
-  if (file == 1) {
+  if (file == 1 && huart_handler_ptr != NULL) {
     // Transmit the character buffer 'ptr' of length 'len' via UART
     // The last parameter is the timeout in milliseconds.
-    HAL_UART_Transmit(&huart_handler, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+    HAL_UART_Transmit(huart_handler_ptr, (uint8_t *)ptr, len, HAL_MAX_DELAY);
   }
   return len;
 }
@@ -31,13 +31,13 @@ int _write(int file, char *ptr, int len) {
  * @param arg a pointer to a UART_HandleTypeDef
  */
 void LOG_init(void *arg) {
-  huart_handler = *(UART_HandleTypeDef *)arg;
+  huart_handler_ptr = (UART_HandleTypeDef *)arg;
   initialized = 1;
   LOG(LOG_INFO, "LOGGING", "Logging Initialized");
 }
 
 void LOG(LogLevel level, const char *TAG, const char *log_message, ...) {
-  if (initialized == 0) {
+  if (initialized == 0 || huart_handler_ptr == NULL) {
     // Early return in case huart_handler is not set;
     return;
   }
@@ -96,7 +96,7 @@ void LOG(LogLevel level, const char *TAG, const char *log_message, ...) {
   va_end(args);
 
   // --- Transmit and clean up ---
-  HAL_UART_Transmit(&huart_handler, (uint8_t *)total_message, total_len,
+  HAL_UART_Transmit(huart_handler_ptr, (uint8_t *)total_message, total_len,
                     HAL_MAX_DELAY);
 
   free(format_message);

@@ -22,6 +22,7 @@
 #include "i2c.h"
 #include "lwip.h"
 #include "gpio.h"
+#include "logging.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -136,6 +137,11 @@ if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
 {
 Error_Handler();
 }
+
+/* Initialize logging after UART is ready */
+extern UART_HandleTypeDef hcom_uart[];
+LOG_init(&hcom_uart[COM1]);
+LOGI("BOOT", "System booted, FreeRTOS starting...");
 
 /* Start scheduler */
 osKernelStart();

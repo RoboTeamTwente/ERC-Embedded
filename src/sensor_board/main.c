@@ -184,18 +184,11 @@ static result_t handle_sensor_pump_command(void *buffer) {
  * ============================================================================
  */
 
-static void sensor_udp_rx_callback(void *payload, size_t length,
-                                   const ip_addr_t *addr, u16_t port) {
-  if (payload == NULL || length == 0U || addr == NULL) {
+static void sensor_udp_rx_callback(receive_frame_t *frame) {
+  if (frame == NULL || frame->payload == NULL || frame->len == 0U) {
     return;
   }
-  receive_frame_t frame = {
-      .addr = *addr,
-      .payload = payload,
-      .port = port,
-      .len = (uint16_t)length,
-  };
-  DispatchPacket(&frame);
+  DispatchPacket(frame);
 }
 
 static result_t
@@ -367,23 +360,6 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-void uart_setup() {
-  BspCOMInit.BaudRate = 115200;
-  BspCOMInit.WordLength = COM_WORDLENGTH_8B;
-  BspCOMInit.StopBits = COM_STOPBITS_1;
-  BspCOMInit.Parity = COM_PARITY_NONE;
-  BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
-  
-  /* BSP_COM_Init handles GPIO setup via COM1_MspInit and calls MX_USART3_Init */
-  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
-    Error_Handler();
-  }
-  
-  /* Get the properly initialized UART handle from the BSP */
-  extern UART_HandleTypeDef hcom_uart[];
-  huart_com = hcom_uart[COM1];
-}
-
 void init_board() {
   MPU_Config_wrapper();
   SCB_EnableICache();
@@ -395,11 +371,6 @@ void init_board() {
    * It's already called by cubemx_main.c after this function returns. */
   
   MX_GPIO_Init();
-  uart_setup();
-  LOG_init(&huart_com);
-
-  char *boot_msg = "\r\n[BOOT] System Initialized. Starting Kernel...\r\n";
-  HAL_UART_Transmit(&huart_com, (uint8_t *)boot_msg, strlen(boot_msg), 100);
 
   uint8_t ip[4] = {192, 168, 0, 10};
   uint8_t netmask[4] = {255, 255, 255, 0};
