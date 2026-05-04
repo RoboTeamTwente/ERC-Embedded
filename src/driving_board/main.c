@@ -52,6 +52,8 @@ void MX_GPIO_Init(void);
 void MX_TIM1_Init(void);
 void MX_TIM3_Init(void);
 void MX_TIM4_Init(void);
+extern struct netif gnetif;
+extern ETH_HandleTypeDef heth;
 
 COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
@@ -88,9 +90,13 @@ const osThreadAttr_t drivingEncoderTask_attributes = {
 };
 
 
-void ethernet_linkstatus_callback(struct netif *netif) {
+void ethernet_linkstatus_callback(void *arg) {
+  struct netif *netif = (struct netif *)arg;
+  uint8_t ip[4] = NETWORK_IP;
+  uint8_t mac[6] = SAMPEL_BOARD_MAC;
   if (netif_is_up(netif)) {
     LOGI(TAG, "Physical ethernet link is up");
+    ETH_add_arp(ip, mac, 5);
   } else {
     LOGE(TAG, "Physical ethernet link is down");
   }
@@ -313,7 +319,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
-  while (outgoing_counter < 100) {
+  while (outgoing_counter < 1000) {
     ETH_udp_send(ip, 8, packet1_payload, 46, 1);
     osDelay(100);
     outgoing_counter += 1;
@@ -403,7 +409,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
     //LOGI(TAG, "%d + %d = %d", 5, 2, add(5, 2));
 
    // LOGI(TAG, "This is the driving board");
-    osDelay(1000);
+   // osDelay(1000);
     
   }
 }
