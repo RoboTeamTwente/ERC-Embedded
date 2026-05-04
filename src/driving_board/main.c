@@ -416,7 +416,7 @@ void PwmTask(void *argument){
        control_step();// from control.c
        //LOGI(TAG, "actang[0]     = %f, actang[1]     = %f, actang[2]     = %f, actang[3]     = %f\n", rtU.actang[0], rtU.actang[1], rtU.actang[2], rtU.actang[3]);
        //LOGI(TAG, "control step occured");
-       LOGI(TAG, "pwmrev[0]   = %f, pwmrev[1]   = %f, pwmrev[2]   = %f, pwmrev[3]   = %f, pwmenable[0]   = %f, pwmenable[1]   = %f, pwmenable[2]   = %f, pwmenable[3]   = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3], rtY.pwnenable[0], rtY.pwnenable[1],rtY.pwnenable[2],rtY.pwnenable[3]);
+       //LOGI(TAG, "pwmrev[0]   = %f, pwmrev[1]   = %f, pwmrev[2]   = %f, pwmrev[3]   = %f, pwmenable[0]   = %f, pwmenable[1]   = %f, pwmenable[2]   = %f, pwmenable[3]   = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3], rtY.pwnenable[0], rtY.pwnenable[1],rtY.pwnenable[2],rtY.pwnenable[3]);
        set_bldc_pwm();//this might also be done somewhere else im not sure
        //set_stepper_pwm();
        osDelay(period_ms); //fixed 1ms loop
