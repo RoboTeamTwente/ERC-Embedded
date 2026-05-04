@@ -501,6 +501,92 @@ void MainTask(void *argument) {
 
   BSP_LED_Toggle(LED_GREEN);
 
+  /* ---- Stepper motor init ------------------------------------------------ */
+  /* TODO: STEPPER MOTOR STUB
+   * ===========================
+   * User will implement the stepper motor library.
+   * This section provides the skeleton for integration.
+   * 
+   * IMPLEMENTATION CHECKLIST:
+   * [ ] Create stepper_motor.h/c in components/sensor_board/stepper/
+   * [ ] Define stepper_motor_hw_t structure (GPIO ports, pins, timer, etc.)
+   * [ ] Implement stepper_motor_init() - configure GPIO, timer, state machine
+   * [ ] Implement stepper_motor_open() - start opening sequence
+   * [ ] Implement stepper_motor_close() - start closing sequence
+   * [ ] Implement stepper_motor_stop() - emergency stop
+   * [ ] Implement stepper_motor_update() - update state machine (call in main loop)
+   * [ ] Implement stepper_motor_is_moving() - check if actively moving
+   * [ ] Add protobuf message definition in ERC-Protobufs/ if needed
+   * 
+   * EXPECTED HARDWARE INTERFACE:
+   * - Stepper motor driver (e.g., DRV8825, A4988) with:
+   *   - Direction pin (GPIO)
+   *   - Step pin (GPIO or PWM timer)
+   *   - Enable pin (GPIO)
+   * - Limit switches for open/closed positions (optional EXTI)
+   * - Encoder/potentiometer for position feedback (optional ADC)
+   */
+
+  /* Stepper motor data structure - IMPLEMENT IN stepper_motor.h
+  typedef struct {
+    // Position tracking
+    int32_t current_position;      // Current position in steps (or mm)
+    int32_t target_position;       // Target position
+    
+    // State machine
+    enum {
+      STEPPER_STATE_IDLE,
+      STEPPER_STATE_OPENING,
+      STEPPER_STATE_CLOSING,
+      STEPPER_STATE_ERROR,
+      STEPPER_STATE_STOPPED
+    } state;
+    
+    // Control parameters
+    uint32_t step_delay_us;        // Microseconds between steps
+    uint16_t speed_percent;        // 0-100% speed
+    bool direction;                // true = open, false = close
+    bool enabled;                  // Enable/disable motor
+    bool is_initialised;           // Init flag
+    
+    // Hardware reference
+    TIM_HandleTypeDef *htim_step;  // Timer for step pulse
+    uint32_t tim_channel;          // Timer channel
+    GPIO_TypeDef *dir_port;        // Direction GPIO port
+    uint16_t dir_pin;              // Direction GPIO pin
+    GPIO_TypeDef *en_port;         // Enable GPIO port
+    uint16_t en_pin;               // Enable GPIO pin
+    
+    // Optional: limit switches
+    bool has_open_limit;
+    bool has_close_limit;
+    bool open_limit_triggered;
+    bool close_limit_triggered;
+  } stepper_motor_data_t;
+  */
+
+  /* Example: Declare stepper motor instance
+  static stepper_motor_data_t g_stepper_motor;
+  
+  // Configure hardware interface
+  stepper_motor_hw_t stepper_hw = {
+    .htim_step = &htim1,           // Adjust to your timer
+    .tim_channel = TIM_CHANNEL_1,
+    .dir_port = GPIOB,
+    .dir_pin = GPIO_PIN_2,
+    .en_port = GPIOB,
+    .en_pin = GPIO_PIN_3,
+  };
+  
+  LOGI(TAG, "Initializing Stepper Motor...");
+  result_t stepper_init_result = stepper_motor_init(&g_stepper_motor, &stepper_hw);
+  if (stepper_init_result != RESULT_OK) {
+    LOGE(TAG, "Stepper motor init failed: %s", result_to_short_str(stepper_init_result));
+  } else {
+    LOGI(TAG, "Stepper motor initialized");
+  }
+  */
+
   /* ---- UDP init ---------------------------------------------------------- */
   LOGI(TAG, "Initializing UDP...");
 
@@ -929,6 +1015,79 @@ void MainTask(void *argument) {
         LOGE(TAG, "Pump UDP send failed: %s", result_to_short_str(pump_send_r));
       }
     }
+
+    /* ==========================================================================
+     * Stepper Motor — state machine update
+     * ==========================================================================
+     * TODO: STEPPER MOTOR STUB - STATE MACHINE UPDATE
+     * 
+     * Call the stepper motor state machine update function here.
+     * This will:
+     * - Decrement step timers
+     * - Generate step pulses
+     * - Check limit switches
+     * - Update position tracking
+     * - Handle error conditions
+     * 
+     * IMPLEMENTATION:
+     * if (g_stepper_motor.is_initialised) {
+     *   stepper_motor_update(&g_stepper_motor);
+     *   
+     *   // Optionally: send status over network every N iterations
+     *   if (loop_count % 1 == 0) {  // Every loop, or adjust as needed
+     *     SensorBoardStepperMotorInfo stepper_info = 
+     *       SensorBoardStepperMotorInfo_init_zero;
+     *     stepper_info.position = g_stepper_motor.current_position;
+     *     stepper_info.is_moving = stepper_motor_is_moving(&g_stepper_motor);
+     *     stepper_info.state = (uint32_t)g_stepper_motor.state;
+     *     // send_stepper_motor_info_udp(dest_ip, SENSOR_UDP_DEST_PORT, 
+     *     //                            &stepper_info, 1);
+     *   }
+     * }
+     */
+    // stepper_motor_update(&g_stepper_motor);  // UNCOMMENT when implemented
+
+    /* ==========================================================================
+     * Stepper Motor Commands — example handler for network commands
+     * ==========================================================================
+     * TODO: STEPPER MOTOR STUB - NETWORK COMMAND HANDLER
+     * 
+     * Add this handler function above with other packet handlers:
+     * 
+     * static result_t handle_stepper_motor_command(void *buffer) {
+     *   if (buffer == NULL) {
+     *     return RESULT_ERR_INVALID_ARG;
+     *   }
+     *   extern stepper_motor_data_t g_stepper_motor;
+     *   SensorBoardStepperMotorCommand *cmd = 
+     *     (SensorBoardStepperMotorCommand *)buffer;
+     *   
+     *   LOGI(TAG, "Stepper cmd: action=%d, speed=%lu%%", 
+     *        cmd->action, (unsigned long)cmd->speed_percent);
+     *   
+     *   switch (cmd->action) {
+     *     case STEPPER_ACTION_OPEN:
+     *       stepper_motor_open(&g_stepper_motor);
+     *       break;
+     *     case STEPPER_ACTION_CLOSE:
+     *       stepper_motor_close(&g_stepper_motor);
+     *       break;
+     *     case STEPPER_ACTION_STOP:
+     *       stepper_motor_stop(&g_stepper_motor);
+     *       break;
+     *     default:
+     *       return RESULT_ERR_INVALID_ARG;
+     *   }
+     *   stepper_motor_set_speed_percent(&g_stepper_motor, cmd->speed_percent);
+     *   return RESULT_OK;
+     * }
+     * 
+     * Then register in handler_configs array:
+     * PACKET_HANDLER_CONFIG_STATIC(stepper_cmd_handler, 
+     *                              PBEnvelope_stepper_cmd_tag,
+     *                              stepper_cmd, 
+     *                              handle_stepper_motor_command);
+     */
 
     /* Send overall diagnostics envelope */
     send_sensor_diagnostics_udp(dest_ip, SENSOR_UDP_DEST_PORT, &diagnostics, 1);
