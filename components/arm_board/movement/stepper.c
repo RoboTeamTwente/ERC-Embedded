@@ -34,7 +34,7 @@ int64_t pulse_ctr = 0; //counts the amt of pulses that happened
 int64_t amt_steps = 100; //amount of pulses that we want, DEFAULT VAL FOR TESTING
 
 //Custom interrupt function definition
-void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim, stepper_t* stepper);
+void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim);
 
 result_t init_stepper(stepper_t* stepper, uint8_t id, uint8_t duty_cycle, TIM_HandleTypeDef* tim) {
     stepper->stepper_id = id;
