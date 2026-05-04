@@ -1,5 +1,9 @@
 [platformio]
+<<<<<<< HEAD
 default_envs = sensor_board
+=======
+default_envs = arm_board
+>>>>>>> 4eb76620421fec19924143f17a231fa1d4bf79fb
 src_dir = .
 lib_dir = lib
 
@@ -78,8 +82,9 @@ build_flags =
 board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
 build_src_filter = +<src/${this.__env__}/**/*.c>
+    +<components/common/*/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
-    +<components/${this.__env__}/*>
+    +<components/${this.__env__}/**>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
@@ -92,6 +97,8 @@ build_flags=
     +<components/common/*>
     +<components/common/*/inc>
     +<components/common/*/arm_board/**>
+    +<components/common/*/stm/**/*.c>
+    +<components/common/*.c>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp
