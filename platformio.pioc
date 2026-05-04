@@ -1,9 +1,5 @@
 [platformio]
-<<<<<<< HEAD
 default_envs = sensor_board
-=======
-default_envs = arm_board
->>>>>>> 4eb76620421fec19924143f17a231fa1d4bf79fb
 src_dir = .
 lib_dir = lib
 
