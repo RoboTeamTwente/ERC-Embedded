@@ -1,7 +1,7 @@
 #ifndef PIO_UNIT_TESTING
 
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
-#include "control.h"
+#include "control_drive.h"
 #include "cubemx_main.h"
 #include "components/common/envelope.pb.h"
 //#include "diagnostics.pb.h"
@@ -177,7 +177,7 @@ void init_board() {
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
-  control_initialize();
+  control_drive_initialize();
 
   //ethernet
   uint8_t mac[6] = NETWORK_MAC;
@@ -278,8 +278,8 @@ int main(void) { init_board(); }
  */
 void MainTask(void *argument) {//send messages calculates actual values from reallife hall sensors(encoders)
 
-
-  rtU.actspeed[0] =7.15;
+/**
+ *   rtU.actspeed[0] =7.15;
   rtU.actspeed[1] =7.12;
   rtU.actspeed[2] =7.15;
   rtU.actspeed[3] =6.75;
@@ -293,6 +293,8 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
   rtU.dist2goal = 2.0;  // meters
   rtU.steerang  = 1.0;
+ */
+
 
   //uint8_t ip[4] = {0, 0, 0, 0};
   //uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
@@ -414,19 +416,25 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
   }
 }
 
-void PwmTask(void *argument){
-   const uint32_t period_ms = 100;
+void PwmTask(void *argument)
+{
+    uint32_t last_tick = osKernelGetTickCount();
+    uint32_t wake_time = last_tick;
+    const uint32_t period = 1;
 
-   for(;;)
-   {
-       control_step();// from control.c
-       //LOGI(TAG, "actang[0]     = %f, actang[1]     = %f, actang[2]     = %f, actang[3]     = %f\n", rtU.actang[0], rtU.actang[1], rtU.actang[2], rtU.actang[3]);
-       //LOGI(TAG, "control step occured");
-       //LOGI(TAG, "pwmrev[0]   = %f, pwmrev[1]   = %f, pwmrev[2]   = %f, pwmrev[3]   = %f, pwmenable[0]   = %f, pwmenable[1]   = %f, pwmenable[2]   = %f, pwmenable[3]   = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3], rtY.pwnenable[0], rtY.pwnenable[1],rtY.pwnenable[2],rtY.pwnenable[3]);
-       set_bldc_pwm();//this might also be done somewhere else im not sure
-       //set_stepper_pwm();
-       osDelay(period_ms); //fixed 1ms loop
-   }
+    for(;;)
+    {
+        uint32_t now = osKernelGetTickCount();
+
+        rtU.deltaTime = (now - last_tick) * 0.001f;
+        last_tick = now;
+
+        control_drive_step();
+        set_bldc_pwm();
+
+        wake_time += period;// schedule next exact tick
+        osDelayUntil(wake_time);
+    }
 }
 
 void DrivingEncoderTask(void *argument){

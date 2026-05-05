@@ -1,7 +1,8 @@
-
+/**
+ * 
 #include <stdint.h>
 #include "math.h"
-#include "control.h"//get control output
+#include "control_drive.h"//get control output
 #include <rtwtypes.h>
 #include "stm32h7xx_hal.h" //needed in order to reach HAL timer handlers, dictionary for microcontroller that defines periperals
 
@@ -23,3 +24,4 @@ void set_stepper_pwm(void){
     }
     
 }
+ */
