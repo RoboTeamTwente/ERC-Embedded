@@ -82,16 +82,16 @@ void ethernet_linkstatus_callback(void *arg) {
 
 int main(void) {
 
-  MPU_Config_wrapper();
+  HAL_Init();
 
   SCB_EnableICache();
 
   /* Enable D-Cache---------------------------------------------------------*/
   SCB_EnableDCache();
 
-  HAL_Init();
-
   SystemClock_Config();
+
+  MPU_Config_wrapper();
 
   MX_GPIO_Init();
   MX_TIM1_Init();
@@ -154,11 +154,20 @@ void MainTask(void *argument) {
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
-  static StaticQueue_t txStruct0;
-  static uint8_t txStorage0[ETHERNET_SQ_LENGTH * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t tx0 = xQueueCreateStatic(ETHERNET_SQ_LENGTH,
-                                         ETHERNET_SQ_ITEM_SIZE,
-                                         txStorage0, &txStruct0);
+  int SendQueueSize = 80;
+  static StaticQueue_t xStaticQueue1;
+  uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t udp_receiver_queue1 =
+      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea1, &xStaticQueue1);
+
+  static StaticQueue_t xStaticQueue2;
+  uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t udp_receiver_queue2 =
+      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea2, &xStaticQueue2);
+
+  QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
@@ -169,17 +178,10 @@ void MainTask(void *argument) {
     LOGI(TAG, "%d", outgoing_counter);
   }
 
-  ETH_add_arp(ip, mac);
+  ETH_add_arp(ip, mac, 5);
   while (1) {
-    (void)ETH_udp_send(ip, 7, "udp message", 1);
-    osDelay(100);
-    ETH_raw_send(mac,
-                 "long ass raw message looooong looooooonger "
-                 "looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-                 "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-                 "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
-                 "oooooooooooooooooooooooooooooongest WASAAPPPPPPPP SHISHIR HERE AND "
-                 "THERE AND EVERYWHERE");
+    const char *udp_msg = "udp message";
+    (void)ETH_udp_send(ip, 7, (uint8_t *)udp_msg, 11, 1);
     osDelay(100);
   }
 }
