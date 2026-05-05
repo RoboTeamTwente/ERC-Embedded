@@ -367,27 +367,11 @@ void init_board() {
   HAL_Init();
   SystemClock_Config();
   
-  /* NOTE: Do NOT call osKernelInitialize() here.
-   * It's already called by cubemx_main.c after this function returns. */
-  
   MX_GPIO_Init();
 
-  uint8_t ip[4] = {192, 168, 0, 10};
-  uint8_t netmask[4] = {255, 255, 255, 0};
-  uint8_t gateway[4] = {192, 168, 0, 1};
-  uint8_t mac_address[6] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x00};
-  ETH_init(NULL, ip, netmask, gateway, mac_address);
-  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
-  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
-  int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};
-  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
-  uint8_t laptop_ip[4] = {192, 168, 0, 100};
-  uint8_t laptop_mac[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
-  (void)ETH_add_arp(laptop_ip, laptop_mac, 3);
-
-  osThreadNew(MainTask, NULL, &mainTask_attributes);
-  /* NOTE: Do NOT call osKernelStart() here.
-   * It's called by cubemx_main.c after MX_FREERTOS_Init(). */
+  /* NOTE: Do NOT create threads here - kernel not initialized yet! */
+  /* NOTE: Do NOT call osKernelInitialize() here.
+   * It's already called by cubemx_main.c after this function returns. */
 }
 
 // int main(void) { init_board(); }
@@ -416,6 +400,28 @@ void MainTask(void *argument) {
   BSP_LED_Init(LED_RED);
 
   LOGI(TAG, "Sensor board taking off...");
+
+  /* ---- Initialize Ethernet (after scheduler is running) -------------- */
+  extern void MX_LWIP_Init(void);
+  MX_LWIP_Init();
+  LOGI(TAG, "LWIP initialized");
+
+  uint8_t ip[4] = {192, 168, 0, 10};
+  uint8_t netmask[4] = {255, 255, 255, 0};
+  uint8_t gateway[4] = {192, 168, 0, 1};
+  uint8_t mac_address[6] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x00};
+  ETH_init(NULL, ip, netmask, gateway, mac_address);
+  LOGI(TAG, "Ethernet initialized");
+
+  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
+  int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+
+  uint8_t laptop_ip[4] = {192, 168, 0, 100};
+  uint8_t laptop_mac[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
+  (void)ETH_add_arp(laptop_ip, laptop_mac, 3);
+  LOGI(TAG, "Ethernet ARP initialized");
 
   /* ---- Packet dispatcher ------------------------------------------------- */
   packet_handler_config_t handler_configs[] = {
@@ -590,15 +596,16 @@ void MainTask(void *argument) {
   /* ---- UDP init ---------------------------------------------------------- */
   LOGI(TAG, "Initializing UDP...");
 
+  int SendQueueSize = 80;
   static StaticQueue_t txStruct0;
-  static uint8_t txStorage0[ETHERNET_RQ_LENGTH * sizeof(send_frame_t)];
+  static uint8_t txStorage0[80 * sizeof(send_frame_t)];
   QueueHandle_t tx0 = xQueueCreateStatic(
-      ETHERNET_RQ_LENGTH, sizeof(send_frame_t), txStorage0, &txStruct0);
+      SendQueueSize, sizeof(send_frame_t), txStorage0, &txStruct0);
 
   static StaticQueue_t txStruct1;
-  static uint8_t txStorage1[ETHERNET_RQ_LENGTH * sizeof(send_frame_t)];
+  static uint8_t txStorage1[80 * sizeof(send_frame_t)];
   QueueHandle_t tx1 = xQueueCreateStatic(
-      ETHERNET_RQ_LENGTH, sizeof(send_frame_t), txStorage1, &txStruct1);
+      SendQueueSize, sizeof(send_frame_t), txStorage1, &txStruct1);
 
   if (tx0 == NULL || tx1 == NULL) {
     LOGE(TAG, "CRITICAL: Failed to create UDP send queues!");
@@ -615,7 +622,6 @@ void MainTask(void *argument) {
   const bool skip_sensor_polling = true;
 
   uint8_t dest_ip[4] = {192, 168, 0, 255};
-  uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
   while (1) {
     uint32_t free_heap = xPortGetFreeHeapSize();
@@ -630,8 +636,6 @@ void MainTask(void *argument) {
     BSP_LED_Toggle(LED_GREEN);
     BSP_LED_Toggle(LED_BLUE);
     BSP_LED_Toggle(LED_RED);
-
-    ETH_raw_send(bcast_mac, "HELLO_FROM_SENSOR_BOARD");
 
     SensorBoardDiagnostics diagnostics = SensorBoardDiagnostics_init_zero;
     diagnostics.state = SensorBoardDiagnostics_State_OPERATING;

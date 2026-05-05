@@ -27,6 +27,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+/* Forward declarations */
+extern void init_board(void);
+extern void MainTask(void *argument);
+extern const osThreadAttr_t mainTask_attributes;
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -135,16 +140,26 @@ BspCOMInit.Parity     = COM_PARITY_NONE;
 BspCOMInit.HwFlowCtl  = COM_HWCONTROL_NONE;
 if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
 {
-Error_Handler();
+  Error_Handler();
 }
 
-/* Initialize logging after UART is ready */
+/* Initialize logging - early output for debugging */
 extern UART_HandleTypeDef hcom_uart[];
 LOG_init(&hcom_uart[COM1]);
+LOGI("BOOT", "Logging initialized");
+
+/* Try to continue without delay */
 LOGI("BOOT", "System booted, FreeRTOS starting...");
+
+/* Create main application task */
+osThreadNew(MainTask, NULL, &mainTask_attributes);
+
+LOGI("BOOT", "MainTask created, starting kernel");
 
 /* Start scheduler */
 osKernelStart();
+
+LOGI("BOOT", "ERROR: osKernelStart should never return!");
 
 /* We should never get here as control is now taken by the scheduler */
 
