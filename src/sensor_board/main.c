@@ -23,6 +23,7 @@
 #include "ethernet.h"
 #include "gpio.h"
 #include "logging.h"
+#include "lwip/netif.h"
 #include "networking_constants.h"
 #include "queue.h"
 #include "string.h"
@@ -62,9 +63,17 @@
 #define MAIN_TASK_DELAY_MS 5000
 #define SENSOR_UDP_DEST_PORT 7
 
+static uint8_t ethernet_board_ip[4] = {192, 168, 0, 10};
+static uint8_t ethernet_board_netmask[4] = {255, 255, 255, 0};
+static uint8_t ethernet_board_gateway[4] = {192, 168, 0, 1};
+static uint8_t ethernet_board_mac[6] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x00};
+static uint8_t ethernet_peer_ip[4] = {192, 168, 0, 100};
+static uint8_t ethernet_peer_mac[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
+
 extern void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
+extern struct netif gnetif;
 void Error_Handler(void);
 
 /* ============================================================================
@@ -189,6 +198,49 @@ static void sensor_udp_rx_callback(receive_frame_t *frame) {
     return;
   }
   DispatchPacket(frame);
+}
+
+void ethernet_linkstatus_callback(void *arg) {
+  struct netif *netif = (struct netif *)arg;
+  if (netif == NULL) {
+    return;
+  }
+
+  if (netif_is_link_up(netif)) {
+    LOGI(TAG, "Physical ethernet link is up");
+    result_t arp_result = ETH_add_arp(ethernet_peer_ip, ethernet_peer_mac, 5);
+    if (arp_result != RESULT_OK) {
+      LOGE(TAG, "Failed to add ARP entry after link-up: %s",
+           result_to_short_str(arp_result));
+    }
+  } else {
+    LOGE(TAG, "Physical ethernet link is down");
+  }
+}
+
+void SensorBoardNetworkInit(void) {
+  LOGI(TAG, "Starting ethernet setup...");
+
+  result_t eth_result =
+      ETH_init(ethernet_linkstatus_callback, ethernet_board_ip,
+               ethernet_board_netmask, ethernet_board_gateway,
+               ethernet_board_mac);
+  if (eth_result != RESULT_OK) {
+    LOGE(TAG, "ETH_init failed: %s", result_to_short_str(eth_result));
+    return;
+  }
+
+  LOGI(TAG, "Ethernet init completed");
+  LOGI(TAG, "Ethernet status after init: link=%s, up=%s",
+       netif_is_link_up(&gnetif) ? "UP" : "DOWN",
+       netif_is_up(&gnetif) ? "UP" : "DOWN");
+
+  LOGI(TAG, "Setting MAC filtering...");
+  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
+  int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+  LOGI(TAG, "MAC filtering completed");
 }
 
 static result_t
@@ -357,7 +409,7 @@ UART_HandleTypeDef huart_com;
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
     .stack_size = 1024 * 8,
-    .priority = (osPriority_t)osPriorityNormal,
+    .priority = (osPriority_t)osPriorityAboveNormal,
 };
 
 void init_board() {
@@ -401,35 +453,15 @@ void MainTask(void *argument) {
 
   LOGI(TAG, "Sensor board taking off...");
 
-  /* ---- Initialize Ethernet (after scheduler is running) -------------- */
-  extern void MX_LWIP_Init(void);
-  MX_LWIP_Init();
-  LOGI(TAG, "LWIP initialized");
-
-  uint8_t ip[4] = {192, 168, 0, 10};
-  uint8_t netmask[4] = {255, 255, 255, 0};
-  uint8_t gateway[4] = {192, 168, 0, 1};
-  uint8_t mac_address[6] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x00};
-  ETH_init(NULL, ip, netmask, gateway, mac_address);
-  LOGI(TAG, "Ethernet initialized");
-
-  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
-  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
-  int mac3[6] = {0x13, 0x24, 0x35, 0x46, 0x57, 0x68};
-  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
-
-  uint8_t laptop_ip[4] = {192, 168, 0, 100};
-  uint8_t laptop_mac[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
-  (void)ETH_add_arp(laptop_ip, laptop_mac, 3);
-  LOGI(TAG, "Ethernet ARP initialized");
-
   /* ---- Packet dispatcher ------------------------------------------------- */
+  LOGI(TAG, "Initializing packet dispatcher...");
+  
   packet_handler_config_t handler_configs[] = {
       arm_control_handler,      arm_diag_handler,
       drive_diag_handler,       sensor_ph_handler,
       sensor_gps_handler,       sensor_imu_handler,
       sensor_load_cell_handler, sensor_pressure_handler,
-      sensor_pump_cmd_handler, /* NEW: receive pump commands */
+      sensor_pump_cmd_handler,
   };
 
   result_t dispatcher_result = PacketDispatcherInit(
@@ -445,26 +477,31 @@ void MainTask(void *argument) {
   imu_data_t imu_data;
   LOGI(TAG, "Initializing IMU...");
   imu_sensor_init(&imu_data);
+  LOGI(TAG, "IMU init completed");
 
   ph_sensor_t ph_sensor;
   LOGI(TAG, "Initializing pH Sensor...");
   ph_sensor_init(&ph_sensor, 3.3f);
+  LOGI(TAG, "pH sensor init completed");
 
   gps_data_t gps_data;
   LOGI(TAG, "Initializing GPS...");
   gps_sensor_init(&gps_data);
+  LOGI(TAG, "GPS init completed");
 
   load_cell_data_t load_cell_data[2];
   LOGI(TAG, "Initializing Load Cells...");
   for (size_t i = 0; i < 2; i++) {
     load_cell_sensor_init(&load_cell_data[i]);
   }
+  LOGI(TAG, "Load cells init completed");
 
   pressure_sensor_data_t pressure_data[2];
   LOGI(TAG, "Initializing Pressure Sensors...");
   for (size_t i = 0; i < 2; i++) {
     pressure_sensor_init(&pressure_data[i]);
   }
+  LOGI(TAG, "Pressure sensors init completed");
 
   /* ---- Flow sensor init -------------------------------------------------- */
   /*
@@ -595,7 +632,7 @@ void MainTask(void *argument) {
 
   /* ---- UDP init ---------------------------------------------------------- */
   LOGI(TAG, "Initializing UDP...");
-
+  
   int SendQueueSize = 80;
   static StaticQueue_t txStruct0;
   static uint8_t txStorage0[80 * sizeof(send_frame_t)];
@@ -618,16 +655,18 @@ void MainTask(void *argument) {
 
   /* ---- Main loop --------------------------------------------------------- */
   uint32_t loop_count = 0;
+  LOGI(TAG, "========== ENTERING MAIN LOOP ==========");
   LOGI(TAG, "Starting main sensor loop...");
-  const bool skip_sensor_polling = true;
+  const bool skip_sensor_polling = false; // need to make false to pool data
 
   uint8_t dest_ip[4] = {192, 168, 0, 255};
 
   while (1) {
+    LOGI(TAG, "=== Main loop iteration %lu ===", loop_count);
     uint32_t free_heap = xPortGetFreeHeapSize();
     loop_count++;
 
-    if (free_heap < 8192U) {
+    if (free_heap < 4096U) {  // Lower threshold - was 8192U
       LOGE(TAG, "CRITICAL: Low heap! Free: %lu bytes", free_heap);
       osDelay(10000);
       continue;
