@@ -24,6 +24,7 @@
 #include "gpio.h"
 #include "logging.h"
 #include "lwip/netif.h"
+#include "components/common/networking_constants/ip_mac_constants.h"
 #include "networking_constants.h"
 #include "queue.h"
 #include "string.h"
@@ -63,12 +64,12 @@
 #define MAIN_TASK_DELAY_MS 5000
 #define SENSOR_UDP_DEST_PORT 7
 
-static uint8_t ethernet_board_ip[4] = {192, 168, 0, 10};
-static uint8_t ethernet_board_netmask[4] = {255, 255, 255, 0};
-static uint8_t ethernet_board_gateway[4] = {192, 168, 0, 1};
-static uint8_t ethernet_board_mac[6] = {0x00, 0x80, 0xE1, 0x00, 0x00, 0x00};
-static uint8_t ethernet_peer_ip[4] = {192, 168, 0, 100};
-static uint8_t ethernet_peer_mac[6] = {0x58, 0x11, 0x22, 0x3D, 0x88, 0xFC};
+static uint8_t ethernet_board_ip[4] = SENSOR_BOARD_IP;
+static uint8_t ethernet_board_netmask[4] = NETMASK;
+static uint8_t ethernet_board_gateway[4] = GATEWAY;
+static uint8_t ethernet_board_mac[6] = SENSOR_BOARD_MAC;
+static uint8_t ethernet_peer_ip[4] = SENSOR_PEER_IP;
+static uint8_t ethernet_peer_mac[6] = SENSOR_PEER_MAC;
 
 extern void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
