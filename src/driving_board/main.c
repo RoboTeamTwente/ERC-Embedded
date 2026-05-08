@@ -7,8 +7,10 @@
 //#include "diagnostics.pb.h"
 //#include "motor_information.pb.h"
 #include "components/common/packet_dispatcher/packet_dispatcher.h"
-#include "components/sensor_board/gps_sensor.pb.h"
-#include "components/sensor_board/ph_sensor.pb.h"
+#include "components/driving_board/motor_periodic_progress.pb.h"
+#include "components/driving_board/motor_diagnostics.pb.h"
+#include "components/common/motor.pb.h"
+#include "components/driving_board/motor_msg.pb.h"
 #include "ethernet.h"
 //#include "packet_dispatcher.h"
 #include "packet_dispatcher_macros.h"
@@ -104,41 +106,36 @@ void ethernet_linkstatus_callback(void *arg) {
 
 static int incomming_counter = 0;
 static int outgoing_counter = 0;
-static result_t HandleType1Packet(void *buffer) {
+static result_t HandleTypeMotorMsgPacket(void *buffer) {
   if (buffer == NULL) {
     return RESULT_ERR_INVALID_ARG;
   }
 
-  SensorBoardGPSInfo *packet = (SensorBoardGPSInfo *)buffer;
+  DrivingBoardMotorMessage *packet = (DrivingBoardMotorMessage *)buffer;
   incomming_counter += 1;
-  printf("Envelope of type gps info has value: %f\n", packet->speed);
+  printf("Envelope of type distance to go info has value: %f\n", packet->distance_to_go);
   printf("This is packet: %d\n", incomming_counter);
   return RESULT_OK;
 }
 
-static result_t HandleType2Packet(void *buffer) {
-  if (buffer == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
-  SensorBoardPHInfo *packet = (SensorBoardPHInfo *)buffer;
-  printf("envelope of type ph info has value: %f\n", packet->ph_value);
-  return RESULT_OK;
-}
 
-static uint8_t packet1_payload[] = {
+/**
+ * static uint8_t packet1_payload[] = {
     0x62, 0x2C, 0x09, 0x13, 0xF2, 0x41, 0xCF, 0x66, 0x1D, 0x4A, 0x40, 0x11,
     0x2C, 0x65, 0x19, 0xE2, 0x58, 0x97, 0x1B, 0x40, 0x1D, 0x00, 0x00, 0x0C,
     0x42, 0x2D, 0x00, 0x00, 0x87, 0x43, 0x35, 0x9A, 0x99, 0x99, 0x3F, 0x3D,
     0x66, 0x66, 0xE6, 0x3F, 0x40, 0x09, 0x48, 0x01, 0x50, 0x01};
+ */
 
-static uint8_t packet1_buffer[SensorBoardGPSInfo_size * 5];
-static uint8_t packet2_buffer[SensorBoardPHInfo_size * 5];
+
+static uint8_t packet1_buffer[DrivingBoardMotorMessage_size * 5];
+
 
 static packet_handler_config_t handler_configs[] = {
-    {.handler = HandleType1Packet,
-     .task_name = "GPS Handler",
-     .packet_type = PBEnvelope_gps_info_tag,
-     .item_size = SensorBoardGPSInfo_size,
+    {.handler = HandleTypeMotorMsgPacket,
+     .task_name = "Motor Msg Handler",
+     .packet_type = PBEnvelope_drive_motor_tag,
+     .item_size = DrivingBoardMotorMessage_size,
      .task_priority = tskIDLE_PRIORITY + 2U,
      .queue_length = 5,
      .queue_buffer = packet1_buffer}};
@@ -300,6 +297,9 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
   //uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
   //ETH_udp_init();
 
+
+
+
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
   uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
@@ -321,12 +321,16 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
-  while (outgoing_counter < 1000) {
+
+  /**
+   * while (outgoing_counter < 1000) {
     ETH_udp_send(ip, 8, packet1_payload, 46, 1);
     osDelay(100);
     outgoing_counter += 1;
     LOGI(TAG, "%d", outgoing_counter);
   }
+   */
+  
  
   while (1) {
     /**
@@ -336,11 +340,86 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
     ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
     osDelay(100); 
      */
+    DrivingBoardDiagnostics diag =DrivingBoardDiagnostics_init_zero;
 
+    diag.state = DrivingBoardDiagnostics_State_OPERATING;
+
+    diag.front_left_motor.state = MotorInformation_State_OPERATING;
+
+    diag.front_left_motor.motor_id = 1;
+    diag.front_left_motor.rpm = 1200.0f;
+    diag.front_left_motor.voltage = 24.0f;
+    diag.front_left_motor.encoder_angle = 1.57f;
+
+    PBEnvelope diag_envelope = PBEnvelope_init_zero;
+
+    diag_envelope.which_payload = PBEnvelope_drive_diag_tag;
+
+    diag_envelope.payload.drive_diag = diag;
+
+    uint8_t *diag_encoded = NULL;
+    size_t diag_size = 0;
+
+    result_t diag_result =
+        pb_message_encode(
+            &diag_envelope,
+            PBEnvelope_fields,
+            &diag_encoded,
+            &diag_size);
+
+    if (diag_result == RESULT_OK){
+        ETH_udp_send(
+            ip,
+            8,
+            diag_encoded,
+            diag_size,
+            1);
+
+        free(diag_encoded);
+
+    LOGI(TAG,"Sent DrivingBoardDiagnostics");}
+
+    //send motor progress
+
+    DrivingBoardMotorPeriodicProgress progress =
+        DrivingBoardMotorPeriodicProgress_init_zero;
+
+    progress.distance_left =
+        10.0f - outgoing_counter;
+
+    PBEnvelope progress_envelope =
+        PBEnvelope_init_zero;
+
+    progress_envelope.which_payload =
+        PBEnvelope_drive_progress_tag;
+
+    progress_envelope.payload.drive_progress =
+        progress;
+
+    uint8_t *progress_encoded = NULL;
+    size_t progress_size = 0;
+
+    result_t progress_result =
+        pb_message_encode(
+            &progress_envelope,
+            PBEnvelope_fields,
+            &progress_encoded,
+            &progress_size);
+
+    if (progress_result == RESULT_OK)
+    {
+        ETH_udp_send(
+            ip,
+            8,
+            progress_encoded,
+            progress_size,
+            1);
+
+        free(progress_encoded);
+
+    LOGI(TAG,"Sent DrivingBoardMotorPeriodicProgress");}
 
     __asm__ __volatile__("nop");
-    LOGI(TAG, "Total messages send: %d", outgoing_counter);
-    LOGI(TAG, "Total messages received: %d", receive_counter);
     osDelay(300);
     //sending packet
     /**
