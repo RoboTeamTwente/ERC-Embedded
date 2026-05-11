@@ -183,6 +183,8 @@ TIM_HandleTypeDef htim2;
 void test_stepper(void *argument) {
     stepper_t* step;
     MX_TIM2_Init();
+    MX_TIM3_Init();
+    MX_GPIO_Init();
     init_stepper(&step, 1, 50, &htim2);
     rotate_stepper(&step, 200);
 }

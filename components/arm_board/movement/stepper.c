@@ -44,11 +44,11 @@ result_t init_stepper(stepper_t* stepper, uint8_t id, uint8_t duty_cycle, TIM_Ha
 
     TIM_HandleTypeDef* htim = stepper->htim;
 
-    HAL_TIM_PWM_Start(htim, TIM_CHANNEL_1); //Start the timer for PWM //NOTE: ONLY on CHANNEL_1
+    // HAL_TIM_PWM_Start(htim, TIM_CHANNEL_1); //Start the timer for PWM //NOTE: ONLY on CHANNEL_1
 
-    //Register callback
-    HAL_TIM_RegisterCallback(htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, User_TIMPeriodElapsedCallback); //This links the PERIOD_ELAPSED_CB_ID (period elapsed callback) to user defined function
-    HAL_TIM_Base_Start_IT(htim); //Start the timer in interrupt mode! 
+    // //Register callback
+    // HAL_TIM_RegisterCallback(htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, User_TIMPeriodElapsedCallback); //This links the PERIOD_ELAPSED_CB_ID (period elapsed callback) to user defined function
+    // HAL_TIM_Base_Start_IT(htim); //Start the timer in interrupt mode! 
 
     return RESULT_OK;
 }
@@ -66,6 +66,28 @@ void do_pwm(stepper_t* stepper) {
     }
 }
 
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
+
+void do_pwm_slave(stepper_t* stepper) {
+
+    // htim3.Instance->PSC = 0;
+
+    int amt_pulses = 10;
+
+    int tim2_arr = 65535;
+    int tim3_arr = tim2_arr/amt_pulses;
+    htim2.Instance->ARR = tim2_arr-1;
+    htim3.Instance->ARR = tim3_arr-1;
+
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 100);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, (int) tim3_arr*0.5); //50% duty cycle
+
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+    
+}
+
 void rotate_stepper(stepper_t* stepper, uint32_t target_angle_absolute) {
 
     uint32_t CW_angle = target_angle_absolute - stepper->current_angle; //relative clockwise turn
@@ -79,23 +101,23 @@ void rotate_stepper(stepper_t* stepper, uint32_t target_angle_absolute) {
     amt_steps = target_angle_relative; //set the amount of steps to turn for the interrupt to happen
     stepper->current_angle = target_angle_absolute; //update the angle in the struct //TODO: ONLY set once movement completed!
     
-    do_pwm(stepper);
+    do_pwm_slave(stepper);
     //!! Execution should not reach here, since do_pwm will go into infinite loop !!
 
 }
 
-void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim) {
-    LOGI(TAG, "Interrupt %d %u", pulse_ctr);
-    pulse_ctr++;
+// void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim) {
+//     LOGI(TAG, "Interrupt %d %u", pulse_ctr);
+//     pulse_ctr++;
 
-    if (pulse_ctr >= amt_steps) { //If at the desired amt of pulses...
-        LOGI(TAG, "Interrupt %d %u", pulse_ctr);
-        while (1) {
-            pulse_ctr = 0;
-            __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, 0); //...turn PWM off FOR THIS TIMER
-        }
-    }
-}
+//     if (pulse_ctr >= amt_steps) { //If at the desired amt of pulses...
+//         LOGI(TAG, "Interrupt %d %u", pulse_ctr);
+//         while (1) {
+//             pulse_ctr = 0;
+//             __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, 0); //...turn PWM off FOR THIS TIMER
+//         }
+//     }
+// }
 
 /** PLACEHOLDER
  * @brief Set the pin object
