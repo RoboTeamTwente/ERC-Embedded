@@ -19,22 +19,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "cubemx_main.h"
 #include "cmsis_os.h"
-#include "ethernet.h"
 #include "i2c.h"
 #include "lwip.h"
+#include "tim.h"
 #include "gpio.h"
-#include "logging.h"
-#include "networking_constants.h"
-#include "result.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
-/* Forward declarations */
-extern void init_board(void);
-extern void MainTask(void *argument);
-extern const osThreadAttr_t mainTask_attributes;
-extern void SensorBoardNetworkInit(void);
 
 /* USER CODE END Includes */
 
@@ -119,25 +110,19 @@ SystemClock_Config();
 /* Initialize all configured peripherals */
 MX_GPIO_Init();
 MX_I2C1_Init();
+MX_TIM2_Init();
 /* USER CODE BEGIN 2 */
 
 /* USER CODE END 2 */
-init_board();
-
-/* Initialize leds EARLY so we can debug */
-BSP_LED_Init(LED_GREEN);
-BSP_LED_Init(LED_BLUE);
-BSP_LED_Init(LED_RED);
-
-/* Blink to confirm we reach this point */
-for (int i = 0; i < 5; i++) {
-  BSP_LED_Toggle(LED_GREEN);
-  HAL_Delay(100);
-}
 
 /* Init scheduler */
 osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
 MX_FREERTOS_Init();
+
+/* Initialize leds */
+BSP_LED_Init(LED_GREEN);
+BSP_LED_Init(LED_BLUE);
+BSP_LED_Init(LED_RED);
 
 /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
 BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
@@ -150,30 +135,11 @@ BspCOMInit.Parity     = COM_PARITY_NONE;
 BspCOMInit.HwFlowCtl  = COM_HWCONTROL_NONE;
 if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
 {
-  Error_Handler();
+Error_Handler();
 }
-
-/* Initialize logging - early output for debugging */
-extern UART_HandleTypeDef hcom_uart[];
-LOG_init(&hcom_uart[COM1]);
-LOGI("BOOT", "Logging initialized");
-
-LOGI("BOOT", "Starting Ethernet init...");
-SensorBoardNetworkInit();
-LOGI("BOOT", "Ethernet init finished");
-
-/* Try to continue without delay */
-LOGI("BOOT", "System booted, FreeRTOS starting...");
-
-/* Create main application task */
-osThreadNew(MainTask, NULL, &mainTask_attributes);
-
-LOGI("BOOT", "MainTask created, starting kernel");
 
 /* Start scheduler */
 osKernelStart();
-
-LOGI("BOOT", "ERROR: osKernelStart should never return!");
 
 /* We should never get here as control is now taken by the scheduler */
 
