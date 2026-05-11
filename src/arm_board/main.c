@@ -37,6 +37,8 @@
 
 //networking
 #include "components/common/networking/inc/ethernet.h" //long path since LWIP also has ethernet.h
+#include "networking_constants.h"
+#include "ip_mac_constants.h"
 
 #define TAG "ARM_BOARD"
 
@@ -73,8 +75,6 @@ const osThreadAttr_t task3_attributes = {
 };
 
 /* Private function prototypes */
-void SystemClock_Config(void);
-void MX_GPIO_Init(void);
 void test_stepper(void* argument);
 void Task3_init(void* argument);
 void test_ethernet(void* argument);
@@ -82,12 +82,16 @@ void test_ethernet(void* argument);
 
 int main(void) {
 
-    /* Inits */
-    // Reset of all peripherals, Initializes the Flash interface and the Systick
+    /*Inits*/
     HAL_Init();
-
-    // Configure the system clock
     SystemClock_Config();
+
+    MPU_Config_wrapper();
+
+    SCB_EnableICache();
+    SCB_EnableDCache();
+
+    MX_GPIO_Init();
 
     //INit all configured peripherals
     my_BSP_COM_Init(); 
@@ -99,83 +103,108 @@ int main(void) {
     osKernelInitialize();
 
     /* Create the thread(s) */
-    task_2Handle = osThreadNew(test_stepper, NULL, &task2_attributes);
-    // task_3Handle = osThreadNew(Task3_init, NULL, &task3_attributes);
+    osThreadNew(test_ethernet, NULL, &task2_attributes);
 
-    // // Start scheduler
+    // Start scheduler
     osKernelStart();
     // We should never get here as control is now taken by the scheduler
 
 }
 
+/* Callback function that handles a specific packet*/
+void HandlePacket(receive_frame_t *receive_frame) {
+    printf("Wayoo, message received");
+}
+
+extern int receiving_counter;
+int outgoing_counter = 0;
 void test_ethernet(void* argument) {
 
-    while(1) {
-        LOGI(TAG, "Testing ethernet");
-        HAL_Delay(1000);
+    /*Config + init sending side*/
+    uint8_t mac[6] = NETWORK_MAC;
+    uint8_t ip[4] = NETWORK_IP;
+    uint8_t netmask[4] = NETMASK;
+    uint8_t gateway[4] = GATEWAY;
 
-        //Enable D&I cache (for ETH)
-        SCB_EnableICache();
-        SCB_EnableDCache();
+    ETH_init(NULL, ip, netmask, gateway, mac);
 
-        //Memory protection unit
-        MPU_Config_wrapper();
+    /*Making queues*/
+    int SendQueueSize = 80;
 
-        uint8_t ip[4] = {192, 168, 0, 223};
-        uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
-        uint8_t gateway[4] = {192, 168, 0, 1};
-        uint8_t netmask[4] = {255, 255, 255, 0};
+    static StaticQueue_t xStaticQueue1;
+    uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+    QueueHandle_t udp_receiver_queue1 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea1, &xStaticQueue1);
 
-        // init
-        ETH_init(NULL, ip, netmask, gateway, mac);
-        // ETH_udp_init();
+    static StaticQueue_t xStaticQueue2;
+    uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+    QueueHandle_t udp_receiver_queue2 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea2, &xStaticQueue2);
+    
+    QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-        // ETH_udp_send(ip, 7, "udp message");
-        // osDelay(100);
-        // ETH_raw_send(mac, "ggg");
-        // ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
-        // osDelay(100);
+    ETH_udp_init(2, queues, HandlePacket);
 
-        //Populated protobuf
-        // ArmBoardControlSignals* sig;
-        // sig->control_base = 10.0f;
-        // sig->control_gripper_pitch = 20.0f;
-        // sig->control_gripper_rotation = 30.0f;
-        // sig->control_jaw = 40.0f;
-        // sig->stepper_bottom_ena = 1;
-        // sig->stepper_bottom_rev = 1;
-        // sig->stepper_top_ena = 1;
-        // sig->stepper_top_rev = 1;
+    /*Config + add ARP receiving side*/
+    uint8_t test_ip[4] = SAMPLE_BOARD_IP;
+    uint8_t test_mac[6] = SAMPEL_BOARD_MAC;
 
-        // // sending packet
-        // uint8_t** encoded_data = NULL;
-        // size_t* encoded_length = 0;
-        // result_t res = pb_message_encode(sig, ArmBoardControlSignals_fields, &encoded_data, &encoded_length);
+    ETH_add_arp(test_ip, test_mac, 5);
 
-        // if (res != RESULT_OK) {
-        //     free(encoded_data);
-        //     LOGE(TAG, "Encoding failed");
-        //     return;
-        // }
+    /*Sending a message*/
+    uint8_t packet1_payload[4] = {14,06,20,04};
 
-        // LOGI(TAG, "Encoding successfull");
+    /*Test sending*/
+    while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
+          ETH_udp_send(ip, 8, packet1_payload, 4, 1);
+          osDelay(10);
+          outgoing_counter += 1;
+          LOGI(TAG, "%d", outgoing_counter);
+      }
 
-        // control_signals_t* structVar = {0};
-        // size_t struct_len = 0;
-        // res = pb_message_decode(encoded_data, encoded_length, ArmBoardControlSignals_fields, struct_len, (void **) &structVar);
+    // ETH_udp_send(ip, 7, "udp message");
+    // osDelay(100);
+    // ETH_raw_send(mac, "ggg");
+    // ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
+    // osDelay(100);
 
-        // if (res != RESULT_OK) {
-        //     free(encoded_data);
-        //     LOGE(TAG, "Decoding failed");
-        //     return;
-        // }
-        // LOGI(TAG, "Decoding successfull");
+    //Populated protobuf
+    // ArmBoardControlSignals* sig;
+    // sig->control_base = 10.0f;
+    // sig->control_gripper_pitch = 20.0f;
+    // sig->control_gripper_rotation = 30.0f;
+    // sig->control_jaw = 40.0f;
+    // sig->stepper_bottom_ena = 1;
+    // sig->stepper_bottom_rev = 1;
+    // sig->stepper_top_ena = 1;
+    // sig->stepper_top_rev = 1;
 
-        // LOGI(TAG, "Message says: %s %d %f", structVar->stepper_bottom_ENA);
+    // // sending packet
+    // uint8_t** encoded_data = NULL;
+    // size_t* encoded_length = 0;
+    // result_t res = pb_message_encode(sig, ArmBoardControlSignals_fields, &encoded_data, &encoded_length);
 
-        // ETH_udp_send(ip, 7, encoded_data);
-        // free(encoded_data);
-    }
+    // if (res != RESULT_OK) {
+    //     free(encoded_data);
+    //     LOGE(TAG, "Encoding failed");
+    //     return;
+    // }
+
+    // LOGI(TAG, "Encoding successfull");
+
+    // control_signals_t* structVar = {0};
+    // size_t struct_len = 0;
+    // res = pb_message_decode(encoded_data, encoded_length, ArmBoardControlSignals_fields, struct_len, (void **) &structVar);
+
+    // if (res != RESULT_OK) {
+    //     free(encoded_data);
+    //     LOGE(TAG, "Decoding failed");
+    //     return;
+    // }
+    // LOGI(TAG, "Decoding successfull");
+
+    // LOGI(TAG, "Message says: %s %d %f", structVar->stepper_bottom_ENA);
+
+    // ETH_udp_send(ip, 7, encoded_data);
+    // free(encoded_data);
 }
 
 TIM_HandleTypeDef htim2;

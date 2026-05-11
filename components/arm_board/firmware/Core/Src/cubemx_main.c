@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "cubemx_main.h"
 #include "cmsis_os.h"
+#include "dma.h"
 #include "lwip.h"
 #include "tim.h"
 #include "gpio.h"
@@ -153,7 +154,7 @@ MPU_InitStruct.BaseAddress = 0x30000000;
 MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
 MPU_InitStruct.SubRegionDisable = 0x0;
 MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
 MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
 MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
