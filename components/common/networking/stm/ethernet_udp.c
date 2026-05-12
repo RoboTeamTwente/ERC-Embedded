@@ -109,7 +109,7 @@ void udp_receiver_task(void *pvParameters) {
 
   for (;;) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    LOGI(TAG, "UDP receiver notification received");
+    // LOGI(TAG, "UDP receiver notification received");
     receive_frame_t frame;
     BaseType_t r = xQueueReceive(udp_receiver_queue, &frame, 10);
     if (r != pdPASS) {
@@ -118,7 +118,7 @@ void udp_receiver_task(void *pvParameters) {
     }
     r_callback(&frame);
     receive_counter += 1;
-    LOGI(TAG, "Received message: %d", receive_counter);
+    // LOGI(TAG, "Received message: %d", receive_counter);
     free(frame.payload);
   }
 }

@@ -124,10 +124,10 @@ static result_t HandleType1Packet(void *buffer) {
   SensorBoardGPSInfo *packet = (SensorBoardGPSInfo *)buffer;
   incomming_counter += 1;
   printf("Envelope of type gps info has value: %f\n", packet->speed);
-  printf("This is packet: %d\n", incomming_counter);
+  // printf("This is packet: %d\n", incomming_counter);
 
-  LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
-  LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
+  // LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
+  // LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
   return RESULT_OK;
 }
 
@@ -164,16 +164,16 @@ void MainTask(void *argument) {
                          ucQueueStorageArea2, &xStaticQueue2);
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  uint8_t ip[4] = NETWORK_IP;
-  uint8_t mac[6] = NETWORK_MAC;
+  uint8_t ip[4] = JONNY_IP;
+  uint8_t mac[6] = JONNY_MAC;
 
   PacketDispatcherInit(handler_configs, 1);
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
-  while (outgoing_counter < 100) {
+  while (outgoing_counter < 1000000000) {
     ETH_udp_send(ip, 1500, packet1_payload, 46, 1);
-    osDelay(10);
+    osDelay(1);
     outgoing_counter += 1;
     LOGI(TAG, "%d", outgoing_counter);
   }
@@ -181,7 +181,9 @@ void MainTask(void *argument) {
   while (1) {
     __asm__ __volatile__("nop");
     LOGI(TAG, "Total messages send: %d", outgoing_counter);
+    LOGI(TAG, "Total messages handled: %d", incomming_counter);
     LOGI(TAG, "Total messages received: %d", receive_counter);
+
     osDelay(300);
   }
 }

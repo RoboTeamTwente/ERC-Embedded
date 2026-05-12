@@ -57,14 +57,22 @@
 #define MEM_SIZE 1024*16
 /*----- Default Value for MEMP_OVERFLOW_CHECK: 0 ---*/
 #define MEMP_OVERFLOW_CHECK 2
+/*----- Default Value for MEM_OVERFLOW_CHECK: 0 ---*/
+#define MEM_OVERFLOW_CHECK 2
+/*----- Default Value for MEM_SANITY_CHECK: 0 ---*/
+#define MEM_SANITY_CHECK 1
 /*----- Default Value for H7 devices: 0x30004000 -----*/
-#define LWIP_RAM_HEAP_POINTER 0x30002000
+#define LWIP_RAM_HEAP_POINTER 0x30004900
 /*----- Value supported for H7 devices: 1 -----*/
 #define LWIP_SUPPORT_CUSTOM_PBUF 1
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
 #define LWIP_ETHERNET 1
 /*----- Default Value for ETHARP_SUPPORT_STATIC_ENTRIES: 0 ---*/
 #define ETHARP_SUPPORT_STATIC_ENTRIES 1
+/*----- Default Value for IP_REASSEMBLY: 1 ---*/
+#define IP_REASSEMBLY 0
+/*----- Default Value for IP_FRAG: 1 ---*/
+#define IP_FRAG 0
 /*----- Value in opt.h for LWIP_DNS_SECURE: (LWIP_DNS_SECURE_RAND_XID | LWIP_DNS_SECURE_NO_MULTIPLE_OUTSTANDING | LWIP_DNS_SECURE_RAND_SRC_PORT) -*/
 #define LWIP_DNS_SECURE 7
 /*----- Value in opt.h for TCP_SND_QUEUELEN: (4*TCP_SND_BUF + (TCP_MSS - 1))/TCP_MSS -----*/
