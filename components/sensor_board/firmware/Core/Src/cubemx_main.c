@@ -21,7 +21,6 @@
 #include "cmsis_os.h"
 #include "i2c.h"
 #include "lwip.h"
-#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -110,7 +109,6 @@ SystemClock_Config();
 /* Initialize all configured peripherals */
 MX_GPIO_Init();
 MX_I2C1_Init();
-MX_TIM2_Init();
 /* USER CODE BEGIN 2 */
 
 /* USER CODE END 2 */
@@ -226,7 +224,7 @@ MPU_InitStruct.BaseAddress = 0x30000000;
 MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
 MPU_InitStruct.SubRegionDisable = 0x0;
 MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
 MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
 MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;

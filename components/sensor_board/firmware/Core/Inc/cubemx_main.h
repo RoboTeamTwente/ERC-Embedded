@@ -60,22 +60,44 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SYNC_in_IMU_Pin GPIO_PIN_13
-#define SYNC_in_IMU_GPIO_Port GPIOF
-#define RESET_Pin GPIO_PIN_14
-#define RESET_GPIO_Port GPIOF
-#define Input_weight_Pin GPIO_PIN_15
-#define Input_weight_GPIO_Port GPIOF
-#define SYNC_out_IMU_Pin GPIO_PIN_9
-#define SYNC_out_IMU_GPIO_Port GPIOE
-#define PPS_Pin GPIO_PIN_11
-#define PPS_GPIO_Port GPIOE
-#define PPS_EXTI_IRQn EXTI15_10_IRQn
-#define DRDY_Pin GPIO_PIN_13
-#define DRDY_GPIO_Port GPIOE
-#define DRDY_EXTI_IRQn EXTI15_10_IRQn
-#define Clock_weight_Pin GPIO_PIN_14
-#define Clock_weight_GPIO_Port GPIOG
+#define FORCE_ANALOG_DATA_2_Pin GPIO_PIN_3
+#define FORCE_ANALOG_DATA_2_GPIO_Port GPIOF
+#define FLOW_SENSOR_Pin GPIO_PIN_4
+#define FLOW_SENSOR_GPIO_Port GPIOA
+#define WEIGHT_INPUT_1_Pin GPIO_PIN_5
+#define WEIGHT_INPUT_1_GPIO_Port GPIOA
+#define WEIGHT_INPUT_2_Pin GPIO_PIN_6
+#define WEIGHT_INPUT_2_GPIO_Port GPIOA
+#define IMU_Sync_Pin GPIO_PIN_15
+#define IMU_Sync_GPIO_Port GPIOB
+#define PH_ANALOG_DATA_Pin GPIO_PIN_14
+#define PH_ANALOG_DATA_GPIO_Port GPIOD
+#define FORCE_ANALOG_DATA_1_Pin GPIO_PIN_15
+#define FORCE_ANALOG_DATA_1_GPIO_Port GPIOD
+#define IMU_Data_Ready_Pin GPIO_PIN_6
+#define IMU_Data_Ready_GPIO_Port GPIOC
+#define WEIGHT_CLOCK_1_Pin GPIO_PIN_7
+#define WEIGHT_CLOCK_1_GPIO_Port GPIOC
+#define WATER_PUMP_PWM_Pin GPIO_PIN_8
+#define WATER_PUMP_PWM_GPIO_Port GPIOC
+#define GPS_UART_TX_Pin GPIO_PIN_12
+#define GPS_UART_TX_GPIO_Port GPIOC
+#define GPS_UART_RX_Pin GPIO_PIN_2
+#define GPS_UART_RX_GPIO_Port GPIOD
+#define STEPPER_MOTOR_4_Pin GPIO_PIN_4
+#define STEPPER_MOTOR_4_GPIO_Port GPIOD
+#define STEPPER_MOTOR_3_Pin GPIO_PIN_5
+#define STEPPER_MOTOR_3_GPIO_Port GPIOD
+#define STEPPER_MOTOR_2_Pin GPIO_PIN_6
+#define STEPPER_MOTOR_2_GPIO_Port GPIOD
+#define STEPPER_MOTOR_1_Pin GPIO_PIN_7
+#define STEPPER_MOTOR_1_GPIO_Port GPIOD
+#define WEIGHT_CLOCK_2_Pin GPIO_PIN_5
+#define WEIGHT_CLOCK_2_GPIO_Port GPIOB
+#define IMU_I2C_Clock_Pin GPIO_PIN_8
+#define IMU_I2C_Clock_GPIO_Port GPIOB
+#define IMU_I2C_Data_Pin GPIO_PIN_9
+#define IMU_I2C_Data_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
