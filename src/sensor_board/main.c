@@ -244,12 +244,12 @@ void SensorBoardNetworkInit(void) {
   LOGI(TAG, "MAC filtering completed");
 }
 
-static result_t
-send_sensor_diagnostics_udp(uint8_t dest_ip[4], uint8_t port,
+static void
+send_sensor_diagnostics_udp(uint8_t dest_ip[4], int port,
                             const SensorBoardDiagnostics *diagnostics,
                             uint8_t prio) {
   if (diagnostics == NULL) {
-    return RESULT_ERR_INVALID_ARG;
+    return;
   }
   PBEnvelope envelope = PBEnvelope_init_zero;
   envelope.which_payload = PBEnvelope_sensor_diag_tag;
@@ -259,21 +259,17 @@ send_sensor_diagnostics_udp(uint8_t dest_ip[4], uint8_t port,
   result_t r = pb_message_encode(&envelope, PBEnvelope_fields, &enc, &enc_sz);
   if (r != RESULT_OK) {
     LOGE(TAG, "Encode diag failed: %s", result_to_short_str(r));
-    return r;
+    return;
   }
   ETH_udp_send(dest_ip, port, enc, enc_sz, prio);
-  if (r != RESULT_OK) {
-    LOGE(TAG, "Send diag failed: %s", result_to_short_str(r));
-  }
   free(enc);
-  return r;
 }
 
-static result_t send_load_cell_info_udp(uint8_t dest_ip[4], uint8_t port,
+static void send_load_cell_info_udp(uint8_t dest_ip[4], int port,
                                         const SensorBoardLoadCellInfo *info,
                                         uint8_t prio) {
   if (info == NULL) {
-    return RESULT_ERR_INVALID_ARG;
+    return;
   }
   PBEnvelope envelope = PBEnvelope_init_zero;
   envelope.which_payload = PBEnvelope_load_cell_info_tag;
@@ -282,18 +278,18 @@ static result_t send_load_cell_info_udp(uint8_t dest_ip[4], uint8_t port,
   size_t enc_sz = 0;
   result_t r = pb_message_encode(&envelope, PBEnvelope_fields, &enc, &enc_sz);
   if (r != RESULT_OK) {
-    return r;
+    LOGE(TAG, "Encode load cell failed: %s", result_to_short_str(r));
+    return;
   }
   ETH_udp_send(dest_ip, port, enc, enc_sz, prio);
   free(enc);
-  return r;
 }
 
-static result_t send_pressure_info_udp(uint8_t dest_ip[4], uint8_t port,
+static void send_pressure_info_udp(uint8_t dest_ip[4], int port,
                                        const SensorBoardPressureInfo *info,
                                        uint8_t prio) {
   if (info == NULL) {
-    return RESULT_ERR_INVALID_ARG;
+    return;
   }
   PBEnvelope envelope = PBEnvelope_init_zero;
   envelope.which_payload = PBEnvelope_pressure_info_tag;
@@ -302,21 +298,21 @@ static result_t send_pressure_info_udp(uint8_t dest_ip[4], uint8_t port,
   size_t enc_sz = 0;
   result_t r = pb_message_encode(&envelope, PBEnvelope_fields, &enc, &enc_sz);
   if (r != RESULT_OK) {
-    return r;
+    LOGE(TAG, "Encode pressure failed: %s", result_to_short_str(r));
+    return;
   }
   ETH_udp_send(dest_ip, port, enc, enc_sz, prio);
   free(enc);
-  return r;
 }
 
 /**
  * @brief Send SensorBoardFlowSensorInfo wrapped in PBEnvelope via UDP
  */
-static result_t send_flow_sensor_info_udp(uint8_t dest_ip[4], uint8_t port,
+static void send_flow_sensor_info_udp(uint8_t dest_ip[4], int port,
                                           const SensorBoardFlowSensorInfo *info,
                                           uint8_t prio) {
   if (info == NULL) {
-    return RESULT_ERR_INVALID_ARG;
+    return;
   }
   PBEnvelope envelope = PBEnvelope_init_zero;
   envelope.which_payload = PBEnvelope_flow_sensor_info_tag;
@@ -326,21 +322,20 @@ static result_t send_flow_sensor_info_udp(uint8_t dest_ip[4], uint8_t port,
   result_t r = pb_message_encode(&envelope, PBEnvelope_fields, &enc, &enc_sz);
   if (r != RESULT_OK) {
     LOGE(TAG, "Encode flow sensor failed: %s", result_to_short_str(r));
-    return r;
+    return;
   }
   ETH_udp_send(dest_ip, port, enc, enc_sz, prio);
   free(enc);
-  return r;
 }
 
 /**
  * @brief Send SensorBoardPumpInfo wrapped in PBEnvelope via UDP
  */
-static result_t send_pump_info_udp(uint8_t dest_ip[4], uint8_t port,
+static void send_pump_info_udp(uint8_t dest_ip[4], int port,
                                    const SensorBoardPumpInfo *info,
                                    uint8_t prio) {
   if (info == NULL) {
-    return RESULT_ERR_INVALID_ARG;
+    return;
   }
   PBEnvelope envelope = PBEnvelope_init_zero;
   envelope.which_payload = PBEnvelope_pump_info_tag;
@@ -350,11 +345,10 @@ static result_t send_pump_info_udp(uint8_t dest_ip[4], uint8_t port,
   result_t r = pb_message_encode(&envelope, PBEnvelope_fields, &enc, &enc_sz);
   if (r != RESULT_OK) {
     LOGE(TAG, "Encode pump info failed: %s", result_to_short_str(r));
-    return r;
+    return;
   }
   ETH_udp_send(dest_ip, port, enc, enc_sz, prio);
   free(enc);
-  return r;
 }
 
 void MainTask(void *argument);
@@ -404,8 +398,8 @@ pump_data_t g_pump_data;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef
     htim3; /* PWM timer for pump — adjust to your CubeMX config */
-COM_InitTypeDef BspCOMInit;
-UART_HandleTypeDef huart_com;
+extern COM_InitTypeDef BspCOMInit;
+extern UART_HandleTypeDef huart_com;
 
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
@@ -520,15 +514,14 @@ void MainTask(void *argument) {
   }
 
   /* ---- Pump init --------------------------------------------------------- */
-  /* TODO: Enable when MX_TIM3_Init is generated by CubeMX
   pump_hw_t pump_hw = {
       .htim = &htim3,
-      .tim_channel = TIM_CHANNEL_1,
+      .tim_channel = TIM_CHANNEL_3,
       .tim_period = htim3.Init.Period,
       .dir_port = GPIOB,
       .dir_pin = GPIO_PIN_0,
       .en_port = GPIOB,
-      .en_pin = GPIO_PIN_1,
+      .en_pin = GPIO_PIN_14,
   };
 
   LOGI(TAG, "Initializing Pump...");
@@ -541,9 +534,36 @@ void MainTask(void *argument) {
     pump_set_speed_percent(&g_pump_data, 50U);
     pump_set_enabled(&g_pump_data, true);
   }
-  */
 
   BSP_LED_Toggle(LED_GREEN);
+
+  /* ---- Network init ------------------------------------------------------ */
+  LOGI(TAG, "Initializing network...");
+  SensorBoardNetworkInit();
+  LOGI(TAG, "Network initialized");
+
+  /* ---- UDP init ---------------------------------------------------------- */
+  LOGI(TAG, "Initializing UDP...");
+  
+  int SendQueueSize = 80;
+  static StaticQueue_t txStruct0;
+  static uint8_t txStorage0[80 * sizeof(send_frame_t)];
+  QueueHandle_t tx0 = xQueueCreateStatic(
+      SendQueueSize, sizeof(send_frame_t), txStorage0, &txStruct0);
+
+  static StaticQueue_t txStruct1;
+  static uint8_t txStorage1[80 * sizeof(send_frame_t)];
+  QueueHandle_t tx1 = xQueueCreateStatic(
+      SendQueueSize, sizeof(send_frame_t), txStorage1, &txStruct1);
+
+  if (tx0 == NULL || tx1 == NULL) {
+    LOGE(TAG, "CRITICAL: Failed to create UDP send queues!");
+    Error_Handler();
+  }
+
+  QueueHandle_t send_queues[2] = {tx0, tx1};
+  ETH_udp_init(2, send_queues, sensor_udp_rx_callback);
+  LOGI(TAG, "UDP initialized successfully");
 
   /* ---- Stepper motor init ------------------------------------------------ */
   /* TODO: STEPPER MOTOR STUB
@@ -630,29 +650,6 @@ void MainTask(void *argument) {
     LOGI(TAG, "Stepper motor initialized");
   }
   */
-
-  /* ---- UDP init ---------------------------------------------------------- */
-  LOGI(TAG, "Initializing UDP...");
-  
-  int SendQueueSize = 80;
-  static StaticQueue_t txStruct0;
-  static uint8_t txStorage0[80 * sizeof(send_frame_t)];
-  QueueHandle_t tx0 = xQueueCreateStatic(
-      SendQueueSize, sizeof(send_frame_t), txStorage0, &txStruct0);
-
-  static StaticQueue_t txStruct1;
-  static uint8_t txStorage1[80 * sizeof(send_frame_t)];
-  QueueHandle_t tx1 = xQueueCreateStatic(
-      SendQueueSize, sizeof(send_frame_t), txStorage1, &txStruct1);
-
-  if (tx0 == NULL || tx1 == NULL) {
-    LOGE(TAG, "CRITICAL: Failed to create UDP send queues!");
-    Error_Handler();
-  }
-
-  QueueHandle_t send_queues[2] = {tx0, tx1};
-  ETH_udp_init(2, send_queues, sensor_udp_rx_callback);
-  LOGI(TAG, "UDP initialized successfully");
 
   /* ---- Main loop --------------------------------------------------------- */
   uint32_t loop_count = 0;
@@ -906,12 +903,8 @@ void MainTask(void *argument) {
         load_cell_info.scale_newtons_per_count = lc_scale;
         load_cell_info.tare_offset_counts = lc_tare;
         load_cell_info.is_calibrated = load_cell_data[i].is_calibrated;
-        result_t send_r = send_load_cell_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
-                                                  &load_cell_info, 1);
-        if (send_r != RESULT_OK) {
-          LOGE(TAG, "Load cell %lu UDP send failed: %s", (unsigned long)i,
-               result_to_short_str(send_r));
-        }
+        send_load_cell_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
+                                &load_cell_info, 1);
 
         /* Pressure sensor */
         SensorBoardPressureInfo pressure_info =
@@ -962,12 +955,8 @@ void MainTask(void *argument) {
         pressure_info.temperature_c = pr_temp;
         pressure_info.voltage = pr_voltage;
         pressure_info.is_calibrated = pressure_data[i].is_calibrated;
-        send_r = send_pressure_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
-                                        &pressure_info, 1);
-        if (send_r != RESULT_OK) {
-          LOGE(TAG, "Pressure %lu UDP send failed: %s", (unsigned long)i,
-               result_to_short_str(send_r));
-        }
+        send_pressure_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
+                               &pressure_info, 1);
       }
 
     } /* end skip_sensor_polling */
@@ -1023,12 +1012,7 @@ void MainTask(void *argument) {
         }
       }
 
-      result_t flow_send_r = send_flow_sensor_info_udp(
-          dest_ip, SENSOR_UDP_DEST_PORT, &flow_info, 1);
-      if (flow_send_r != RESULT_OK) {
-        LOGE(TAG, "Flow sensor UDP send failed: %s",
-             result_to_short_str(flow_send_r));
-      }
+      send_flow_sensor_info_udp(dest_ip, SENSOR_UDP_DEST_PORT, &flow_info, 1);
     }
 
     /* ==========================================================================
@@ -1053,11 +1037,7 @@ void MainTask(void *argument) {
         pump_info.status = SensorStatus_STATUS_OK;
       }
 
-      result_t pump_send_r =
-          send_pump_info_udp(dest_ip, SENSOR_UDP_DEST_PORT, &pump_info, 1);
-      if (pump_send_r != RESULT_OK) {
-        LOGE(TAG, "Pump UDP send failed: %s", result_to_short_str(pump_send_r));
-      }
+      send_pump_info_udp(dest_ip, SENSOR_UDP_DEST_PORT, &pump_info, 1);
     }
 
     /* ==========================================================================

@@ -22,6 +22,7 @@
 #include "i2c.h"
 #include "lwip.h"
 #include "gpio.h"
+#include "tim.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -46,6 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 COM_InitTypeDef BspCOMInit;
+UART_HandleTypeDef huart_com;
 
 /* USER CODE BEGIN PV */
 
@@ -109,6 +111,7 @@ SystemClock_Config();
 /* Initialize all configured peripherals */
 MX_GPIO_Init();
 MX_I2C1_Init();
+MX_TIM3_Init();
 /* USER CODE BEGIN 2 */
 
 /* USER CODE END 2 */
@@ -135,6 +138,10 @@ if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
 {
 Error_Handler();
 }
+
+/* Initialize logging system with UART */
+MX_USART3_Init(&huart_com, &BspCOMInit);
+LOG_init(&huart_com);
 
 /* Start scheduler */
 osKernelStart();

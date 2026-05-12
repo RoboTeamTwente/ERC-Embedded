@@ -52,10 +52,17 @@ board_build.stm32cube.custom_config_header = yes
 lib_deps = ${extra.common_lib_deps}
 test_filter = sensor_board/*
 build_src_filter =
-    +<src/sensor_board/>
-    +<components/sensor_board/>
-    +<components/common/**>
-    -<components/sensor_board/firmware/Drivers/>
+    +<src/sensor_board/**/*.c>
+    +<components/sensor_board/**>
+    +<components/common/networking/**/*.c>
+    +<components/common/packet_dispatcher/**/*.c>
+    +<components/common/pb_message/**/*.c>
+    +<components/common/result/**/*.c>
+    +<components/common/bucketed_pqueue/**/*.c>
+    +<components/common/logging/sensor_board/**/*.c>
+    +<components/common/*/sensor_board/**/*.c>
+    +<components/common/*.c>
+    -<components/sensor_board/firmware/Drivers/**>
     +<components/sensor_board/firmware/Drivers/BSP/**>
 custom_nanopb_protos = +<components/**/*.proto>
 board_build.ldscript = components/sensor_board/firmware/STM32H753XX_FLASH.ld
@@ -64,6 +71,9 @@ build_flags =
     +<components/common/*>
     +<components/common/*/stm/**>    
     +<components/sensor_board/**>
+    +<components/sensor_board/firmware/Core/Inc/>
+    +<components/sensor_board/firmware/LWIP/App/>
+    +<components/sensor_board/firmware/LWIP/Target/>
     -<components/sensor_board/firmware/Drivers/**>
     +<components/sensor_board/firmware/Drivers/BSP/**> 
 	  -mthumb

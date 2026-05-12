@@ -10,6 +10,11 @@
 #define SAMPLE_BOARD_IP {192, 168, 0, 223}
 #define SAMPEL_BOARD_MAC {0x00, 0x43, 0x23, 0xee, 0x21, 0x64}
 
+#define SENSOR_BOARD_IP {192, 168, 0, 20}
+#define SENSOR_BOARD_MAC {0x00, 0x80, 0xe1, 0x00, 0x00, 0x01}
+#define SENSOR_PEER_IP {192, 168, 0, 100}
+#define SENSOR_PEER_MAC {0x00, 0x43, 0x23, 0xee, 0x21, 0x65}
+
 #define GATEWAY {192, 168, 0, 1}
 #define NETMASK {255, 255, 255, 0}
 
