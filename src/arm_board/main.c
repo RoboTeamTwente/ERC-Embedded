@@ -42,8 +42,12 @@
 
 #define TAG "ARM_BOARD"
 
+/*External functions*/
 extern COM_InitTypeDef BspCOMInit;
 extern void MX_FREERTOS_Init(void);
+extern void SystemClock_Config(void);
+extern void MPU_Config_wrapper(void);
+
 UART_HandleTypeDef huart_com;
 osThreadId Task3Handle;
 
@@ -63,14 +67,7 @@ void my_BSP_COM_Init() {
 osThreadId_t task_2Handle;
 const osThreadAttr_t task2_attributes = {
     .name = "task2",
-    .stack_size = 128,
-    .priority = (osPriority_t)osPriorityNormal,
-};
-
-osThreadId_t task_3Handle;
-const osThreadAttr_t task3_attributes = {
-    .name = "task3",
-    .stack_size = 128,
+    .stack_size = 1024 * 8,
     .priority = (osPriority_t)osPriorityNormal,
 };
 
@@ -83,15 +80,18 @@ void test_ethernet(void* argument);
 int main(void) {
 
     /*Inits*/
-    HAL_Init();
-    SystemClock_Config();
-
     MPU_Config_wrapper();
 
     SCB_EnableICache();
     SCB_EnableDCache();
 
+    HAL_Init();
+    SystemClock_Config();
+
     MX_GPIO_Init();
+
+    //Init timers
+    MX_TIM2_Init();
 
     //INit all configured peripherals
     my_BSP_COM_Init(); 
@@ -121,12 +121,12 @@ int outgoing_counter = 0;
 void test_ethernet(void* argument) {
 
     /*Config + init sending side*/
-    uint8_t mac[6] = NETWORK_MAC;
-    uint8_t ip[4] = NETWORK_IP;
+    uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
+    uint8_t my_ip[4] = SAMPLE_BOARD_IP;
     uint8_t netmask[4] = NETMASK;
     uint8_t gateway[4] = GATEWAY;
 
-    ETH_init(NULL, ip, netmask, gateway, mac);
+    ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
     /*Making queues*/
     int SendQueueSize = 80;
@@ -144,10 +144,10 @@ void test_ethernet(void* argument) {
     ETH_udp_init(2, queues, HandlePacket);
 
     /*Config + add ARP receiving side*/
-    uint8_t test_ip[4] = SAMPLE_BOARD_IP;
-    uint8_t test_mac[6] = SAMPEL_BOARD_MAC;
+    uint8_t ip[4] = NETWORK_IP;
+    uint8_t mac[6] = NETWORK_MAC;
 
-    ETH_add_arp(test_ip, test_mac, 5);
+    ETH_add_arp(ip, mac, 5);
 
     /*Sending a message*/
     uint8_t packet1_payload[4] = {14,06,20,04};
@@ -159,6 +159,9 @@ void test_ethernet(void* argument) {
           outgoing_counter += 1;
           LOGI(TAG, "%d", outgoing_counter);
       }
+
+    while(1){
+    }
 
     // ETH_udp_send(ip, 7, "udp message");
     // osDelay(100);
@@ -210,9 +213,9 @@ void test_ethernet(void* argument) {
 TIM_HandleTypeDef htim2;
 
 void test_stepper(void *argument) {
-    stepper_t* step;
+    stepper_t step;
     MX_TIM2_Init();
-    MX_TIM3_Init();
+    // MX_TIM3_Init();
     MX_GPIO_Init();
     init_stepper(&step, 1, 50, &htim2);
     rotate_stepper(&step, 200);
