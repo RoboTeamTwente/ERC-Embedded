@@ -4,6 +4,7 @@
 #include "err.h"
 #include "ip4_addr.h"
 #include "ip_addr.h"
+#include "ip_mac_constants.h"
 #include "logging.h"
 #include "networking_constants.h"
 #include "pbuf.h"
@@ -242,7 +243,7 @@ result_t udp_client_init(struct udp_pcb **upcb, uint8_t prio_num,
     return RESULT_FAIL;
   }
 
-  err_t err = udp_bind(*upcb, IP_ADDR_ANY, 8);
+  err_t err = udp_bind(*upcb, IP_ADDR_ANY, PORT);
   if (err != ERR_OK) {
     LOGE(TAG, "Cannot bind the udp: %s", lwip_strerr(err));
     return RESULT_FAIL;
