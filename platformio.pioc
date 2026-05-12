@@ -1,5 +1,5 @@
 [platformio]
-default_envs = network_board
+default_envs = dma_board
 src_dir = .
 lib_dir = lib
 
@@ -17,6 +17,27 @@ custom_nanopb_options =
 
 test_build_src = True
 monitor_speed = 115200
+
+[env:dma_board]
+board = nucleo_h753zi
+custom_nanopb_protos = +<components/**/*.proto>
+board_build.stm32cube.custom_config_header = yes
+build_src_filter = +<src/${this.__env__}/**/*.c>
+    +<components/${this.__env__}/**>
+    -<components/${this.__env__}/firmware/Drivers/*>
+    +<components/${this.__env__}/firmware/Drivers/BSP/**>
+    -<components/${this.__env__}/*/test/*>
+
+lib_deps = ${extra.common_lib_deps}
+build_flags=
+    +<components/dma_board/**>
+    -<components/dma_board/firmware/Drivers/**>
+    +<components/dma_board/firmware/Drivers/BSP/**>
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=softfp
+    -Wl,-u,_printf_float
+    -D CONFIG_LOG_LEVEL=LOG_INFO
 
 [env:network_board]
 board = nucleo_h753zi
@@ -124,6 +145,7 @@ board = nucleo_h753zi
 custom_nanopb_protos = +<components/**/*.proto>
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/stm/*.c>
     +<components/common/*/*.c>
     +<components/debugging_board/**>
     -<components/debugging_board/firmware/Drivers/**>
