@@ -314,8 +314,8 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
                          ucQueueStorageArea2, &xStaticQueue2);
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  uint8_t ip[4] = SAMPLE_BOARD_IP;
-  uint8_t mac[6] = SAMPEL_BOARD_MAC;
+  uint8_t ip[4] = BASE_IP;
+  uint8_t mac[6] = BASE_MAC;
 
   PacketDispatcherInit(handler_configs, 1);
 
@@ -378,6 +378,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
         free(diag_encoded);
 
     LOGI(TAG,"Sent DrivingBoardDiagnostics");}
+    free(diag_encoded);
 
     //send motor progress
 
@@ -418,7 +419,8 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
         free(progress_encoded);
 
     LOGI(TAG,"Sent DrivingBoardMotorPeriodicProgress");}
-
+    free(progress_encoded);
+    
     __asm__ __volatile__("nop");
     osDelay(300);
     //sending packet
@@ -501,6 +503,7 @@ void PwmTask(void *argument)
     uint32_t wake_time = last_tick;
     const uint32_t period = 1;
 
+    //CL3E_Test();//I ll delete it later it blocks the task bc of delays
     for(;;)
     {
         uint32_t now = osKernelGetTickCount();
@@ -508,8 +511,9 @@ void PwmTask(void *argument)
         rtU.deltaTime = (now - last_tick) * 0.001f;
         last_tick = now;
 
-        control_drive_step();
-        set_bldc_pwm();
+        //control_drive_step();
+        //set_bldc_pwm();
+        //motor_test_forward();
 
         wake_time += period;// schedule next exact tick
         osDelayUntil(wake_time);
