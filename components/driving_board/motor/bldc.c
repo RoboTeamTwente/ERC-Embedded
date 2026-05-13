@@ -15,7 +15,7 @@ extern TIM_HandleTypeDef htim3;//from main
 
 // DIR pin
 #define DIR_PORT GPIOA
-#define DIR_PIN  GPIO_PIN_1
+#define DIR_PIN  GPIO_PIN_3
 
 #define MIN_FREQ  200
 #define MAX_FREQ  20000

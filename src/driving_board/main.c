@@ -506,17 +506,17 @@ void PwmTask(void *argument)
     //CL3E_Test();//I ll delete it later it blocks the task bc of delays
     for(;;)
     {
-        uint32_t now = osKernelGetTickCount();
+        //uint32_t now = osKernelGetTickCount();
 
-        rtU.deltaTime = (now - last_tick) * 0.001f;
-        last_tick = now;
-
+        //rtU.deltaTime = (now - last_tick) * 0.001f;
+        //last_tick = now;
+        CL3E_Test();
         //control_drive_step();
         //set_bldc_pwm();
         //motor_test_forward();
 
-        wake_time += period;// schedule next exact tick
-        osDelayUntil(wake_time);
+        //wake_time += period;// schedule next exact tick
+        //osDelayUntil(wake_time);
     }
 }
 
