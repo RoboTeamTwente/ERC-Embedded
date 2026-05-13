@@ -384,8 +384,7 @@ PACKET_HANDLER_CONFIG_STATIC(sensor_pressure_handler,
                              PBEnvelope_pressure_info_tag, pressure_info,
                              handle_sensor_pressure_info);
 
-/* Receive pump commands from the network (e.g. from arm board / base station)
- */
+/* Receive pump commands from the network (e.g. from arm board / base station) */
 PACKET_HANDLER_CONFIG_STATIC(sensor_pump_cmd_handler, PBEnvelope_pump_info_tag,
                              pump_info, handle_sensor_pump_command);
 
@@ -449,24 +448,25 @@ void MainTask(void *argument) {
   LOGI(TAG, "Sensor board taking off...");
 
   /* ---- Packet dispatcher ------------------------------------------------- */
-  LOGI(TAG, "Initializing packet dispatcher...");
-  
-  packet_handler_config_t handler_configs[] = {
-      arm_control_handler,      arm_diag_handler,
-      drive_diag_handler,       sensor_ph_handler,
-      sensor_gps_handler,       sensor_imu_handler,
-      sensor_load_cell_handler, sensor_pressure_handler,
-      sensor_pump_cmd_handler,
-  };
-
-  result_t dispatcher_result = PacketDispatcherInit(
-      handler_configs, sizeof(handler_configs) / sizeof(handler_configs[0]));
-  if (dispatcher_result != RESULT_OK) {
-    LOGE(TAG, "Packet dispatcher init failed: %s",
-         result_to_short_str(dispatcher_result));
-  } else {
-    LOGI(TAG, "Packet dispatcher initialized successfully");
-  }
+  /* DISABLED FOR TESTING - No UDP/packet sending */
+  // LOGI(TAG, "Initializing packet dispatcher...");
+  // 
+  // packet_handler_config_t handler_configs[] = {
+  //     arm_control_handler,      arm_diag_handler,
+  //     drive_diag_handler,       sensor_ph_handler,
+  //     sensor_gps_handler,       sensor_imu_handler,
+  //     sensor_load_cell_handler, sensor_pressure_handler,
+  //     sensor_pump_cmd_handler,
+  // };
+  //
+  // result_t dispatcher_result = PacketDispatcherInit(
+  //     handler_configs, sizeof(handler_configs) / sizeof(handler_configs[0]));
+  // if (dispatcher_result != RESULT_OK) {
+  //   LOGE(TAG, "Packet dispatcher init failed: %s",
+  //        result_to_short_str(dispatcher_result));
+  // } else {
+  //   LOGI(TAG, "Packet dispatcher initialized successfully");
+  // }
 
   /* ---- Existing sensor inits --------------------------------------------- */
   imu_data_t imu_data;
@@ -543,27 +543,28 @@ void MainTask(void *argument) {
   LOGI(TAG, "Network initialized");
 
   /* ---- UDP init ---------------------------------------------------------- */
-  LOGI(TAG, "Initializing UDP...");
-  
-  int SendQueueSize = 80;
-  static StaticQueue_t txStruct0;
-  static uint8_t txStorage0[80 * sizeof(send_frame_t)];
-  QueueHandle_t tx0 = xQueueCreateStatic(
-      SendQueueSize, sizeof(send_frame_t), txStorage0, &txStruct0);
-
-  static StaticQueue_t txStruct1;
-  static uint8_t txStorage1[80 * sizeof(send_frame_t)];
-  QueueHandle_t tx1 = xQueueCreateStatic(
-      SendQueueSize, sizeof(send_frame_t), txStorage1, &txStruct1);
-
-  if (tx0 == NULL || tx1 == NULL) {
-    LOGE(TAG, "CRITICAL: Failed to create UDP send queues!");
-    Error_Handler();
-  }
-
-  QueueHandle_t send_queues[2] = {tx0, tx1};
-  ETH_udp_init(2, send_queues, sensor_udp_rx_callback);
-  LOGI(TAG, "UDP initialized successfully");
+  /* DISABLED FOR TESTING - No UDP/packet sending right now to see if issue is related to UDP initialization */
+  // LOGI(TAG, "Initializing UDP...");
+  // 
+  // int SendQueueSize = 80;
+  // static StaticQueue_t txStruct0;
+  // static uint8_t txStorage0[80 * sizeof(send_frame_t)];
+  // QueueHandle_t tx0 = xQueueCreateStatic(
+  //     SendQueueSize, sizeof(send_frame_t), txStorage0, &txStruct0);
+  //
+  // static StaticQueue_t txStruct1;
+  // static uint8_t txStorage1[80 * sizeof(send_frame_t)];
+  // QueueHandle_t tx1 = xQueueCreateStatic(
+  //     SendQueueSize, sizeof(send_frame_t), txStorage1, &txStruct1);
+  //
+  // if (tx0 == NULL || tx1 == NULL) {
+  //   LOGE(TAG, "CRITICAL: Failed to create UDP send queues!");
+  //   Error_Handler();
+  // }
+  //
+  // QueueHandle_t send_queues[2] = {tx0, tx1};
+  // ETH_udp_init(2, send_queues, sensor_udp_rx_callback);
+  // LOGI(TAG, "UDP initialized successfully");
 
   /* ---- Stepper motor init ------------------------------------------------ */
   /* TODO: STEPPER MOTOR STUB
@@ -571,25 +572,6 @@ void MainTask(void *argument) {
    * User will implement the stepper motor library.
    * This section provides the skeleton for integration.
    * 
-   * IMPLEMENTATION CHECKLIST:
-   * [ ] Create stepper_motor.h/c in components/sensor_board/stepper/
-   * [ ] Define stepper_motor_hw_t structure (GPIO ports, pins, timer, etc.)
-   * [ ] Implement stepper_motor_init() - configure GPIO, timer, state machine
-   * [ ] Implement stepper_motor_open() - start opening sequence
-   * [ ] Implement stepper_motor_close() - start closing sequence
-   * [ ] Implement stepper_motor_stop() - emergency stop
-   * [ ] Implement stepper_motor_update() - update state machine (call in main loop)
-   * [ ] Implement stepper_motor_is_moving() - check if actively moving
-   * [ ] Add protobuf message definition in ERC-Protobufs/ if needed
-   * 
-   * EXPECTED HARDWARE INTERFACE:
-   * - Stepper motor driver (e.g., DRV8825, A4988) with:
-   *   - Direction pin (GPIO)
-   *   - Step pin (GPIO or PWM timer)
-   *   - Enable pin (GPIO)
-   * - Limit switches for open/closed positions (optional EXTI)
-   * - Encoder/potentiometer for position feedback (optional ADC)
-   */
 
   /* Stepper motor data structure - IMPLEMENT IN stepper_motor.h
   typedef struct {
@@ -655,7 +637,7 @@ void MainTask(void *argument) {
   uint32_t loop_count = 0;
   LOGI(TAG, "========== ENTERING MAIN LOOP ==========");
   LOGI(TAG, "Starting main sensor loop...");
-  const bool skip_sensor_polling = false; // need to make false to pool data
+  const bool skip_sensor_polling = true; // need to make false to pool data
 
   uint8_t dest_ip[4] = {192, 168, 0, 255};
 
@@ -903,8 +885,9 @@ void MainTask(void *argument) {
         load_cell_info.scale_newtons_per_count = lc_scale;
         load_cell_info.tare_offset_counts = lc_tare;
         load_cell_info.is_calibrated = load_cell_data[i].is_calibrated;
-        send_load_cell_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
-                                &load_cell_info, 1);
+        /* DISABLED FOR TESTING */
+        // send_load_cell_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
+        //                         &load_cell_info, 1);
 
         /* Pressure sensor */
         SensorBoardPressureInfo pressure_info =
@@ -955,8 +938,9 @@ void MainTask(void *argument) {
         pressure_info.temperature_c = pr_temp;
         pressure_info.voltage = pr_voltage;
         pressure_info.is_calibrated = pressure_data[i].is_calibrated;
-        send_pressure_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
-                               &pressure_info, 1);
+        /* DISABLED FOR TESTING */
+        // send_pressure_info_udp(dest_ip, SENSOR_UDP_DEST_PORT,
+        //                        &pressure_info, 1);
       }
 
     } /* end skip_sensor_polling */
@@ -1012,7 +996,8 @@ void MainTask(void *argument) {
         }
       }
 
-      send_flow_sensor_info_udp(dest_ip, SENSOR_UDP_DEST_PORT, &flow_info, 1);
+      /* DISABLED FOR TESTING */
+      // send_flow_sensor_info_udp(dest_ip, SENSOR_UDP_DEST_PORT, &flow_info, 1);
     }
 
     /* ==========================================================================
@@ -1037,7 +1022,8 @@ void MainTask(void *argument) {
         pump_info.status = SensorStatus_STATUS_OK;
       }
 
-      send_pump_info_udp(dest_ip, SENSOR_UDP_DEST_PORT, &pump_info, 1);
+      /* DISABLED FOR TESTING */
+      // send_pump_info_udp(dest_ip, SENSOR_UDP_DEST_PORT, &pump_info, 1);
     }
 
     /* ==========================================================================
@@ -1114,7 +1100,8 @@ void MainTask(void *argument) {
      */
 
     /* Send overall diagnostics envelope */
-    send_sensor_diagnostics_udp(dest_ip, SENSOR_UDP_DEST_PORT, &diagnostics, 1);
+    /* DISABLED FOR TESTING */
+    // send_sensor_diagnostics_udp(dest_ip, SENSOR_UDP_DEST_PORT, &diagnostics, 1);
 
     osDelay(MAIN_TASK_DELAY_MS);
   }
