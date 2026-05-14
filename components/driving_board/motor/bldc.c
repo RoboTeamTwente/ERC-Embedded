@@ -27,7 +27,9 @@ extern TIM_HandleTypeDef htim3;//from main
 //--------------------------------------------------
 void CL3E_SetFrequency(uint32_t freq)
 {
-    uint32_t timer_clk = HAL_RCC_GetPCLK2Freq() * 2;
+    uint32_t timer_clk =
+        (HAL_RCC_GetPCLK2Freq() * 2) /
+        (htim1.Init.Prescaler + 1);
 
     if(freq < MIN_FREQ) freq = MIN_FREQ;
     if(freq > MAX_FREQ) freq = MAX_FREQ;
@@ -39,7 +41,9 @@ void CL3E_SetFrequency(uint32_t freq)
     __HAL_TIM_SET_AUTORELOAD(&htim1, arr);
     __HAL_TIM_SET_COUNTER(&htim1, 0);
 
-    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, arr / 2); //%50 duty cycle
+    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, arr / 2);
+
+    //__HAL_TIM_GENERATE_EVENT(&htim1, TIM_EVENTSOURCE_UPDATE);
 }
 
 void CL3E_RampTo(uint32_t target)
