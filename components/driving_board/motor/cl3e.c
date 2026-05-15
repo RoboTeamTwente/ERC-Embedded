@@ -14,13 +14,13 @@ extern TIM_HandleTypeDef htim3;//from main
 
 
 // DIR pin
-#define DIR_PORT GPIOA
-#define DIR_PIN  GPIO_PIN_3
+//#define DIR_PORT GPIOA
+//#define DIR_PIN  GPIO_PIN_3
 
 #define MIN_FREQ  200
 #define MAX_FREQ  20000
-#define STEP_FREQ 50
-#define STEP_DELAY_MS 2
+//#define STEP_FREQ 50
+//#define STEP_DELAY_MS 2
 #define MAX_BLDC_VOLTAGE 24.0f
 
 uint32_t CL3E_GetTimerClock(TIM_HandleTypeDef *htim)
