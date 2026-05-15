@@ -78,10 +78,17 @@ const osThreadAttr_t test_stepper_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
+const osThreadAttr_t pwm_test_attributes = {
+    .name = "pwm_test",
+    .stack_size = 1024,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+
 /* Private function prototypes */
 void test_stepper(void* argument);
 void Task3_init(void* argument);
 // void test_ethernet(void* argument);
+void pwm_test(void* argument);
 
 
 int main(void) {
@@ -114,7 +121,8 @@ int main(void) {
     osKernelInitialize();
 
     /* Create the thread(s) */
-    osThreadNew(test_stepper, NULL, &test_stepper_attributes);
+    // osThreadNew(test_stepper, NULL, &test_stepper_attributes);
+    osThreadNew(pwm_test, NULL, &pwm_test_attributes);
 
     // Start scheduler
     osKernelStart();
@@ -239,6 +247,43 @@ void test_stepper(void* argument) {
     // The PWM runs in the background via hardware. This task can now sleep.
     while (1) {
         osDelay(1000);
+    }
+}
+
+void pwm_test(void* argument) {
+    // Simulates speeding up and slowing down a DC motor by stepping through PWM duty cycles.
+    uint32_t duty_cycle;
+    uint32_t max_duty = __HAL_TIM_GET_AUTORELOAD(&htim2);
+    const uint32_t hold_delay = 2500; // ms to hold each speed
+
+    if (max_duty == 0) {
+        max_duty = 65535; // Default for 16-bit timer if not configured
+    }
+
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+    while (1) {
+        // --- Speeding Up ---
+        LOGI(TAG, "Motor starting... slow speed (20%% PWM)");
+        duty_cycle = (20 * max_duty) / 100;
+        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_cycle);
+        osDelay(hold_delay);
+
+        LOGI(TAG, "Increasing to medium speed (50%% PWM)");
+        duty_cycle = (50 * max_duty) / 100;
+        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_cycle);
+        osDelay(hold_delay);
+
+        LOGI(TAG, "Increasing to fast/full power (90%% PWM)");
+        duty_cycle = (90 * max_duty) / 100;
+        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_cycle);
+        osDelay(hold_delay);
+
+        // --- Slowing Down ---
+        LOGI(TAG, "Slowing to medium speed (50%% PWM)");
+        duty_cycle = (50 * max_duty) / 100;
+        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_cycle);
+        osDelay(hold_delay);
     }
 }
 
