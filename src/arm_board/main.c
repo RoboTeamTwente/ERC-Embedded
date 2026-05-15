@@ -35,10 +35,10 @@
 #include "cmsis_os.h"
 #include "FreeRTOS.h"
 
-//networking
-#include "components/common/networking/inc/ethernet.h" //long path since LWIP also has ethernet.h
-#include "networking_constants.h"
-#include "ip_mac_constants.h"
+// //networking
+// #include "components/common/networking/inc/ethernet.h" //long path since LWIP also has ethernet.h
+// #include "networking_constants.h"
+// #include "ip_mac_constants.h"
 
 #define TAG "ARM_BOARD"
 
@@ -74,7 +74,7 @@ const osThreadAttr_t task2_attributes = {
 /* Private function prototypes */
 void test_stepper(void* argument);
 void Task3_init(void* argument);
-void test_ethernet(void* argument);
+// void test_ethernet(void* argument);
 
 
 int main(void) {
@@ -103,7 +103,7 @@ int main(void) {
     osKernelInitialize();
 
     /* Create the thread(s) */
-    osThreadNew(test_ethernet, NULL, &task2_attributes);
+    // osThreadNew(test_ethernet, NULL, &task2_attributes);
 
     // Start scheduler
     osKernelStart();
@@ -111,104 +111,104 @@ int main(void) {
 
 }
 
-/* Callback function that handles a specific packet*/
-void HandlePacket(receive_frame_t *receive_frame) {
-    printf("Wayoo, message received");
-}
+// /* Callback function that handles a specific packet*/
+// void HandlePacket(receive_frame_t *receive_frame) {
+//     printf("Wayoo, message received");
+// }
 
 extern int receiving_counter;
 int outgoing_counter = 0;
-void test_ethernet(void* argument) {
+// void test_ethernet(void* argument) {
 
-    /*Config + init sending side*/
-    uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
-    uint8_t my_ip[4] = SAMPLE_BOARD_IP;
-    uint8_t netmask[4] = NETMASK;
-    uint8_t gateway[4] = GATEWAY;
+//     /*Config + init sending side*/
+//     uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
+//     uint8_t my_ip[4] = SAMPLE_BOARD_IP;
+//     uint8_t netmask[4] = NETMASK;
+//     uint8_t gateway[4] = GATEWAY;
 
-    ETH_init(NULL, my_ip, netmask, gateway, my_mac);
+//     ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
-    /*Making queues*/
-    int SendQueueSize = 80;
+//     /*Making queues*/
+//     int SendQueueSize = 80;
 
-    static StaticQueue_t xStaticQueue1;
-    uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-    QueueHandle_t udp_receiver_queue1 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea1, &xStaticQueue1);
+//     static StaticQueue_t xStaticQueue1;
+//     uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+//     QueueHandle_t udp_receiver_queue1 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea1, &xStaticQueue1);
 
-    static StaticQueue_t xStaticQueue2;
-    uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-    QueueHandle_t udp_receiver_queue2 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea2, &xStaticQueue2);
+//     static StaticQueue_t xStaticQueue2;
+//     uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+//     QueueHandle_t udp_receiver_queue2 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea2, &xStaticQueue2);
     
-    QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
+//     QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-    ETH_udp_init(2, queues, HandlePacket);
+//     ETH_udp_init(2, queues, HandlePacket);
 
-    /*Config + add ARP receiving side*/
-    uint8_t ip[4] = NETWORK_IP;
-    uint8_t mac[6] = NETWORK_MAC;
+//     /*Config + add ARP receiving side*/
+//     uint8_t ip[4] = NETWORK_IP;
+//     uint8_t mac[6] = NETWORK_MAC;
 
-    ETH_add_arp(ip, mac, 5);
+//     ETH_add_arp(ip, mac, 5);
 
-    /*Sending a message*/
-    uint8_t packet1_payload[4] = {14,06,20,04};
+//     /*Sending a message*/
+//     uint8_t packet1_payload[4] = {14,06,20,04};
 
-    /*Test sending*/
-    while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
-          ETH_udp_send(ip, 8, packet1_payload, 4, 1);
-          osDelay(10);
-          outgoing_counter += 1;
-          LOGI(TAG, "%d", outgoing_counter);
-      }
+//     /*Test sending*/
+//     while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
+//           ETH_udp_send(ip, 8, packet1_payload, 4, 1);
+//           osDelay(10);
+//           outgoing_counter += 1;
+//           LOGI(TAG, "%d", outgoing_counter);
+//       }
 
-    while(1){
-    }
+//     while(1){
+//     }
 
-    // ETH_udp_send(ip, 7, "udp message");
-    // osDelay(100);
-    // ETH_raw_send(mac, "ggg");
-    // ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
-    // osDelay(100);
+//     // ETH_udp_send(ip, 7, "udp message");
+//     // osDelay(100);
+//     // ETH_raw_send(mac, "ggg");
+//     // ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
+//     // osDelay(100);
 
-    //Populated protobuf
-    // ArmBoardControlSignals* sig;
-    // sig->control_base = 10.0f;
-    // sig->control_gripper_pitch = 20.0f;
-    // sig->control_gripper_rotation = 30.0f;
-    // sig->control_jaw = 40.0f;
-    // sig->stepper_bottom_ena = 1;
-    // sig->stepper_bottom_rev = 1;
-    // sig->stepper_top_ena = 1;
-    // sig->stepper_top_rev = 1;
+//     //Populated protobuf
+//     // ArmBoardControlSignals* sig;
+//     // sig->control_base = 10.0f;
+//     // sig->control_gripper_pitch = 20.0f;
+//     // sig->control_gripper_rotation = 30.0f;
+//     // sig->control_jaw = 40.0f;
+//     // sig->stepper_bottom_ena = 1;
+//     // sig->stepper_bottom_rev = 1;
+//     // sig->stepper_top_ena = 1;
+//     // sig->stepper_top_rev = 1;
 
-    // // sending packet
-    // uint8_t** encoded_data = NULL;
-    // size_t* encoded_length = 0;
-    // result_t res = pb_message_encode(sig, ArmBoardControlSignals_fields, &encoded_data, &encoded_length);
+//     // // sending packet
+//     // uint8_t** encoded_data = NULL;
+//     // size_t* encoded_length = 0;
+//     // result_t res = pb_message_encode(sig, ArmBoardControlSignals_fields, &encoded_data, &encoded_length);
 
-    // if (res != RESULT_OK) {
-    //     free(encoded_data);
-    //     LOGE(TAG, "Encoding failed");
-    //     return;
-    // }
+//     // if (res != RESULT_OK) {
+//     //     free(encoded_data);
+//     //     LOGE(TAG, "Encoding failed");
+//     //     return;
+//     // }
 
-    // LOGI(TAG, "Encoding successfull");
+//     // LOGI(TAG, "Encoding successfull");
 
-    // control_signals_t* structVar = {0};
-    // size_t struct_len = 0;
-    // res = pb_message_decode(encoded_data, encoded_length, ArmBoardControlSignals_fields, struct_len, (void **) &structVar);
+//     // control_signals_t* structVar = {0};
+//     // size_t struct_len = 0;
+//     // res = pb_message_decode(encoded_data, encoded_length, ArmBoardControlSignals_fields, struct_len, (void **) &structVar);
 
-    // if (res != RESULT_OK) {
-    //     free(encoded_data);
-    //     LOGE(TAG, "Decoding failed");
-    //     return;
-    // }
-    // LOGI(TAG, "Decoding successfull");
+//     // if (res != RESULT_OK) {
+//     //     free(encoded_data);
+//     //     LOGE(TAG, "Decoding failed");
+//     //     return;
+//     // }
+//     // LOGI(TAG, "Decoding successfull");
 
-    // LOGI(TAG, "Message says: %s %d %f", structVar->stepper_bottom_ENA);
+//     // LOGI(TAG, "Message says: %s %d %f", structVar->stepper_bottom_ENA);
 
-    // ETH_udp_send(ip, 7, encoded_data);
-    // free(encoded_data);
-}
+//     // ETH_udp_send(ip, 7, encoded_data);
+//     // free(encoded_data);
+// }
 
 TIM_HandleTypeDef htim2;
 
