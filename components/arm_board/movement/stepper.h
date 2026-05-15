@@ -27,3 +27,5 @@ typedef struct {
 
 result_t init_stepper(stepper_t* stepper, uint8_t id, uint8_t duty_cycle, TIM_HandleTypeDef* tim);
 void rotate_stepper(stepper_t* stepper, uint32_t target_angle_absolute);
+void test_generate_pwm(stepper_t* stepper);
+void test_pwm_with_dma(stepper_t* stepper);
