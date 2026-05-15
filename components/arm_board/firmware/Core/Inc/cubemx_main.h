@@ -7,7 +7,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2025 STMicroelectronics.
+  * Copyright (c) 2026 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -68,5 +68,35 @@ void Error_Handler(void);
 #ifdef __cplusplus
 }
 #endif
+
+
+/* ---- START firmware_definitions ---- */
+
+// #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
+// #define LWIP_DEBUG 1
+#define LWIP_HOOK_VLAN_SET(pcb, hdr, netif, src, dst, eth_hdr_len)             \
+  get_vlan_header(pcb, hdr, netif, src, dst, eth_hdr_len)
+
+/* ---- END firmware_definitions ---- */
+
+
+/* ---- START firmware_definitions ---- */
+
+// #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
+// #define LWIP_DEBUG 1
+#define LWIP_HOOK_VLAN_SET(pcb, hdr, netif, src, dst, eth_hdr_len)             \
+  get_vlan_header(pcb, hdr, netif, src, dst, eth_hdr_len)
+
+/* ---- END firmware_definitions ---- */
+
+
+/* ---- START firmware_definitions ---- */
+
+// #define LWIP_HOOK_UNKNOWN_ETH_PROTOCOL(pbuf, netif) eth_reader(netif, pbuf)
+// #define LWIP_DEBUG 1
+#define LWIP_HOOK_VLAN_SET(pcb, hdr, netif, src, dst, eth_hdr_len)             \
+  get_vlan_header(pcb, hdr, netif, src, dst, eth_hdr_len)
+
+/* ---- END firmware_definitions ---- */
 
 #endif /* __MAIN_H */
