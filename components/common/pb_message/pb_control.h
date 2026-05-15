@@ -18,8 +18,6 @@ static packet_handler_t DispatchTableHandlers[MAX_PROCESSABLE_PACKET_TYPES];
 
 static uint16_t DispatchTableSize = 0;
 
-\post_code_generation.bash
-
 
 /**
  * @brief Initialize the packet dispatch table for protobuf control flow.
