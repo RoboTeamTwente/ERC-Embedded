@@ -12,13 +12,13 @@ typedef result_t (*packet_handler_t)(void* payload);
 
 
 
+
 static pb_size_t DispatchTableEntries[MAX_PROCESSABLE_PACKET_TYPES];
 static packet_handler_t DispatchTableHandlers[MAX_PROCESSABLE_PACKET_TYPES];
 
 static uint16_t DispatchTableSize = 0;
 
-
-
+\post_code_generation.bash
 
 
 /**
