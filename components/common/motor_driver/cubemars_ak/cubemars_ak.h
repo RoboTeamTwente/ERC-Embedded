@@ -217,4 +217,33 @@ result_t cubemars_ak_set_position(FDCAN_HandleTypeDef* can_handler,
  */
 result_t cubermars_ak_set_origin(FDCAN_HandleTypeDef* can_handler,
                                  uint8_t controller_id, uint8_t origin_mode);
+
+/**
+ * @brief Send a brake-current command to a CubeMars AK motor.
+ *
+ * Sends a servo-mode CAN current brake command. The brake current is provided
+ * in amperes and converted internally to the fixed-point format expected by
+ * the motor driver.
+ *
+ * The CubeMars AK servo CAN protocol represents brake current as:
+ *
+ * @code
+ * raw_current = current_a * 1000
+ * @endcode
+ *
+ * Valid range:
+ * - 0 A to 60 A
+ *
+ * @param[in] can_handler Pointer to the FDCAN peripheral handle.
+ * @param[in] controller_id CubeMars motor controller ID.
+ * @param[in] current_a Brake current in amperes.
+ *
+ * @return RESULT_OK if the CAN frame was queued successfully.
+ * @return RESULT_ERR_INVALID_ARG if can_handler is NULL or current_a is
+ * invalid.
+ * @return RESULT_FAIL if the CAN frame could not be queued.
+ */
+result_t cubemars_ak_set_brake_current(FDCAN_HandleTypeDef* can_handler,
+                                       uint8_t controller_id, float current_a);
+
 #endif

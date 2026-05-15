@@ -140,3 +140,30 @@ result_t cubemars_ak_set_origin(FDCAN_HandleTypeDef* can_handler,
 
     return RESULT_OK;
 }
+
+result_t cubemars_ak_set_brake_current(FDCAN_HandleTypeDef* can_handler,
+                                       uint8_t controller_id, float current_a) {
+    if (can_handler == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    if (current_a < 0.0f || current_a > CUBEMARS_AK_MAX_BRAKE_CURRENT_A) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    int32_t current_raw =
+        (int32_t)(current_a * CUBEMARS_AK_BRAKE_CURRENT_SCALE);
+
+    tx_header.Identifier =
+        cubemars_ak_get_can_id(controller_id, CUBEMARS_AK_SET_CURRENT_BRAKE);
+    tx_header.DataLength = FDCAN_DLC_BYTES_4;
+
+    current_raw = (int32_t)__REV((uint32_t)current_raw);
+
+    if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header,
+                                      (uint8_t*)&current_raw) != HAL_OK) {
+        return RESULT_FAIL;
+    }
+
+    return RESULT_OK;
+}
