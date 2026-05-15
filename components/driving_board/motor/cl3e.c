@@ -4,7 +4,7 @@
 #include "control_drive.h"//get control output
 #include <rtwtypes.h>
 #include "stm32h7xx_hal.h" //needed in order to reach HAL timer handlers, dictionary for microcontroller that defines periperals
-#include "bldc.h"
+#include "cl3e.h"
 #include "cmsis_os2.h"
 
 extern ExtU rtU;
@@ -21,15 +21,34 @@ extern TIM_HandleTypeDef htim3;//from main
 #define MAX_FREQ  20000
 #define STEP_FREQ 50
 #define STEP_DELAY_MS 2
+#define MAX_BLDC_VOLTAGE 24.0f
 
-//--------------------------------------------------
-// Set pulse frequency
-//--------------------------------------------------
-void CL3E_SetFrequency(uint32_t freq)
+uint32_t CL3E_GetTimerClock(TIM_HandleTypeDef *htim)
 {
-    uint32_t timer_clk =
-        (HAL_RCC_GetPCLK2Freq() * 2) /
-        (htim1.Init.Prescaler + 1);
+    uint32_t pclk;
+
+    // APB2 timers
+    if(htim->Instance == TIM1  ||
+       htim->Instance == TIM8  ||
+       htim->Instance == TIM15 ||
+       htim->Instance == TIM16 ||
+       htim->Instance == TIM17)
+    {
+        pclk = HAL_RCC_GetPCLK2Freq();
+    }
+    // APB1 timers
+    else
+    {
+        pclk = HAL_RCC_GetPCLK1Freq();
+    }
+
+    return (pclk * 2) / (htim->Init.Prescaler + 1);
+}
+
+void CL3E_SetFrequency(TIM_HandleTypeDef *htim, uint32_t channel, uint32_t freq)
+{
+    uint32_t timer_clk = CL3E_GetTimerClock(htim);
+
 
     if(freq < MIN_FREQ) freq = MIN_FREQ;
     if(freq > MAX_FREQ) freq = MAX_FREQ;
@@ -38,15 +57,48 @@ void CL3E_SetFrequency(uint32_t freq)
 
     if(arr < 10) arr = 10;
 
-    __HAL_TIM_SET_AUTORELOAD(&htim1, arr);
-    __HAL_TIM_SET_COUNTER(&htim1, 0);
+    __HAL_TIM_SET_AUTORELOAD(htim, arr);
+    __HAL_TIM_SET_COUNTER(htim, 0);
 
-    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, arr / 2);
+    __HAL_TIM_SET_COMPARE(htim, channel, arr / 2);
 
     //__HAL_TIM_GENERATE_EVENT(&htim1, TIM_EVENTSOURCE_UPDATE);
 }
 
-void CL3E_RampTo(uint32_t target)
+uint32_t CL3E_ControlToFreq(real_T u)
+{
+    double norm = fabs(u) / MAX_BLDC_VOLTAGE;
+
+    if (norm > 1.0) norm = 1.0;
+
+    return (uint32_t)(MIN_FREQ + norm * (MAX_FREQ - MIN_FREQ));
+}
+
+void CL3E_DriveFromControl(TIM_HandleTypeDef *htim, uint32_t channel, GPIO_TypeDef *dir_port,
+                           uint16_t dir_pin, real_T u)
+{
+    // direction
+    if (u >= 0)
+        HAL_GPIO_WritePin(dir_port, dir_pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(dir_port, dir_pin, GPIO_PIN_RESET);
+
+    // stop condition
+    if (fabs(u) < 0.1)
+    {
+        __HAL_TIM_SET_COMPARE(htim, channel, 0);
+        return;
+    }
+
+    // frequency obtained from scaling control signal
+    uint32_t freq = CL3E_ControlToFreq(u);
+
+    CL3E_SetFrequency(htim, channel, freq);
+}
+
+/**
+ * 
+void CL3E_Test_RampTo(uint32_t target)
 {
     static uint32_t current = 500;
 
@@ -86,26 +138,26 @@ void CL3E_RampTo(uint32_t target)
 //--------------------------------------------------
 // Forward 
 //--------------------------------------------------
-void CL3E_Forward(uint32_t freq)
+void CL3E_Test_Forward(uint32_t freq)
 {
     HAL_GPIO_WritePin(DIR_PORT, DIR_PIN, GPIO_PIN_SET);
-    CL3E_RampTo(freq);
+    CL3E_Test_RampTo(freq);
 }
 
 //--------------------------------------------------
 // Backward
 //--------------------------------------------------
-void CL3E_Backward(uint32_t freq)
+void CL3E_Test_Backward(uint32_t freq)
 {
     HAL_GPIO_WritePin(DIR_PORT, DIR_PIN, GPIO_PIN_RESET);
-    CL3E_RampTo(freq);
+    CL3E_Test_RampTo(freq);
 }
 //--------------------------------------------------
 // Stop
 //--------------------------------------------------
-void CL3E_Stop(void)
+void CL3E_Test_Stop(void)
 {
-    CL3E_RampTo(MIN_FREQ);
+    CL3E_Test_RampTo(MIN_FREQ);
 
     osDelay(50);
 
@@ -114,29 +166,31 @@ void CL3E_Stop(void)
 
 void CL3E_Test(void)
 {
-    CL3E_Forward(500);
+    CL3E_Test_Forward(500);
     osDelay(2000);
 
-    CL3E_Forward(3000);
+    CL3E_Test_Forward(3000);
     osDelay(2000);
 
-    CL3E_Stop();
+    CL3E_Test_Stop();
     osDelay(300);
 
-    CL3E_Backward(3000);
+    CL3E_Test_Backward(3000);
     osDelay(2000);
 
-    CL3E_Backward(500);
+    CL3E_Test_Backward(500);
     osDelay(2000);
 
-    CL3E_Stop();
+    CL3E_Test_Stop();
     osDelay(1000);
 }
+
+ */
 
 
 /**
  * #define MAX_BLDC_PWM 65535.0f// 16-bit resolution
-#define MAX_BLDC_VOLTAGE 24.0f
+
 
 void set_motor_direction(GPIO_TypeDef *port, uint16_t pin, uint8_t dir)
 {

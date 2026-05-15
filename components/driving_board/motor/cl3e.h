@@ -23,24 +23,18 @@
 #define RB_DIR_PORT GPIOB
 #define RB_DIR_PIN  GPIO_PIN_12
 
-void CL3E_SetFrequency(uint32_t freq);
-void CL3E_Forward(uint32_t freq);
+void CL3E_SetFrequency(TIM_HandleTypeDef *htim, uint32_t channel, uint32_t freq);
+uint32_t CL3E_ControlToFreq(real_T u);
+void CL3E_DriveFromControl(TIM_HandleTypeDef *htim, uint32_t channel, GPIO_TypeDef *dir_port, uint16_t dir_pin, real_T u);
+uint32_t CL3E_GetTimerClock(TIM_HandleTypeDef *htim);
+/**
+ * void CL3E_Forward(uint32_t freq);
 void CL3E_Backward(uint32_t freq);
 void CL3E_Stop(void);
-/**
- * void set_bldc_pwm(void);
 
-void set_single_bldc_pwm(TIM_HandleTypeDef *htim, int tim_channel_no, real_T control_val);
-
-void motor_test_ramp(void);
-
-void set_motor_direction(GPIO_TypeDef *port, uint16_t pin, uint8_t dir);
-
-void motor_test_forward(void);
-
-void motor_test_reverse(void);
  */
 
- void CL3E_Test(void);
+
+ //void CL3E_Test(void);
 
 #endif
