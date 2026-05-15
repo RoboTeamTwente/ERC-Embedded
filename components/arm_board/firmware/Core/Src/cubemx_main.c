@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "cubemx_main.h"
 #include "cmsis_os.h"
+#include "dma.h"
 #include "lwip.h"
 #include "tim.h"
 #include "gpio.h"

@@ -47,9 +47,11 @@ extern COM_InitTypeDef BspCOMInit;
 extern void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
+extern void MX_DMA_Init(void);
 
+/*Handles*/
+TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart_com;
-osThreadId Task3Handle;
 
 void my_BSP_COM_Init() {
     BspCOMInit.BaudRate = 115200;
@@ -73,41 +75,68 @@ const osThreadAttr_t task2_attributes = {
 
 /* Private function prototypes */
 void test_stepper(void* argument);
-void Task3_init(void* argument);
 void test_ethernet(void* argument);
+void test_dma(void* argument);
 
 
-int main(void) {
+// int main(void) {
 
-    /*Inits*/
-    MPU_Config_wrapper();
+//     /*Inits*/
+//     MPU_Config_wrapper();
 
-    SCB_EnableICache();
-    SCB_EnableDCache();
+//     SCB_EnableICache();
+//     SCB_EnableDCache();
+
+//     HAL_Init();
+//     SystemClock_Config();
+
+//     MX_GPIO_Init();
+
+//     //Init timers
+//     MX_TIM2_Init();
+
+//     //INit all configured peripherals
+//     my_BSP_COM_Init(); 
+
+//     //Log init
+//     LOG_init(&huart_com);
+
+//     // Init scheduler
+//     osKernelInitialize();
+
+//     /* Create the thread(s) */
+//     // osThreadNew(test_ethernet, NULL, &task2_attributes);
+//     osThreadNew(test_dma, NULL, &task2_attributes);
+
+//     // Start scheduler
+//     osKernelStart();
+//     // We should never get here as control is now taken by the scheduler
+
+// }
+
+int ctr = 0;
+uint32_t remaining;
+void main(void* argument) {
 
     HAL_Init();
+
     SystemClock_Config();
 
     MX_GPIO_Init();
-
-    //Init timers
+    MX_DMA_Init();
     MX_TIM2_Init();
 
-    //INit all configured peripherals
-    my_BSP_COM_Init(); 
+    static uint32_t pwmData[11];
 
-    //Log init
-    LOG_init(&huart_com);
+    pwmData[0] = 1000; pwmData[1] = 2000; pwmData[2] = 3000;
+    pwmData[3] = 4000; pwmData[4] = 5000; pwmData[5] = 6000;
+    pwmData[6] = 7000; pwmData[7] = 8000; pwmData[8] = 9000;
+    pwmData[9] = 10000; pwmData[10] = 0;
+    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &pwmData, 11);
+    
+    HAL_Delay(1000);
 
-    // Init scheduler
-    osKernelInitialize();
-
-    /* Create the thread(s) */
-    osThreadNew(test_ethernet, NULL, &task2_attributes);
-
-    // Start scheduler
-    osKernelStart();
-    // We should never get here as control is now taken by the scheduler
+    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &pwmData, 11);
 
 }
 
@@ -210,8 +239,6 @@ void test_ethernet(void* argument) {
     // free(encoded_data);
 }
 
-TIM_HandleTypeDef htim2;
-
 void test_stepper(void *argument) {
     stepper_t step;
     MX_TIM2_Init();
@@ -219,12 +246,4 @@ void test_stepper(void *argument) {
     MX_GPIO_Init();
     init_stepper(&step, 1, 50, &htim2);
     rotate_stepper(&step, 200);
-}
-
-void Task3_init (void* argument) {
-     while (1) {
-        LOGI(TAG, "task3");
-        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
-        HAL_Delay(200);
-     }
 }
