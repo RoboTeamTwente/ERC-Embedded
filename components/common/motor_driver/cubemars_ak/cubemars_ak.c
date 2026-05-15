@@ -2,6 +2,18 @@
 
 #include "result.h"
 
+static FDCAN_TxHeaderTypeDef tx_header = {
+    .Identifier = 0,
+    .IdType = FDCAN_EXTENDED_ID,
+    .TxFrameType = FDCAN_DATA_FRAME,
+    .DataLength = FDCAN_DLC_BYTES_4,
+    .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+    .BitRateSwitch = FDCAN_BRS_OFF,
+    .FDFormat = FDCAN_CLASSIC_CAN,
+    .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+    .MessageMarker = 0,
+};
+
 inline uint32_t cubemars_ak_get_can_id(uint8_t _controler_id,
                                        cubemars_ak_message_type _type) {
     return _controler_id | ((uint32_t)_type << 8);
@@ -48,12 +60,83 @@ result_t cubemars_ak_parse_can_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
     }
 
     out->motor_id = motor_id;
-    out->motor_position = (int16_t)*(&data[0]) / CUBEMARS_AK_CAN_POSITION_SCALE;
-    out->motor_speed = (int16_t)*(&data[2]) / CUBEMARS_AK_CAN_SPEED_SCALE;
-    out->motor_current = (int16_t)*(&data[4]) / CUBEMARS_AK_CAN_CURRENT_SCALE;
+    size_t index = 0;
+    out->motor_current = cubemars_get_i16_be(data, &index);
+    out->motor_position = (int16_t)*(data) / CUBEMARS_AK_CAN_POSITION_SCALE;
+    out->motor_speed = (int16_t)*(data + 2) / CUBEMARS_AK_CAN_SPEED_SCALE;
+    out->motor_current = (int16_t)*(data + 4) / CUBEMARS_AK_CAN_CURRENT_SCALE;
     out->motor_temperature =
         (int8_t)data[6] / CUBEMARS_AK_CAN_TEMPERATURE_SCALE;
     out->status_code = (cubemars_ak_error_code)data[7];
+
+    return RESULT_OK;
+}
+
+result_t cubemars_ak_set_speed(FDCAN_HandleTypeDef* can_handler,
+                               uint8_t controller_id, int32_t erpm) {
+    if (can_handler == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    tx_header.Identifier =
+        cubemars_ak_get_can_id(controller_id, CUBEMARS_AK_SET_RPM);
+    tx_header.DataLength = FDCAN_DLC_BYTES_4;
+
+    erpm = (int32_t)__REV(
+        (uint32_t)
+            erpm);  // You can hate me for this, but its funky and I like it
+
+    if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header,
+                                      (uint8_t*)&erpm) != HAL_OK) {
+        return RESULT_FAIL;
+    }
+
+    return RESULT_OK;
+}
+
+result_t cubemars_ak_set_position(FDCAN_HandleTypeDef* can_handler,
+                                  uint8_t controller_id, float position_deg) {
+    if (can_handler == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    int32_t position_raw =
+        (int32_t)(position_deg * CUBEMARS_AK_MOTOR_POSITION_SCALE);
+
+    tx_header.Identifier =
+        cubemars_ak_get_can_id(controller_id, CUBEMARS_AK_SET_POSITION);
+    tx_header.DataLength = FDCAN_DLC_BYTES_4;
+
+    position_raw =
+        (int32_t)__REV((uint32_t)position_raw);  // You can hate me for this,
+                                                 // but its funky and I like it
+
+    if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header,
+                                      (uint8_t*)&position_raw) != HAL_OK) {
+        return RESULT_FAIL;
+    }
+
+    return RESULT_OK;
+}
+
+result_t cubemars_ak_set_origin(FDCAN_HandleTypeDef* can_handler,
+                                uint8_t controller_id, uint8_t origin_mode) {
+    if (can_handler == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    if (origin_mode > CUBEMARS_AK_ORIGIN_PERMANENT) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    tx_header.Identifier = cubemars_ak_get_can_id(
+        controller_id, CUBEMARS_AK_CAN_PACKET_SET_ORIGIN_HERE);
+    tx_header.DataLength = FDCAN_DLC_BYTES_1;
+
+    if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header, &origin_mode) !=
+        HAL_OK) {
+        return RESULT_FAIL;
+    }
 
     return RESULT_OK;
 }
