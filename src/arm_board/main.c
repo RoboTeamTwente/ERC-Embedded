@@ -112,6 +112,8 @@ void test_dma(void* argument);
 //     osKernelStart();
 //     // We should never get here as control is now taken by the scheduler
 
+//     while(1){}
+
 // }
 
 int ctr = 0;
@@ -126,17 +128,19 @@ void main(void* argument) {
     MX_DMA_Init();
     MX_TIM2_Init();
 
-    static uint32_t pwmData[11];
+    stepper_t step;
+    init_stepper(&step, 1, 50, &htim2);
+    rotate_stepper(&step, 10);
 
-    pwmData[0] = 1000; pwmData[1] = 2000; pwmData[2] = 3000;
-    pwmData[3] = 4000; pwmData[4] = 5000; pwmData[5] = 6000;
-    pwmData[6] = 7000; pwmData[7] = 8000; pwmData[8] = 9000;
-    pwmData[9] = 10000; pwmData[10] = 0;
-    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &pwmData, 11);
-    
-    HAL_Delay(1000);
+    LOGI(TAG, "%u", step.current_angle);
 
-    HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &pwmData, 11);
+    HAL_Delay(100);
+    rotate_stepper(&step, 10);
+
+    LOGI(TAG, "%u", step.current_angle);
+
+    while(1) {
+    }
 
 }
 

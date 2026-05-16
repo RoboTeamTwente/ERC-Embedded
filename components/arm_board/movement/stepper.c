@@ -66,44 +66,49 @@ void do_pwm(stepper_t* stepper) {
     }
 }
 
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim3;
 
-void do_pwm_slave(stepper_t* stepper) {
+void do_pwm_dma(stepper_t* stepper, int amt_steps) {
 
-    // htim3.Instance->PSC = 0;
+    /*Calculate the value of the CCR*/
+    TIM_HandleTypeDef* htim = stepper->htim;
+    uint32_t ARR_val = htim->Instance->ARR + 1; 
+    float DC_val = ((float) stepper->duty_cycle) / 100; //Percentage -> multiplier (50 -> 0.5)
+	uint32_t my_Duty_Cycle = DC_val * ARR_val;
 
-    int amt_pulses = 10;
+    //Dynamically allocate an arr of 0s for the amount of steps + 1
+    //Why amt_steps + 1? --> We need a 0 to close off the array after the wished for amt of steps
+    int data_arr_size = amt_steps + 1;
+    uint32_t* data_arr_ptr = (uint32_t*) calloc(data_arr_size, sizeof(uint32_t));
 
-    int tim2_arr = 65535;
-    int tim3_arr = tim2_arr/amt_pulses;
-    htim2.Instance->ARR = tim2_arr-1;
-    htim3.Instance->ARR = tim3_arr-1;
+    // Populate the array
+    for (int i = 0; i < amt_steps; i++) {
+        data_arr_ptr[i] = my_Duty_Cycle;
+    }
 
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 100);
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, (int) tim3_arr*0.5); //50% duty cycle
+    //!TODO: error handling
+    HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, data_arr_ptr, data_arr_size);
 
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+    free(data_arr_ptr);
+
     
 }
 
-void rotate_stepper(stepper_t* stepper, uint32_t target_angle_absolute) {
+void rotate_stepper(stepper_t* stepper, uint32_t amt_steps_absolute) {
 
-    uint32_t CW_angle = target_angle_absolute - stepper->current_angle; //relative clockwise turn
-    uint32_t CCW_angle = 360 - CW_angle; //relative counterclockwise turn
+    /* Calculate shortest the relative angle */
+    //!NOTE: the "angles" are in amounts of steps and they are absolute
+    uint32_t CW_angle = amt_steps_absolute - stepper->current_angle; //relative clockwise turn
+    uint32_t CCW_angle = STEPS_PER_REV - CW_angle; //relative counterclockwise turn
+    uint32_t amt_steps_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle; //pick the shortest
 
-    uint32_t target_angle_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle;
-    bool pin_val = (CW_angle < CCW_angle) ? 1 : 0; //set pin to 1 for clockwise, 0 for counterclockwise
-
-    set_pin(DIR_PIN, pin_val); //set direction of turn
-
-    amt_steps = target_angle_relative; //set the amount of steps to turn for the interrupt to happen
-    stepper->current_angle = target_angle_absolute; //update the angle in the struct //TODO: ONLY set once movement completed!
+    //set pin to 1 for clockwise, 0 for counterclockwise
+    bool pin_val = (CW_angle < CCW_angle) ? 1 : 0; 
+    set_pin(DIR_PIN, pin_val);
     
-    do_pwm_slave(stepper);
-    //!! Execution should not reach here, since do_pwm will go into infinite loop !!
+    do_pwm_dma(stepper, amt_steps_relative);
 
+    //Update the stepper struct to reflect actual pos once movement completed!
+    stepper->current_angle = amt_steps_absolute;
 }
 
 // void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim) {
