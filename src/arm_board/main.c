@@ -152,7 +152,7 @@ void main(void* argument) {
 static void test_pwm_scope(void) {
     stepper_t step;
     const uint32_t scope_frequencies_hz[] = {
-            /* Low range (this is for slow movement or for High torque) */
+            /* Low range (this is for slow movement or for  High torque) */
             125U, 250U, 500U, 1000U, 2000U, 4000U, 
             
             /* Mid range (Standard operating speeds) */
