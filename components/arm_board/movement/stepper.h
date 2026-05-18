@@ -7,7 +7,7 @@
 typedef struct {
     uint8_t stepper_id;
     uint8_t duty_cycle; //Value of 1-100%
-    uint16_t current_angle; //Value from 0-359
+    uint8_t current_angle; //Value from 0-199 (in steps)
     TIM_HandleTypeDef* htim; //The timer that is used
 } stepper_t;
 
@@ -26,4 +26,4 @@ typedef struct {
 
 
 result_t init_stepper(stepper_t* stepper, uint8_t id, uint8_t duty_cycle, TIM_HandleTypeDef* tim);
-void rotate_stepper(stepper_t* stepper, uint32_t target_angle_absolute);
+void rotate_stepper(stepper_t* stepper, uint8_t target_angle_absolute);

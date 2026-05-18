@@ -132,12 +132,10 @@ void main(void* argument) {
     init_stepper(&step, 1, 50, &htim2);
     rotate_stepper(&step, 10);
 
-    LOGI(TAG, "%u", step.current_angle);
+    HAL_Delay(200);
+    HAL_TIM_PWM_Stop_DMA(&htim2, TIM_CHANNEL_1);
 
-    HAL_Delay(100);
-    rotate_stepper(&step, 10);
-
-    LOGI(TAG, "%u", step.current_angle);
+    rotate_stepper(&step, 5);
 
     while(1) {
     }
@@ -245,9 +243,6 @@ void test_ethernet(void* argument) {
 
 void test_stepper(void *argument) {
     stepper_t step;
-    MX_TIM2_Init();
-    // MX_TIM3_Init();
-    MX_GPIO_Init();
     init_stepper(&step, 1, 50, &htim2);
-    rotate_stepper(&step, 200);
+    rotate_stepper(&step, 10);
 }

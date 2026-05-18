@@ -22,8 +22,9 @@
 #define ENA_PIN 4 //Enable signal
 #define ALM_PIN 5 //Alarm signal (OUT)
 
-#define DEGREES_PER_STEP 1.8 //One step turns the motor 1.8 degrees
-#define STEPS_PER_REV (360/DEGREES_PER_STEP) //At 1.8, this is 200
+#define STEPS_PER_REV 200 //The amount of steps that makes it turn 360 degrees
+#define DEGREES_PER_STEP (360/STEPS_PER_REV) //At 200, 1 step turns the motor 1.8 degrees
+
 
 #define RPM 100 //Rotations per minute
 
@@ -87,19 +88,20 @@ void do_pwm_dma(stepper_t* stepper, int amt_steps) {
 
     //!TODO: error handling
     HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, data_arr_ptr, data_arr_size);
-
     free(data_arr_ptr);
-
     
 }
 
-void rotate_stepper(stepper_t* stepper, uint32_t amt_steps_absolute) {
+void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute) {
 
     /* Calculate shortest the relative angle */
     //!NOTE: the "angles" are in amounts of steps and they are absolute
-    uint32_t CW_angle = amt_steps_absolute - stepper->current_angle; //relative clockwise turn
-    uint32_t CCW_angle = STEPS_PER_REV - CW_angle; //relative counterclockwise turn
-    uint32_t amt_steps_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle; //pick the shortest
+    int CW_angle = (amt_steps_absolute - stepper->current_angle); //relative clockwise turn
+    if (CW_angle < 0) {
+        CW_angle = STEPS_PER_REV + CW_angle; //Modulo operation in case the CW_angle is negative
+    }
+    int CCW_angle = STEPS_PER_REV - CW_angle; //relative counterclockwise turn
+    int amt_steps_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle; //pick the shortest
 
     //set pin to 1 for clockwise, 0 for counterclockwise
     bool pin_val = (CW_angle < CCW_angle) ? 1 : 0; 
