@@ -90,6 +90,8 @@ const osThreadAttr_t pwm_test_attributes = {
 void test_stepper(void* argument);
 void test_ethernet(void* argument);
 void test_dma(void* argument);
+static void test_pwm_scope(void);
+static void configure_pwm_frequency(uint32_t frequency_hz);
 
 
 // int main(void) {
@@ -141,20 +143,59 @@ void main(void* argument) {
     MX_DMA_Init();
     MX_TIM2_Init();
 
+    test_pwm_scope();
+
+    while(1) { }
+
+}
+
+static void test_pwm_scope(void) {
     stepper_t step;
+    const uint32_t scope_frequencies_hz[] = {
+            /* Low range (this is for slow movement or for High torque) */
+            125U, 250U, 500U, 1000U, 2000U, 4000U, 
+            
+            /* Mid range (Standard operating speeds) */
+            8000U, 16000U, 32000U, 
+            
+            /* High range (Fast motion / Requires acceleration ramps) */
+            64000U, 128000U, 256000U
+        };
+    const size_t scope_frequency_count = sizeof(scope_frequencies_hz) / sizeof(scope_frequencies_hz[0]);
+
+    my_BSP_COM_Init();
+    LOG_init(&huart_com);
+
     init_stepper(&step, 1, 50, &htim2);
-    rotate_stepper(&step, 10);
 
-    LOGI(TAG, "%u", step.current_angle);
+    while (1) {
+        for (size_t i = 0; i < scope_frequency_count; i++) {
+            uint32_t frequency_hz = scope_frequencies_hz[i];
 
-    HAL_Delay(100);
-    rotate_stepper(&step, 10);
+            step.step_frequency_hz = frequency_hz;
+            configure_pwm_frequency(frequency_hz);
+            LOGI(TAG, "Frequency set to- %lu Hz", (unsigned long) frequency_hz);
 
-    LOGI(TAG, "%u", step.current_angle);
+            do_pwm_dma(&step, 200);
+            HAL_Delay(500);
+        }
+    }
+}
 
-    while(1) {
+static void configure_pwm_frequency(uint32_t frequency_hz) {
+    if (frequency_hz == 0U) {
+        frequency_hz = 1U;
     }
 
+    uint32_t timer_tick_hz = 1000000U;
+    uint32_t period_ticks = timer_tick_hz / frequency_hz;
+
+    if (period_ticks < 2U) {
+        period_ticks = 2U;
+    }
+
+    __HAL_TIM_SET_AUTORELOAD(&htim2, period_ticks - 1U);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, period_ticks / 2U);
 }
 
 // /* Callback function that handles a specific packet*/
