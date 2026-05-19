@@ -14,7 +14,7 @@
 // PACKET IDS
 
 // EHTERNET CONFIGURATION
-#define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame_t)
+#define ETHERNET_RQ_ITEM_SIZE sizeof(receive_frame_low_t)
 #define ETHERNET_SQ_ITEM_SIZE sizeof(send_frame_t)
 #define RQ_ETHERNET_PRIO 1
 #define ETHERNET_RQ_LENGTH 1000
