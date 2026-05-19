@@ -77,7 +77,6 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
   result_t err = RESULT_OK;
   rx_packet_counter += 1;
-
   receive_frame_t buffer = {
       .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
   if ((&buffer)->payload == NULL) {

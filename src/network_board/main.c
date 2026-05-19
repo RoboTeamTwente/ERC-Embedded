@@ -151,6 +151,7 @@ static packet_handler_config_t handler_configs[] = {
      .queue_buffer = packet1_buffer}};
 
 extern int receive_counter;
+extern int rx_packet_counter;
 void MainTask(void *argument) {
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
@@ -179,7 +180,7 @@ void MainTask(void *argument) {
     if (err != RESULT_OK) {
       outgoing_counter -= 1;
     }
-    osDelay(10);
+    osDelay(1);
     outgoing_counter += 1;
     // LOGI(TAG, "Total messages send: %d", outgoing_counter);
     // LOGI(TAG, "Total messages handled: %d", incomming_counter);
@@ -190,8 +191,8 @@ void MainTask(void *argument) {
     __asm__ __volatile__("nop");
     LOGI(TAG, "Total messages send: %d", outgoing_counter);
     LOGI(TAG, "Total messages handled: %d", incomming_counter);
-    LOGI(TAG, "Total messages received: %d", receive_counter);
-
+    LOGI(TAG, "Total messages queued: %d", receive_counter);
+    LOGI(TAG, "Total messages received: %d", rx_packet_counter);
     osDelay(300);
   }
 }

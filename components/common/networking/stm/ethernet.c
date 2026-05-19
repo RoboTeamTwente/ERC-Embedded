@@ -131,7 +131,7 @@ result_t ETH_init(linkstatus_callback_t link_state_change_callback,
     LOGI(TAG, "Waiting for ethernet to start...");
     osDelay(100);
   }
-  if (err != HAL_ETH_ERROR_NONE && state == HAL_ETH_STATE_STARTED ||
+  if ((err != HAL_ETH_ERROR_NONE && state == HAL_ETH_STATE_STARTED) ||
       state == HAL_ETH_STATE_BUSY) {
     LOGE(TAG, "Ethernet did not start. Error %d; State %d", err, state);
     return RESULT_ERR_COMMS;
