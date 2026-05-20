@@ -31,7 +31,7 @@ void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
 void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
   raw_init(callback);
 }
-void ETH_udp_send(uint8_t ip[4], uint8_t port, uint8_t *payload,
+void ETH_udp_send(uint8_t ip[4], int port, uint8_t *payload,
                   uint16_t payload_len, uint8_t prio_num) {
   udp_client_send(upcb, ip, port, payload, payload_len, prio_num);
 }
@@ -112,13 +112,11 @@ void ETH_address_init(uint8_t ip[4], uint8_t netmask_addr[4],
 
   HAL_ETH_SetSourceMACAddrMatch(&heth, 0, mac_address);
   netif_set_up(&gnetif);
-
 }
 
 result_t ETH_init(linkstatus_callback_t link_state_change_callback,
-                           uint8_t ip[4], uint8_t netmask[4],
-                           uint8_t gateway[4],
-                           uint8_t mac_address[6]) { // TODO: return an error
+                  uint8_t ip[4], uint8_t netmask[4], uint8_t gateway[4],
+                  uint8_t mac_address[6]) { // TODO: return an error
   LOGI(TAG, "Setting up ethernet...\n");
   MX_LWIP_Init();
   ETH_address_init(ip, netmask, gateway, mac_address);
@@ -126,14 +124,17 @@ result_t ETH_init(linkstatus_callback_t link_state_change_callback,
   ETH_diagnostic_callback_init(&gnetif, link_state_change_callback);
   uint32_t err = HAL_ETH_GetError(&heth);
   HAL_StatusTypeDef state = HAL_ETH_GetState(&heth);
-  for (int i = 0; i < 5; i++){
-    if(state != HAL_ETH_STATE_BUSY){break;}
+  for (int i = 0; i < 5; i++) {
+    if (state != HAL_ETH_STATE_BUSY) {
+      break;
+    }
     LOGI(TAG, "Waiting for ethernet to start...");
     osDelay(100);
   }
-  if (err != HAL_ETH_ERROR_NONE && state == HAL_ETH_STATE_STARTED || state == HAL_ETH_STATE_BUSY) {
-       LOGE(TAG, "Ethernet did not start. Error %d; State %d", err, state);
-       return RESULT_ERR_COMMS;
+  if (err != HAL_ETH_ERROR_NONE && state == HAL_ETH_STATE_STARTED ||
+      state == HAL_ETH_STATE_BUSY) {
+    LOGE(TAG, "Ethernet did not start. Error %d; State %d", err, state);
+    return RESULT_ERR_COMMS;
   }
 
   LOGI(TAG, "Ethernet is set up!\n");
