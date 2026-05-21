@@ -12,7 +12,7 @@
 #include "components/common/motor.pb.h"
 #include "components/driving_board/motor_msg.pb.h"
 #include "ethernet.h"
-//#include "packet_dispatcher.h"
+#include "packet_dispatcher.h"
 #include "packet_dispatcher_macros.h"
 #include "ip_mac_constants.h"
 #include "queue.h"
@@ -277,8 +277,8 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
                          ucQueueStorageArea2, &xStaticQueue2);
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  uint8_t ip[4] = BASE_IP;
-  uint8_t mac[6] = BASE_MAC;
+  uint8_t ip[4] = SAMPLE_BOARD_IP;
+  uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
   PacketDispatcherInit(handler_configs, 1);
 
