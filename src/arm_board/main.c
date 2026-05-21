@@ -40,6 +40,11 @@
 #include "networking_constants.h"
 #include "ip_mac_constants.h"
 
+//packetdispatcher
+#include "packet_dispatcher.h"
+#include "packet_dispatcher_macros.h"
+#include "handler_stuff.h"
+
 #define TAG "ARM_BOARD"
 
 /*External functions*/
@@ -79,66 +84,41 @@ void test_ethernet(void* argument);
 void test_dma(void* argument);
 
 
-// int main(void) {
+int main(void) {
 
-//     /*Inits*/
-//     MPU_Config_wrapper();
+    /*Inits*/
+    MPU_Config_wrapper();
 
-//     SCB_EnableICache();
-//     SCB_EnableDCache();
-
-//     HAL_Init();
-//     SystemClock_Config();
-
-//     MX_GPIO_Init();
-
-//     //Init timers
-//     MX_TIM2_Init();
-
-//     //INit all configured peripherals
-//     my_BSP_COM_Init(); 
-
-//     //Log init
-//     LOG_init(&huart_com);
-
-//     // Init scheduler
-//     osKernelInitialize();
-
-//     /* Create the thread(s) */
-//     // osThreadNew(test_ethernet, NULL, &task2_attributes);
-//     osThreadNew(test_dma, NULL, &task2_attributes);
-
-//     // Start scheduler
-//     osKernelStart();
-//     // We should never get here as control is now taken by the scheduler
-
-//     while(1){}
-
-// }
-
-int ctr = 0;
-uint32_t remaining;
-void main(void* argument) {
+    SCB_EnableICache();
+    SCB_EnableDCache();
 
     HAL_Init();
-
     SystemClock_Config();
 
     MX_GPIO_Init();
     MX_DMA_Init();
+
+    //Init timers
     MX_TIM2_Init();
 
-    stepper_t step;
-    init_stepper(&step, 1, 50, &htim2);
-    rotate_stepper(&step, 10);
+    //INit all configured peripherals
+    my_BSP_COM_Init(); 
 
-    HAL_Delay(200);
-    HAL_TIM_PWM_Stop_DMA(&htim2, TIM_CHANNEL_1);
+    //Log init
+    LOG_init(&huart_com);
 
-    rotate_stepper(&step, 5);
+    // Init scheduler
+    osKernelInitialize();
 
-    while(1) {
-    }
+    /* Create the thread(s) */
+    // osThreadNew(test_ethernet, NULL, &task2_attributes);
+    osThreadNew(test_ethernet, NULL, &task2_attributes);
+
+    // Start scheduler
+    osKernelStart();
+    // We should never get here as control is now taken by the scheduler
+
+    while(1){}
 
 }
 
@@ -146,6 +126,9 @@ void main(void* argument) {
 void HandlePacket(receive_frame_t *receive_frame) {
     printf("Wayoo, message received");
 }
+
+
+
 
 extern int receiving_counter;
 int outgoing_counter = 0;
@@ -172,7 +155,8 @@ void test_ethernet(void* argument) {
     
     QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-    ETH_udp_init(2, queues, HandlePacket);
+    PacketDispatcherInit(handler_configs, 2);
+    ETH_udp_init(2, queues, DispatchPacket);
 
     /*Config + add ARP receiving side*/
     uint8_t ip[4] = NETWORK_IP;
