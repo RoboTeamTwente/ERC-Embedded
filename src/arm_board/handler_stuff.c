@@ -18,8 +18,8 @@ static result_t Callback_ArmBoardControlSignals(void *buffer) {
     pckt->control_gripper_pitch; //bldc
     pckt->control_gripper_rotation; //bldc
     pckt->control_jaw; //bldc
-    pckt->stepper_bottom_freq; //ignore
-    pckt->stepper_top_freq; //ignore
+    pckt->stepper_bottom_rev; //ignore
+    pckt->stepper_top_rev; //ignore
     pckt->stepper_bottom_rev;
     pckt->stepper_top_rev;
     return RESULT_OK;
