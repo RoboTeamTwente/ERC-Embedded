@@ -90,81 +90,45 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
 custom_nanopb_protos = +<components/**/*.proto>
 lib_deps = ${extra.common_lib_deps}
 build_flags=
-	-I components/arm_board
-	-I components/arm_board/firmware
-	-I components/arm_board/firmware/Core
-	-I components/arm_board/firmware/Core/Inc
-	-I components/arm_board/firmware/Core/Src
-	-I components/arm_board/firmware/LWIP
-	-I components/arm_board/firmware/LWIP/App
-	-I components/arm_board/firmware/LWIP/Target
-	-I components/arm_board/firmware/Middlewares
-	-I components/arm_board/firmware/Middlewares/Third_Party
-	-I components/arm_board/firmware/Middlewares/Third_Party/FreeRTOS
-	-I components/arm_board/firmware/Middlewares/Third_Party/FreeRTOS/Source
-	-I components/arm_board/firmware/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
-	-I components/arm_board/firmware/Middlewares/Third_Party/FreeRTOS/Source/include
-	-I components/arm_board/firmware/Middlewares/Third_Party/FreeRTOS/Source/portable
-	-I components/arm_board/firmware/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC
-	-I components/arm_board/firmware/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
-	-I components/arm_board/firmware/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/api
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/apps
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/apps/mqtt
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/core
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/core/ipv4
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/core/ipv6
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/compat
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/compat/posix
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/compat/posix/arpa
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/compat/posix/net
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/compat/posix/sys
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/compat/stdc
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/lwip
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/lwip/apps
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/lwip/priv
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/lwip/prot
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/netif
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/include/netif/ppp
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/netif
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/src/netif/ppp
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/system
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/system/arch
-	-I components/arm_board/firmware/Middlewares/Third_Party/LwIP/system/OS
-	-I components/arm_board/movement
-	-I components/arm_board/mti1
-	-I components/arm_board/mti1/inc
-	-I components/arm_board/mti1/src
-	-I components/arm_board/mti1/test
-	-I components/arm_board/simulink
-	-I components/arm_board/firmware/Drivers/BSP
-	-I components/arm_board/firmware/Drivers/BSP/Components
-	-I components/arm_board/firmware/Drivers/BSP/Components/lan8742
-	-I components/arm_board/firmware/Drivers/BSP/STM32H7xx_Nucleo
-	-I components/common/bucketed_pqueue
-	-I components/common/firmware_definitions
-	-I components/common/kv_pool
-	-I components/common/logging
-	-I components/common/networking
-	-I components/common/networking_constants
-	-I components/common/packet_dispatcher
-	-I components/common/pb_message
-	-I components/common/result
-	-I components/common/logging/inc
-	-I components/common/networking/inc
-	-I components/common/logging/arm_board
-	-mthumb
-	-mfpu=fpv4-sp-d16
-	-mfloat-abi=softfp
-	-Wl,-u,_printf_float
-	-D CONFIG_LOG_LEVEL=LOG_INFO
-	-DUSE_PWR_LDO_SUPPLY 
-	-DUSE_NUCLEO_64 
-	-DUSE_HAL_DRIVER 
-	-DSTM32H753xx
+    +<components/arm_board/**>
+    -<components/arm_board/firmware/Drivers/**>
+    +<components/arm_board/firmware/Drivers/BSP/**>
+    +<components/common/*>
+    +<components/common/*/inc>
+    +<components/common/*/arm_board/**>
+    +<components/common/*/stm/**/*.c>
+    +<components/common/*.c>
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=softfp
+    -Wl,-u,_printf_float
+    -D CONFIG_LOG_LEVEL=LOG_INFO
+
+[env:driving_board]
+board = nucleo_h753zi
+board_build.stm32cube.custom_config_header = yes
+build_src_filter = +<src/${this.__env__}/**/*.c>
+    +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/*.c>
+    +<components/common/*/stm/**/*.c>
+    +<components/driving_board/**>
+    -<components/driving_board/firmware/Drivers/**>
+    +<components/driving_board/firmware/Drivers/BSP/**>
+custom_nanopb_protos = +<components/**/*.proto>
+test_filter = driving_board/*
+lib_deps = ${extra.common_lib_deps}
+build_flags=
+    +<components/common/*/inc> 
+    +<components/common/*>
+    +<components/common/*/stm/**>
+    +<components/driving_board/**>
+    -<components/driving_board/firmware/Drivers/**>
+    +<components/driving_board/firmware/Drivers/BSP/**>
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=softfp
+    -Wl,-u,_printf_float
+    -D CONFIG_LOG_LEVEL=LOG_INFO
 
 [env:debugging_board]
 board = nucleo_h753zi
@@ -182,6 +146,28 @@ build_flags=
     +<components/common/*/inc/**>
     +<components/common/*>
     +<components/debugging_board/**>
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=softfp
+    -Wl,-u,_printf_float
+    -D CONFIG_LOG_LEVEL=LOG_INFO
+
+[env:can_board]
+board = nucleo_h753zi
+custom_nanopb_protos = +<components/**/*.proto>
+build_src_filter = +<src/${this.__env__}/**/*.c>
+    +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/*.c>
+    +<components/can_board/**>
+    -<components/can_board/firmware/Drivers/**>
+    +<components/can_board/firmware/Drivers/BSP/**>
+
+lib_deps = ${extra.common_lib_deps}
+test_filter = common/*
+build_flags=
+    +<components/common/*/inc/**>
+    +<components/common/*>
+    +<components/can_board/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp

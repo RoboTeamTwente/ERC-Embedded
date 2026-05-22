@@ -27,8 +27,9 @@
 #define ENA_PIN 4 //Enable signal
 #define ALM_PIN 5 //Alarm signal (OUT)
 
-#define DEGREES_PER_STEP 1.8 //One step turns the motor 1.8 degrees
-#define STEPS_PER_REV (360/DEGREES_PER_STEP) //At 1.8, this is 200
+#define STEPS_PER_REV 200 //The amount of steps that makes it turn 360 degrees
+#define DEGREES_PER_STEP (360/STEPS_PER_REV) //At 200, 1 step turns the motor 1.8 degrees
+
 
 #define RPM 100 //Rotations per minute
 #define STEP_PULSE_MIN_WIDTH_TICKS 3U // 3 us at the 1 MHz timer tick rate
@@ -115,28 +116,24 @@ void do_pwm_dma(stepper_t* stepper, int amt_steps) {
         data_arr_ptr[i] = my_Duty_Cycle;
     }
 
-    stepper->pwm_dma_buffer = data_arr_ptr;
-    stepper->pwm_dma_buffer_len = (size_t) data_arr_size;
-    stepper->pwm_dma_active = true;
+    //!TODO: error handling
+    HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, data_arr_ptr, data_arr_size);
 
-    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, data_arr_ptr[0]);
-    if (HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, data_arr_ptr, data_arr_size) != HAL_OK) {
-        free(data_arr_ptr);
-        stepper->pwm_dma_buffer = NULL;
-        stepper->pwm_dma_buffer_len = 0;
-        stepper->pwm_dma_active = false;
-    }
+    free(data_arr_ptr);
+
+    
 }
 
-void rotate_stepper(stepper_t* stepper, uint32_t amt_steps_absolute) {
+void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute) {
 
-    uint32_t current_angle = stepper->current_angle % (uint32_t)STEPS_PER_REV;
-    uint32_t target_angle  = amt_steps_absolute    % (uint32_t)STEPS_PER_REV;
-    uint32_t CW_angle      = (target_angle + (uint32_t)STEPS_PER_REV - current_angle) % (uint32_t)STEPS_PER_REV;
-    uint32_t CCW_angle     = ((uint32_t)STEPS_PER_REV - CW_angle) % (uint32_t)STEPS_PER_REV;
-    uint32_t amt_steps_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle;
+    /* Calculate shortest the relative angle */
+    //!NOTE: the "angles" are in amounts of steps and they are absolute
+    uint32_t CW_angle = amt_steps_absolute - stepper->current_angle; //relative clockwise turn
+    uint32_t CCW_angle = STEPS_PER_REV - CW_angle; //relative counterclockwise turn
+    uint32_t amt_steps_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle; //pick the shortest
 
-    bool pin_val = (CW_angle < CCW_angle) ? 1 : 0;
+    //set pin to 1 for clockwise, 0 for counterclockwise
+    bool pin_val = (CW_angle < CCW_angle) ? 1 : 0; 
     set_pin(DIR_PIN, pin_val);
 
     do_pwm_dma(stepper, amt_steps_relative);

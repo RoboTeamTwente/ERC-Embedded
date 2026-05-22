@@ -17,7 +17,7 @@
 */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "cubemx_main.h"
+#include "main.h"
 #include "cmsis_os.h"
 #include "gpio.h"
 

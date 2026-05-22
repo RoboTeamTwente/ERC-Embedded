@@ -36,10 +36,10 @@
 #include "cmsis_os.h"
 #include "FreeRTOS.h"
 
-// //networking
-// #include "components/common/networking/inc/ethernet.h" //long path since LWIP also has ethernet.h
-// #include "networking_constants.h"
-// #include "ip_mac_constants.h"
+//networking
+#include "components/common/networking/inc/ethernet.h" //long path since LWIP also has ethernet.h
+#include "networking_constants.h"
+#include "ip_mac_constants.h"
 
 #define TAG "ARM_BOARD"
 
@@ -94,114 +94,43 @@ static void test_pwm_scope(void);
 static void configure_pwm_frequency(uint32_t frequency_hz);
 
 
-// int main(void) {
+int main(void) {
 
-//     /*Inits*/
-//     MPU_Config_wrapper();
+    /*Inits*/
+    MPU_Config_wrapper();
 
-//     SCB_EnableICache();
-//     SCB_EnableDCache();
-
-//     HAL_Init();
-//     SystemClock_Config();
-
-//     MX_GPIO_Init();
-
-//     //Init timers
-//     MX_TIM2_Init();
-
-//     //INit all configured peripherals
-//     my_BSP_COM_Init(); 
-
-//     //Log init
-//     LOG_init(&huart_com);
-
-//     // Init scheduler
-//     osKernelInitialize();
-
-//     /* Create the thread(s) */
-//     // osThreadNew(test_ethernet, NULL, &task2_attributes);
-//     osThreadNew(test_dma, NULL, &task2_attributes);
-
-//     // Start scheduler
-//     osKernelStart();
-//     // We should never get here as control is now taken by the scheduler
-
-//     while(1){}
-
-// }
-
-int ctr = 0;
-uint32_t remaining;
-void main(void* argument) {
+    SCB_EnableICache();
+    SCB_EnableDCache();
 
     HAL_Init();
-
     SystemClock_Config();
 
     MX_GPIO_Init();
     MX_DMA_Init();
+
+    //Init timers
     MX_TIM2_Init();
 
-    test_pwm_scope();
-
-    while(1) { }
-
-}
-
-static void test_pwm_scope(void) {
     stepper_t step;
-    const uint32_t scope_frequencies_hz[] = {
-            /* Low range (this is for slow movement or for  High torque) */
-            125U, 250U, 500U, 1000U, 2000U, 4000U, 
-            
-            /* Mid range (Standard operating speeds) */
-            8000U, 16000U, 32000U, 
-            
-            /* High range (Fast motion / Requires acceleration ramps) */
-            64000U, 128000U, 256000U
-        };
-    const size_t scope_frequency_count = sizeof(scope_frequencies_hz) / sizeof(scope_frequencies_hz[0]);
-
-    my_BSP_COM_Init();
-    LOG_init(&huart_com);
-
     init_stepper(&step, 1, 50, &htim2);
+    rotate_stepper(&step, 10);
 
-    while (1) {
-        for (size_t i = 0; i < scope_frequency_count; i++) {
-            uint32_t frequency_hz = scope_frequencies_hz[i];
+    LOGI(TAG, "%u", step.current_angle);
 
-            step.step_frequency_hz = frequency_hz;
-            configure_pwm_frequency(frequency_hz);
-            LOGI(TAG, "Frequency set to- %lu Hz", (unsigned long) frequency_hz);
+    HAL_Delay(100);
+    rotate_stepper(&step, 10);
 
-            do_pwm_dma(&step, 200);
-            HAL_Delay(500);
-        }
+    LOGI(TAG, "%u", step.current_angle);
+
+    while(1) {
     }
+
 }
 
-static void configure_pwm_frequency(uint32_t frequency_hz) {
-    if (frequency_hz == 0U) {
-        frequency_hz = 1U;
-    }
-
-    uint32_t timer_tick_hz = 1000000U;
-    uint32_t period_ticks = timer_tick_hz / frequency_hz;
-
-    if (period_ticks < 2U) {
-        period_ticks = 2U;
-    }
-
-    __HAL_TIM_SET_AUTORELOAD(&htim2, period_ticks - 1U);
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, period_ticks / 2U);
+/* Callback function that handles a specific packet*/
+void HandlePacket(receive_frame_t *receive_frame) {
+    printf("Wayoo, message received");
 }
-
-// /* Callback function that handles a specific packet*/
-// void HandlePacket(receive_frame_t *receive_frame) {
-//     printf("Wayoo, message received");
-// }
 
 extern int receiving_counter;
 int outgoing_counter = 0;
@@ -228,7 +157,7 @@ int outgoing_counter = 0;
     
 //     QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-//     ETH_udp_init(2, queues, HandlePacket);
+    ETH_udp_init(2, queues, HandlePacket);
 
 //     /*Config + add ARP receiving side*/
 //     uint8_t ip[4] = NETWORK_IP;
@@ -299,11 +228,9 @@ int outgoing_counter = 0;
 
 void test_stepper(void *argument) {
     stepper_t step;
-    // The hardware (GPIO, Timers) is initialized in main() before the scheduler starts.
-    // It's not necessary to call MX_..._Init() functions here again.
-
-    // The global 'htim2' is initialized by MX_TIM2_Init() in main().
-    // We pass its address to the stepper initializer.
+    MX_TIM2_Init();
+    // MX_TIM3_Init();
+    MX_GPIO_Init();
     init_stepper(&step, 1, 50, &htim2);
-    rotate_stepper(&step, 200);
+    rotate_stepper(&step, 10);
 }

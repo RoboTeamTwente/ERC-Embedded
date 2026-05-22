@@ -14,4 +14,4 @@
 #define NETMASK {255, 255, 255, 0}
 
 #define PORT 1500
-#endif //! IP_MAC_CONSTANTS
+#endif  //! IP_MAC_CONSTANTS
