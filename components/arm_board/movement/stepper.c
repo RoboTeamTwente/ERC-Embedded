@@ -116,10 +116,17 @@ void do_pwm_dma(stepper_t* stepper, int amt_steps) {
         data_arr_ptr[i] = my_Duty_Cycle;
     }
 
-    //!TODO: error handling
-    HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, data_arr_ptr, data_arr_size);
+    stepper->pwm_dma_buffer = data_arr_ptr;
+    stepper->pwm_dma_buffer_len = (size_t)data_arr_size;
+    stepper->pwm_dma_active = true;
 
-    free(data_arr_ptr);
+    //!TODO: error handling
+    if (HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, stepper->pwm_dma_buffer, data_arr_size) != HAL_OK) {
+        free(stepper->pwm_dma_buffer);
+        stepper->pwm_dma_buffer = NULL;
+        stepper->pwm_dma_buffer_len = 0;
+        stepper->pwm_dma_active = false;
+    }
 
     
 }
@@ -147,7 +154,7 @@ void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute) {
         osDelay(1);
     }
 
-    stepper->current_angle = target_angle;
+    stepper->current_angle = amt_steps_absolute;
 }
 
 /** PLACEHOLDER

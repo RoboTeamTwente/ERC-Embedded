@@ -25,8 +25,7 @@ static result_t Callback_ArmBoardControlSignals(void *buffer) {
     return RESULT_OK;
 }
 
-static packet_handler_config_t Handler_ArmBoardControlSignals;
-PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals, PBEnvelope_arm_ctrl_tag, ArmBoardActualPositions_size, Callback_ArmBoardControlSignals);
+  PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals, PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
 
 // static uint8_t Buffer_ArmBoardControlSignals[ArmBoardActualPositions_size * 5];
 // static packet_handler_config_t Handler_ArmBoardControlSignals = {
@@ -109,9 +108,3 @@ static packet_handler_config_t Handler_ArmBoardTargetMovement = {
 
 
 
-static packet_handler_config_t handler_configs[] = { 
-    // Callback_ArmBoardActualPositions
-    Callback_ArmBoardControlSignals
-    , Callback_ArmBoardMovementFeedback
-    // , Callback_ArmBoardTargetMovement
-};
