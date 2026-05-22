@@ -20,7 +20,7 @@ extern TIM_HandleTypeDef htim3;//from main
 //#define DIR_PIN  GPIO_PIN_3
 
 #define MIN_FREQ  200
-#define MAX_FREQ  20000
+#define MAX_FREQ  15000
 //#define STEP_FREQ 50
 //#define STEP_DELAY_MS 2
 #define MAX_BLDC_VOLTAGE 24.0f

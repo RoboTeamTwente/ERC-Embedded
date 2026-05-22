@@ -104,6 +104,9 @@ void ethernet_linkstatus_callback(void *arg) {
   }
 }
 
+#define DISPATCHER_INPUT_QUEUE_LENGTH 8U
+
+
 static int incomming_counter = 0;
 static int outgoing_counter = 0;
 static result_t HandleTypeMotorMsgPacket(void *buffer) {
@@ -113,8 +116,8 @@ static result_t HandleTypeMotorMsgPacket(void *buffer) {
 
   DrivingBoardMotorMessage *packet = (DrivingBoardMotorMessage *)buffer;
   incomming_counter += 1;
-  printf("Envelope of type distance to go info has value: %f\n", packet->distance_to_go);
-  printf("This is packet: %d\n", incomming_counter);
+  LOGI(TAG,"Envelope of type distance to go info has value: %f\n", packet->distance_to_go);
+  LOGI(TAG, "This is packet: %d\n", incomming_counter);
   return RESULT_OK;
 }
 
@@ -122,15 +125,22 @@ static result_t HandleTypeMotorMsgPacket(void *buffer) {
 
 static uint8_t packet1_buffer[DrivingBoardMotorMessage_size * 5];
 
-
-static packet_handler_config_t handler_configs[] = {
+/**
+ * static packet_handler_config_t handler_configs[] = {
     {.handler = HandleTypeMotorMsgPacket,
      .task_name = "Motor Msg Handler",
      .packet_type = PBEnvelope_drive_motor_tag,
      .item_size = DrivingBoardMotorMessage_size,
-     .task_priority = tskIDLE_PRIORITY + 2U,
+     .task_priority = PACKET_HANDLER_PRIORITY,
      .queue_length = 5,
      .queue_buffer = packet1_buffer}};
+ */
+
+
+PACKET_HANDLER_CONFIG_STATIC(motor_msg_handler, PBEnvelope_drive_motor_tag, drive_motor,
+                             HandleTypeMotorMsgPacket);
+
+
 
 extern int receive_counter;
 
@@ -261,7 +271,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
   //ETH_udp_init();
 
 
-
+  packet_handler_config_t handler_configs[] = {motor_msg_handler};
 
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
@@ -383,6 +393,8 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
     LOGI(TAG,"Sent DrivingBoardMotorPeriodicProgress");}
     free(progress_encoded);
+ 
+    
     
     __asm__ __volatile__("nop");
     osDelay(300);
