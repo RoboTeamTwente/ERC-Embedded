@@ -1,9 +1,14 @@
 #include "stdint.h"
+#include <math.h>
+#include <stdlib.h>
 #include "result.h"
 #include "stepper.h"
 #include "tim.h"
 #include "logging.h"
+#include "dma.h"
 
+// FreeRTOS
+#include "cmsis_os.h"
 
 //Alledgedly, the steppers will be using CL57T drivers!
 /*  CL57T driver
@@ -27,68 +32,88 @@
 
 
 #define RPM 100 //Rotations per minute
+#define STEP_PULSE_MIN_WIDTH_TICKS 3U // 3 us at the 1 MHz timer tick rate
 
 #define TAG "STEPPER"
 
 /* Class variables */
-int64_t pulse_ctr = 0; //counts the amt of pulses that happened
-int64_t amt_steps = 100; //amount of pulses that we want, DEFAULT VAL FOR TESTING
+int64_t pulse_ctr = 0;
+int64_t amt_steps = 100;
 
-//Custom interrupt function definition
 void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim);
+static uint32_t get_step_frequency_hz(void);
+static uint32_t get_pwm_period_ticks(uint32_t frequency_hz);
+static uint32_t get_pwm_compare_ticks(uint32_t period_ticks, uint8_t duty_cycle);
+void set_pin(int pinname, char what);
+
+// static stepper_t* active_stepper = NULL;
 
 result_t init_stepper(stepper_t* stepper, uint8_t id, uint8_t duty_cycle, TIM_HandleTypeDef* tim) {
     stepper->stepper_id = id;
     stepper->duty_cycle = duty_cycle;
     stepper->htim = tim;
     stepper->current_angle = 0;
+    stepper->step_frequency_hz = get_step_frequency_hz();
+    stepper->pwm_dma_buffer = NULL;
+    stepper->pwm_dma_buffer_len = 0;
+    stepper->pwm_dma_active = false;
 
     TIM_HandleTypeDef* htim = stepper->htim;
 
-    // HAL_TIM_PWM_Start(htim, TIM_CHANNEL_1); //Start the timer for PWM //NOTE: ONLY on CHANNEL_1
-
-    // //Register callback
-    // HAL_TIM_RegisterCallback(htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, User_TIMPeriodElapsedCallback); //This links the PERIOD_ELAPSED_CB_ID (period elapsed callback) to user defined function
-    // HAL_TIM_Base_Start_IT(htim); //Start the timer in interrupt mode! 
+    uint32_t period_ticks = get_pwm_period_ticks(stepper->step_frequency_hz);
+    __HAL_TIM_SET_AUTORELOAD(htim, period_ticks - 1U);
+    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, get_pwm_compare_ticks(period_ticks, duty_cycle));
+    HAL_TIM_PWM_Stop(htim, TIM_CHANNEL_1);
 
     return RESULT_OK;
 }
 
-void do_pwm(stepper_t* stepper) {
-
-    TIM_HandleTypeDef* htim = stepper->htim;
-
-    uint32_t ARR_val = (uint32_t) htim->Instance->ARR + 1; //NOTE: the ARR (counter register) value is set in CubeMX!
-    float DC = ((float) stepper->duty_cycle) / 100; //Percentage -> multiplier
-	uint32_t CH1_Duty_Cycle = DC * ARR_val;
-
-    while (1) {
-    	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, CH1_Duty_Cycle);
-    }
-}
-
-
 void do_pwm_dma(stepper_t* stepper, int amt_steps) {
 
-    /*Calculate the value of the CCR*/
     TIM_HandleTypeDef* htim = stepper->htim;
-    uint32_t ARR_val = htim->Instance->ARR + 1; 
-    float DC_val = ((float) stepper->duty_cycle) / 100; //Percentage -> multiplier (50 -> 0.5)
-	uint32_t my_Duty_Cycle = DC_val * ARR_val;
+    uint32_t period_ticks = get_pwm_period_ticks(stepper->step_frequency_hz);
+    uint32_t my_Duty_Cycle = get_pwm_compare_ticks(period_ticks, stepper->duty_cycle);
 
-    //Dynamically allocate an arr of 0s for the amount of steps + 1
-    //Why amt_steps + 1? --> We need a 0 to close off the array after the wished for amt of steps
-    int data_arr_size = amt_steps + 1;
+    // FIX 1: sync timer ARR to match current step_frequency_hz before starting DMA.
+    // Without this, changing step_frequency_hz after init has no effect on the actual
+    // timer frequency — the old ARR value from init_stepper would still be used.
+    __HAL_TIM_SET_AUTORELOAD(htim, period_ticks - 1U);
+
+    if (stepper->pwm_dma_active && stepper->pwm_dma_buffer != NULL) {
+        HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_1);
+        free(stepper->pwm_dma_buffer);
+        stepper->pwm_dma_buffer = NULL;
+        stepper->pwm_dma_buffer_len = 0;
+        stepper->pwm_dma_active = false;
+    }
+
+    // FIX 3: removed the +1 from data_arr_size.
+    // The old +1 added a trailing zero entry that DMA would write to CCR, causing a
+    // spurious extra pulse and a second PulseFinishedCallback fire. The callback
+    // already handles stopping DMA cleanly, so no sentinel zero is needed.
+    int data_arr_size = amt_steps;
     uint32_t* data_arr_ptr = (uint32_t*) calloc(data_arr_size, sizeof(uint32_t));
 
-    // Populate the array
+    if (data_arr_ptr == NULL) {
+        return;
+    }
+
     for (int i = 0; i < amt_steps; i++) {
         data_arr_ptr[i] = my_Duty_Cycle;
     }
 
+    stepper->pwm_dma_buffer = data_arr_ptr;
+    stepper->pwm_dma_buffer_len = (size_t)data_arr_size;
+    stepper->pwm_dma_active = true;
+
     //!TODO: error handling
-    HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, data_arr_ptr, data_arr_size);
-    free(data_arr_ptr);
+    if (HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, stepper->pwm_dma_buffer, data_arr_size) != HAL_OK) {
+        free(stepper->pwm_dma_buffer);
+        stepper->pwm_dma_buffer = NULL;
+        stepper->pwm_dma_buffer_len = 0;
+        stepper->pwm_dma_active = false;
+    }
+
     
 }
 
@@ -96,43 +121,67 @@ void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute) {
 
     /* Calculate shortest the relative angle */
     //!NOTE: the "angles" are in amounts of steps and they are absolute
-    int CW_angle = (amt_steps_absolute - stepper->current_angle); //relative clockwise turn
-    if (CW_angle < 0) {
-        CW_angle = STEPS_PER_REV + CW_angle; //Modulo operation in case the CW_angle is negative
-    }
-    int CCW_angle = STEPS_PER_REV - CW_angle; //relative counterclockwise turn
-    int amt_steps_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle; //pick the shortest
+    uint32_t CW_angle = amt_steps_absolute - stepper->current_angle; //relative clockwise turn
+    uint32_t CCW_angle = STEPS_PER_REV - CW_angle; //relative counterclockwise turn
+    uint32_t amt_steps_relative = (CW_angle < CCW_angle) ? CW_angle : CCW_angle; //pick the shortest
 
     //set pin to 1 for clockwise, 0 for counterclockwise
     bool pin_val = (CW_angle < CCW_angle) ? 1 : 0; 
     set_pin(DIR_PIN, pin_val);
-    
+
     do_pwm_dma(stepper, amt_steps_relative);
 
-    //Update the stepper struct to reflect actual pos once movement completed!
+    // FIX 2: wait for DMA to finish before updating current_angle.
+    // Previously current_angle was updated immediately after do_pwm_dma() returned,
+    // but do_pwm_dma() is non-blocking — the motor physically hasn't moved yet.
+    // A back-to-back rotate_stepper() call would compute the wrong relative angle.
+    // osDelay(1) yields the CPU to other FreeRTOS tasks while waiting.
+    while (stepper->pwm_dma_active) {
+        osDelay(1);
+    }
+
     stepper->current_angle = amt_steps_absolute;
 }
 
-// void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim) {
-//     LOGI(TAG, "Interrupt %d %u", pulse_ctr);
-//     pulse_ctr++;
-
-//     if (pulse_ctr >= amt_steps) { //If at the desired amt of pulses...
-//         LOGI(TAG, "Interrupt %d %u", pulse_ctr);
-//         while (1) {
-//             pulse_ctr = 0;
-//             __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, 0); //...turn PWM off FOR THIS TIMER
-//         }
-//     }
-// }
-
 /** PLACEHOLDER
  * @brief Set the pin object
- * 
- * @param pinname 
- * @param what 
  */
 void set_pin(int pinname, char what) {
     return;
 }
 
+static uint32_t get_step_frequency_hz(void) {
+    float steps_per_second = ((float) RPM * (float) STEPS_PER_REV) / 60.0f;
+    if (steps_per_second < 1.0f) {
+        return 1U;
+    }
+
+    return (uint32_t) steps_per_second;
+}
+
+static uint32_t get_pwm_period_ticks(uint32_t frequency_hz) {
+    if (frequency_hz == 0U) {
+        frequency_hz = 1U;
+    }
+
+    uint32_t period_ticks = STEPPER_PWM_TIMER_TICK_HZ / frequency_hz;
+    if (period_ticks < 2U) {
+        period_ticks = 2U;
+    }
+
+    return period_ticks;
+}
+
+static uint32_t get_pwm_compare_ticks(uint32_t period_ticks, uint8_t duty_cycle) {
+    uint32_t compare_ticks = (period_ticks * duty_cycle) / 100U;
+
+    if (compare_ticks < STEP_PULSE_MIN_WIDTH_TICKS) {
+        compare_ticks = STEP_PULSE_MIN_WIDTH_TICKS;
+    }
+
+    if (compare_ticks >= period_ticks) {
+        compare_ticks = period_ticks - 1U;
+    }
+
+    return compare_ticks;
+}
