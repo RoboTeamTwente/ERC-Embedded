@@ -58,9 +58,12 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart_com;
 
 /* Private function prototypes */
-void test_stepper(void* argument);
-void test_ethernet(void* argument);
-void test_dma(void* argument);
+static void test_stepper(void* argument);
+static void test_ethernet(void* argument);
+static void test_dma(void* argument);
+static void pwm_scope_task(void *argument);
+static result_t Callback_ArmBoardControlSignals(void *buffer);
+static result_t Callback_ArmBoardMovementFeedback(void *buffer);
 
 /*Ethernet constants*/
 //Sending side
@@ -85,6 +88,10 @@ void my_BSP_COM_Init() {
     MX_USART3_Init(&huart_com, &BspCOMInit);
 }
 
+osThreadId_t pwmScopeTaskHandle;
+osThreadId_t stepperTaskHandle;
+osThreadId_t testethernetTaskHandle;
+
 // Task attributes for CMSIS-RTOS v2
 osThreadId_t task_2Handle;
 const osThreadAttr_t task2_attributes = {
@@ -93,19 +100,49 @@ const osThreadAttr_t task2_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
+const osThreadAttr_t pwm_scope_attributes = {
+    .name       = "pwm_scope",
+    .stack_size = 1024 * 4,
+    .priority   = (osPriority_t)osPriorityNormal,
+};
+
 int main(void) {
+
+    // MPU_Config_wrapper();
+    // HAL_Init();
+    // SystemClock_Config();
+
+    // MX_GPIO_Init();
+    // MX_DMA_Init();
+    // MX_TIM2_Init();
+
+    // my_BSP_COM_Init();
+    // LOG_init(&huart_com);
+
+    // osKernelInitialize();
+
+    // pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
+
+    // if (pwmScopeTaskHandle == NULL) {Error_Handler();}
+
+    // stepperTaskHandle = osThreadNew(stepper_task,NULL,&stepper_attributes);
+
+    // if (stepperTaskHandle == NULL) {Error_Handler();}
+
+    // osKernelStart();
+
+    // while (1) {}
 
     /*Inits*/
     MPU_Config_wrapper();
-
-    SCB_EnableICache();
-    SCB_EnableDCache();
-
     HAL_Init();
     SystemClock_Config();
 
     MX_GPIO_Init();
     MX_DMA_Init();
+
+    // SCB_EnableICache();
+    // SCB_EnableDCache();
 
     //Init timers
     MX_TIM2_Init();
@@ -117,14 +154,24 @@ int main(void) {
     LOG_init(&huart_com);
 
     //Setup ethernet
-    setup_ethernet();
+    // setup_ethernet();
 
     // Init scheduler
     osKernelInitialize();
 
     /* Create the thread(s) */
-    // osThreadNew(test_ethernet, NULL, &task2_attributes);
-    osThreadNew(test_ethernet, NULL, &task2_attributes);
+
+    // testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
+
+    // if (testethernetTaskHandle == NULL) {
+    //     //HANDLE
+    // }
+
+    pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
+
+    if (pwmScopeTaskHandle == NULL) {
+        //HANDLE
+    }
 
     // Start scheduler
     osKernelStart();
@@ -132,6 +179,41 @@ int main(void) {
 
     while(1){}
 
+}
+
+static void pwm_scope_task(void *argument) {
+    stepper_t step;
+    init_stepper(&step, 1, 50, &htim2);
+
+    static const uint32_t scope_pulse_counts[] = {
+        10U, 20U, 50U,
+        100U, 200U, 400U, 800U,
+        1600U, 3200U, 6400U,
+    };
+
+    const size_t count =
+        sizeof(scope_pulse_counts) /
+        sizeof(scope_pulse_counts[0]);
+
+    for (;;) {
+        for (size_t p = 0; p < count; p++) {
+            uint32_t pulse_count = scope_pulse_counts[p];
+
+            LOGI(TAG,"--- New pulse count: %lu pulses ---",(unsigned long)pulse_count);
+
+            for (int i = 0; i < 10; i++) {
+                LOGI(TAG,"Burst %d/10 — %lu pulses",i + 1,(unsigned long)pulse_count);
+
+                do_pwm_dma(&step, (int)pulse_count);
+
+                while (step.pwm_dma_active) {
+                    osDelay(10);
+                }
+            }
+            LOGI(TAG,"Done with %lu pulses, switching...",(unsigned long)pulse_count);
+            osDelay(4000U);
+        }
+    }
 }
 
 
