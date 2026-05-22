@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define TAG "MAIN"
+#define TAG "ETH"
 
 extern ETH_HandleTypeDef heth;
 extern struct netif gnetif;
@@ -27,6 +27,7 @@ void ETH_udp_init(uint8_t sender_prio_buf, QueueHandle_t *send_queues,
   udp_client_init(&upcb, sender_prio_buf, send_queues, receiver_callback);
   osDelay(3000); // TODO: very ugly but udp doesn't
                  // start right after the init
+  LOGI(TAG, "UDP is set up!");
 }
 void ETH_custom_protocol_receiver(raw_receiver_callback callback) {
   raw_init(callback);
