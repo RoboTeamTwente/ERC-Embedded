@@ -150,6 +150,7 @@ custom_nanopb_protos = +<components/**/*.proto>
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
+    +<components/common/motor_driver/**.c>
     +<components/can_board/**>
     -<components/can_board/firmware/Drivers/**>
     +<components/can_board/firmware/Drivers/BSP/**>
@@ -160,6 +161,8 @@ build_flags=
     +<components/common/*/inc/**>
     +<components/common/*>
     +<components/can_board/**>
+    +<components/common/*>
+    +<components/common/motor_driver/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp

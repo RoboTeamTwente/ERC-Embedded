@@ -1,10 +1,14 @@
 // #include "FreeRTOS.h"
 #include "cmsis_os2.h"
+#include "components/common/motor_driver/cubemars_ak/cubemars_ak.h"
+#include "components/debugging_board/firmware/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h"
+#include "cubemars_ak.h"
 #include "cubemx_main.h"
 #include "fdcan.h"
 #include "gpio.h"
 #include "logging.h"
 #include "result.h"
+#include "stdbool.h"
 #include "stm32h7xx_hal_fdcan.h"
 #include "stm32h7xx_nucleo.h"
 #include "usart.h"
@@ -38,106 +42,136 @@ FDCAN_TxHeaderTypeDef tx_header = {
 
 static uint32_t counter = 0;
 
-static void CAN_SendTestFrame(void) {
-    HAL_StatusTypeDef status;
-
-    LOGI(TAG, "Sending counter: %d", counter);
-    status =
-        HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &tx_header, (uint8_t*)&counter);
-    if (status != HAL_OK) {
-        LOGE("CAN", "Message could not be sent, error: %d", status);
-        Error_Handler();
-    }
-}
+static cubemars_ak_information motor_info = {0};
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef* hfdcan,
                                uint32_t RxFifo0ITs) {
-    FDCAN_RxHeaderTypeDef rx_header;
-    uint8_t rx_data[8];
-
-    if (hfdcan->Instance != FDCAN1) {
+    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0) {
         return;
     }
 
-    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0U) {
-        return;
-    }
+    FDCAN_RxHeaderTypeDef rx_header = {0};
+    uint8_t rx_data[8] = {0};
 
     if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) !=
         HAL_OK) {
-        LOGE("CAN", "Message could not be received");
+        LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
         return;
     }
-    uint32_t counter2 = ((uint32_t*)rx_data)[0];
-    LOGI(TAG, "Received counter: %d", counter2);
-    counter = counter2 + 1;
+    cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
 }
-static const uint8_t ak_spin_1000_erpm[] = {0x02, 0x05, 0x08, 0x00, 0x00,
-                                            0x03, 0xE8, 0x2B, 0x58, 0x03};
-static const uint8_t ak_spin_100_erpm[] = {0x02, 0x05, 0x08, 0x00, 0x00,
-                                           0x00, 0x64, 0x2E, 0x0F, 0x03};
-static const uint8_t ak_stop[] = {0x02, 0x05, 0x08, 0x00, 0x00,
-                                  0x00, 0x00, 0x65, 0xD2, 0x03};
-static const uint8_t ak_spin_10000_erpm[] = {0x02, 0x05, 0x08, 0x00, 0x00,
-                                             0x27, 0x10, 0x8F, 0x6D, 0x03};
-static const uint8_t ak_spin_max_erpm[] = {0x02, 0x05, 0x08, 0x00, 0x01,
-                                           0x86, 0xA0, 0x31, 0xC9, 0x03};
-static const uint8_t ak_spin_neg_10000_erpm[] = {0x02, 0x05, 0x08, 0xFF, 0xFF,
-                                                 0xD8, 0xF0, 0xF5, 0x7C, 0x03};
-void MainTask(void* _arg) {
-    LOGI(TAG, "In main function");
+static void CAN_LogStatus(FDCAN_HandleTypeDef* hfdcan) {
+    FDCAN_ProtocolStatusTypeDef protocol_status;
+    FDCAN_ErrorCountersTypeDef error_counters;
 
+    if (HAL_FDCAN_GetProtocolStatus(hfdcan, &protocol_status) == HAL_OK) {
+        LOGI("CAN",
+             "LastErrorCode=%lu DataLastErrorCode=%lu Activity=%lu BusOff=%lu",
+             protocol_status.LastErrorCode, protocol_status.DataLastErrorCode,
+             protocol_status.Activity, protocol_status.BusOff);
+    }
+
+    if (HAL_FDCAN_GetErrorCounters(hfdcan, &error_counters) == HAL_OK) {
+        LOGI("CAN", "TxErrorCnt=%lu RxErrorCnt=%lu RxErrorPassive=%lu",
+             error_counters.TxErrorCnt, error_counters.RxErrorCnt,
+             error_counters.RxErrorPassive);
+    }
+
+    LOGI("CAN", "HAL error=0x%08lx", HAL_FDCAN_GetError(hfdcan));
+}
+
+static void CAN_PrintRxState(void) {
+    if (HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0) >= 0) {
+        LOGI("CAN", "RX FIFO0 fill=%lu HALerr=0x%08lx",
+             HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0),
+             HAL_FDCAN_GetError(&hfdcan1));
+    } else {
+        LOGI("CAN", "No messages in RX");
+    }
+}
+void MainTaskListener() {
+    LOGI(TAG, "Listener Task");
     for (;;) {
-        // LOGI(TAG, "In loop");
-        // BSP_LED_Toggle(LED_GREEN);
-        // BSP_LED_Toggle(LED_RED);
-        // CAN_SendTestFrame();
-
-        HAL_StatusTypeDef status = HAL_UART_Transmit(
-            &huart4, ak_spin_10000_erpm, sizeof(ak_spin_10000_erpm), 100);
-
-        if (status != HAL_OK) {
-            LOGE(TAG, "Could not send message about starting");
-        }
-        LOGI(TAG, "Motor start spinning...");
-        HAL_Delay(1000);
-
-        status = HAL_UART_Transmit(&huart4, ak_stop, sizeof(ak_stop), 100);
-
-        if (status != HAL_OK) {
-            LOGE(TAG, "Could not send message about stopping");
-        }
-        LOGI(TAG, "Motor stop spinning");
-        HAL_Delay(1000);
-
-        status = HAL_UART_Transmit(&huart4, ak_spin_neg_10000_erpm,
-                                   sizeof(ak_spin_neg_10000_erpm), 100);
-
-        if (status != HAL_OK) {
-            LOGE(TAG, "Could not send message about stopping");
-        }
-        LOGI(TAG, "Motor stop spinning");
-        HAL_Delay(1000);
-
-        status = HAL_UART_Transmit(&huart4, ak_stop, sizeof(ak_stop), 100);
-
-        if (status != HAL_OK) {
-            LOGE(TAG, "Could not send message about stopping");
-        }
-        LOGI(TAG, "Motor stop spinning");
-        HAL_Delay(1000);
+        LOGI(TAG, "Listening...");
+        LOGI("CAN", "RX FIFO0 fill=%lu",
+             HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0));
+        HAL_Delay(5000);
     }
 }
 
-static void CAN_ConfigLoopbackRx(void) {
+FDCAN_TxHeaderTypeDef can_test_header = {0};
+uint8_t data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+
+static void CAN_SendTestFrame(void) {
+    can_test_header.Identifier = 0x123;
+    can_test_header.IdType = FDCAN_STANDARD_ID;
+    can_test_header.TxFrameType = FDCAN_DATA_FRAME;
+    can_test_header.DataLength = FDCAN_DLC_BYTES_8;
+    can_test_header.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+    can_test_header.BitRateSwitch = FDCAN_BRS_OFF;
+    can_test_header.FDFormat = FDCAN_CLASSIC_CAN;
+    can_test_header.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+    can_test_header.MessageMarker = 0;
+
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &can_test_header, data) !=
+        HAL_OK) {
+        LOGE("CAN", "TX failed, err=0x%08lx", HAL_FDCAN_GetError(&hfdcan1));
+    } else {
+        LOGI("CAN", "Queued test frame");
+    }
+}
+
+void MainTaskSender() {
+    LOGI(TAG, "Sender Task");
+    for (;;) {
+        LOGI(TAG, "Sending...");
+        // CAN_SendTestrame();
+
+        // cubemars_ak_set_speed(&hfdcan1, 111, 30000);
+        // cubemars_ak_print_feedback(&motor_info);
+        // HAL_Delay(1000);
+        // cubemars_ak_set_speed(&hfdcan1, 111, 00);
+        // HAL_Delay(500);
+        // // cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+        // cubemars_ak_set_position(&hfdcan1,  93, 360);
+        // cubemars_ak_print_feedback(&motor_info);
+        // HAL_Delay(1000);
+        // cubemars_ak_set_speed(&hfdcan1, 93, 00);
+        // HAL_Delay(500);
+
+        cubemars_ak_set_position(&hfdcan1, 93, 360);
+        HAL_Delay(1000);
+
+        cubemars_ak_set_position(&hfdcan1, 93, 360);
+        HAL_Delay(2000);
+        // cubemars_ak_print_feedback(&motor_info);
+        //
+        // cubemars_ak_set_speed(&hfdcan1, 93, -5000);
+        // HAL_Delay(500);
+        // cubemars_ak_print_feedback(&motor_info);
+        // cubemars_ak_set_speed(&hfdcan1, 93, 000);
+        // cubemars_ak_print_feedback(&motor_info);
+        // HAL_Delay(500);
+        // cubemars_ak_print_feedback(&motor_info);
+        // HAL_Delay(5000);
+    }
+}
+
+void MainTask(void* _arg) {
+    LOGI(TAG, "In main function");
+    for (;;) {
+    }
+}
+static void CAN_ConfigRx(void) {
     FDCAN_FilterTypeDef filter = {0};
 
-    filter.IdType = FDCAN_STANDARD_ID;
+    filter.IdType = FDCAN_EXTENDED_ID;
     filter.FilterIndex = 0;
     filter.FilterType = FDCAN_FILTER_MASK;
     filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-    filter.FilterID1 = 0x123;
-    filter.FilterID2 = 0x7FF;
+
+    filter.FilterID1 = 0x00000000u;
+    filter.FilterID2 = 0x00000000u;
 
     if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
         LOGE("CAN", "Filter config failed, err=0x%08lx",
@@ -145,13 +179,53 @@ static void CAN_ConfigLoopbackRx(void) {
         Error_Handler();
     }
 
-    if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT,
-                                     FDCAN_REJECT_REMOTE,
-                                     FDCAN_REJECT_REMOTE) != HAL_OK) {
+    if (HAL_FDCAN_ConfigGlobalFilter(
+            &hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+            FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
         LOGE("CAN", "Global filter config failed, err=0x%08lx",
              HAL_FDCAN_GetError(&hfdcan1));
         Error_Handler();
     }
+}
+static void CAN_ConfigRx_AllStandard(void) {
+    FDCAN_FilterTypeDef filter = {0};
+
+    filter.IdType = FDCAN_STANDARD_ID;
+    filter.FilterIndex = 0;
+    filter.FilterType = FDCAN_FILTER_MASK;
+    filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+
+    // Accept everything: (ID & 0x000) == (0x000 & 0x000)
+    filter.FilterID1 = 0x000;
+    filter.FilterID2 = 0x000;
+
+    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
+        LOGE("CAN", "Filter config failed, err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan1));
+        Error_Handler();
+    }
+
+    if (HAL_FDCAN_ConfigGlobalFilter(
+            &hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+            FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
+        LOGE("CAN", "Global filter failed, err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan1));
+        Error_Handler();
+    }
+}
+
+void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef* hfdcan,
+                                        uint32_t BufferIndexes) {
+    LOGI("CAN", "TX complete buffers=0x%08lx\n", BufferIndexes);
+}
+
+void HAL_FDCAN_TxBufferAbortCallback(FDCAN_HandleTypeDef* hfdcan,
+                                     uint32_t BufferIndexes) {
+    LOGI("CAN", "TX abort buffers=0x%08lx\n", BufferIndexes);
+}
+
+void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef* hfdcan) {
+    LOGE("CAN", "Error callback HALerr=0x%08lx\n", HAL_FDCAN_GetError(hfdcan));
 }
 int main() {
     MPU_Config();
@@ -162,9 +236,7 @@ int main() {
     MX_GPIO_Init();
     MX_TIM1_Init();
     MX_FDCAN1_Init();
-    hfdcan1.Init.Mode = FDCAN_MODE_INTERNAL_LOOPBACK;
-    hfdcan1.Init.StdFiltersNbr = 1;
-
+    MX_USART2_UART_Init();
     // osKernelInitialize();
     // MX_FREERTOS_Init();
 
@@ -181,23 +253,40 @@ int main() {
     }
 
     MX_USART3_Init(&huart_com, &BspCOMInit);
-    MX_UART4_Init();
     LOG_init(&huart_com);
 
-    // CAN_ConfigLoopbackRx();
+    // uint8_t motor_id;
+    // for (;;) {
+    //     cubemars_ak_uart_get_motor_id(&huart2, &motor_id);
+    //     LOGI(TAG, "Motor ID: %d", motor_id);
+    //     HAL_Delay(500);
+    // }
+    CAN_ConfigRx_AllStandard();
+    if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
+                                       FDCAN_INTERRUPT_LINE0) != HAL_OK) {
+        LOGE("CAN", "Interrupt line config failed err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan1));
+        Error_Handler();
+    }
 
     if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
                                        0) != HAL_OK) {
-        LOGE(TAG, "Interrupt for CAN new messages was not initialized");
-        for (;;);
+        LOGE("CAN", "Activate RX notification failed err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan1));
+        Error_Handler();
     }
     if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
         LOGE(TAG, "FDCAN start failed, err=0x%08lx",
              HAL_FDCAN_GetError(&hfdcan1));
         for (;;);
     }
+    LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
+         hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
+         hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
     // osThreadNew(MainTask, NULL, &mainTask_attributes);
 
-    MainTask(NULL);
+    // MainTaskListener();
+    MainTaskSender();
+    // MainTask(NULL);
     // osKernelStart();
 }

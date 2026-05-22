@@ -1,6 +1,9 @@
 #include "cubemars_ak.h"
 
+#include "logging.h"
 #include "result.h"
+
+const static char* TAG = "Cubemars AK";
 
 static FDCAN_TxHeaderTypeDef tx_header = {
     .Identifier = 0,
@@ -13,6 +16,15 @@ static FDCAN_TxHeaderTypeDef tx_header = {
     .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
     .MessageMarker = 0,
 };
+
+void cubemars_ak_print_feedback(cubemars_ak_information* info) {
+    LOGI(TAG,
+         "AK info: id=%u pos=%d(0.1deg) speed=%d(10erpm) current=%d(0.01A) "
+         "temp=%dC status=%d",
+         (unsigned)info->motor_id, (int)info->motor_position,
+         (int)info->motor_speed, (int)info->motor_current,
+         (int)info->motor_temperature, (int)info->status_code);
+}
 
 inline uint32_t cubemars_ak_get_can_id(uint8_t _controler_id,
                                        cubemars_ak_message_type _type) {
@@ -88,8 +100,10 @@ result_t cubemars_ak_set_speed(FDCAN_HandleTypeDef* can_handler,
 
     if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header,
                                       (uint8_t*)&erpm) != HAL_OK) {
+        LOGE(TAG, "Did not send can message");
         return RESULT_FAIL;
     }
+    LOGI(TAG, "Sent speed command to: %04x", tx_header.Identifier);
 
     return RESULT_OK;
 }
@@ -166,4 +180,144 @@ result_t cubemars_ak_set_brake_current(FDCAN_HandleTypeDef* can_handler,
     }
 
     return RESULT_OK;
+}
+
+#define CUBEMARS_AK_UART_HEADER 0x02u
+#define CUBEMARS_AK_UART_TAIL 0x03u
+
+#define CUBEMARS_AK_COMM_GET_VALUES_SETUP 0x32u
+
+#define CUBEMARS_AK_UART_MOTOR_ID_RESPONSE_LEN 11u
+#define CUBEMARS_AK_UART_TIMEOUT_MS 500u
+
+static uint16_t cubemars_ak_crc16(const uint8_t* data, size_t len) {
+    uint16_t crc = 0u;
+    uint8_t bit;
+    for (size_t i = 0u; i < len; i++) {
+        crc ^= (uint16_t)data[i] << 8;
+
+        for (bit = 0u; bit < 8u; bit++) {
+            if ((crc & 0x8000u) != 0u) {
+                crc = (uint16_t)((crc << 1) ^ 0x1021u);
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+
+    return crc;
+}
+
+static result_t cubemars_ak_uart_send_motor_id_request(
+    UART_HandleTypeDef* uart_handler) {
+    if (uart_handler == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    uint8_t request[10] = {
+        CUBEMARS_AK_UART_HEADER,
+        0x05u,
+        CUBEMARS_AK_COMM_GET_VALUES_SETUP,
+        0x00u,
+        0x02u,
+        0x00u,
+        0x00u,
+        0x00u,
+        0x00u,
+        CUBEMARS_AK_UART_TAIL,
+    };
+
+    uint16_t crc = cubemars_ak_crc16(&request[2], 5u);
+
+    request[7] = (uint8_t)(crc >> 8);
+    request[8] = (uint8_t)crc;
+
+    if (HAL_UART_Transmit(uart_handler, request, sizeof(request),
+                          CUBEMARS_AK_UART_TIMEOUT_MS) != HAL_OK) {
+        return RESULT_FAIL;
+    }
+
+    return RESULT_OK;
+}
+
+static result_t cubemars_ak_uart_receive_motor_id_response(
+    UART_HandleTypeDef* uart_handler, uint8_t* rx) {
+    if (uart_handler == NULL || rx == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    do {
+        if (HAL_UART_Receive(uart_handler, &rx[0], 1u,
+                             CUBEMARS_AK_UART_TIMEOUT_MS) != HAL_OK) {
+            return RESULT_FAIL;
+        }
+    } while (rx[0] != CUBEMARS_AK_UART_HEADER);
+
+    if (HAL_UART_Receive(uart_handler, &rx[1],
+                         CUBEMARS_AK_UART_MOTOR_ID_RESPONSE_LEN - 1u,
+                         CUBEMARS_AK_UART_TIMEOUT_MS) != HAL_OK) {
+        return RESULT_FAIL;
+    }
+
+    return RESULT_OK;
+}
+
+static result_t cubemars_ak_uart_parse_motor_id_response(const uint8_t* rx,
+                                                         uint8_t* motor_id) {
+    if (rx == NULL || motor_id == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    if (rx[0] != CUBEMARS_AK_UART_HEADER || rx[10] != CUBEMARS_AK_UART_TAIL) {
+        return RESULT_ERR_BAD_FORMAT;
+    }
+
+    if (rx[1] != 0x06u) {
+        return RESULT_ERR_BAD_FORMAT;
+    }
+
+    if (rx[2] != CUBEMARS_AK_COMM_GET_VALUES_SETUP) {
+        return RESULT_ERR_BAD_FORMAT;
+    }
+
+    uint32_t mask = ((uint32_t)rx[3] << 24) | ((uint32_t)rx[4] << 16) |
+                    ((uint32_t)rx[5] << 8) | ((uint32_t)rx[6]);
+
+    if (mask != CUBEMARS_AK_PARAM_MOTOR_ID_MASK) {
+        return RESULT_ERR_BAD_FORMAT;
+    }
+
+    uint16_t received_crc = ((uint16_t)rx[8] << 8) | rx[9];
+    uint16_t calculated_crc = cubemars_ak_crc16(&rx[2], rx[1]);
+
+    if (received_crc != calculated_crc) {
+        return RESULT_ERR_BAD_FORMAT;
+    }
+
+    *motor_id = rx[7];
+
+    return RESULT_OK;
+}
+
+result_t cubemars_ak_uart_get_motor_id(UART_HandleTypeDef* uart_handler,
+                                       uint8_t* motor_id) {
+    if (uart_handler == NULL || motor_id == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    uint8_t rx[CUBEMARS_AK_UART_MOTOR_ID_RESPONSE_LEN];
+
+    result_t result = cubemars_ak_uart_send_motor_id_request(uart_handler);
+
+    if (result != RESULT_OK) {
+        return result;
+    }
+
+    result = cubemars_ak_uart_receive_motor_id_response(uart_handler, rx);
+
+    if (result != RESULT_OK) {
+        return result;
+    }
+
+    return cubemars_ak_uart_parse_motor_id_response(rx, motor_id);
 }
