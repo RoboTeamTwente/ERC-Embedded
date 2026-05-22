@@ -43,7 +43,6 @@
 //packetdispatcher
 #include "packet_dispatcher.h"
 #include "packet_dispatcher_macros.h"
-#include "handler_stuff.h"
 
 #define TAG "ARM_BOARD"
 
@@ -57,6 +56,22 @@ extern void MX_DMA_Init(void);
 /*Handles*/
 TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart_com;
+
+/* Private function prototypes */
+void test_stepper(void* argument);
+void test_ethernet(void* argument);
+void test_dma(void* argument);
+
+/*Ethernet constants*/
+//Sending side
+uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
+uint8_t my_ip[4] = SAMPLE_BOARD_IP;
+uint8_t netmask[4] = NETMASK;
+uint8_t gateway[4] = GATEWAY;
+
+//Receiving side
+uint8_t ip[4] = NETWORK_IP;
+uint8_t mac[6] = NETWORK_MAC;
 
 void my_BSP_COM_Init() {
     BspCOMInit.BaudRate = 115200;
@@ -74,15 +89,9 @@ void my_BSP_COM_Init() {
 osThreadId_t task_2Handle;
 const osThreadAttr_t task2_attributes = {
     .name = "task2",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 8, //Make sure this is enough
     .priority = (osPriority_t)osPriorityNormal,
 };
-
-/* Private function prototypes */
-void test_stepper(void* argument);
-void test_ethernet(void* argument);
-void test_dma(void* argument);
-
 
 int main(void) {
 
@@ -107,6 +116,9 @@ int main(void) {
     //Log init
     LOG_init(&huart_com);
 
+    //Setup ethernet
+    setup_ethernet();
+
     // Init scheduler
     osKernelInitialize();
 
@@ -122,24 +134,36 @@ int main(void) {
 
 }
 
+
 /* Callback function that handles a specific packet*/
 void HandlePacket(receive_frame_t *receive_frame) {
     printf("Wayoo, message received");
 }
 
-
-
-
 extern int receiving_counter;
 int outgoing_counter = 0;
 void test_ethernet(void* argument) {
 
-    /*Config + init sending side*/
-    uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
-    uint8_t my_ip[4] = SAMPLE_BOARD_IP;
-    uint8_t netmask[4] = NETMASK;
-    uint8_t gateway[4] = GATEWAY;
+    /*Sending a message*/
+    uint8_t packet1_payload[4] = {14,06,20,04};
 
+    /*Test sending*/
+    while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
+          ETH_udp_send(ip, 8, packet1_payload, 4, 1);
+          osDelay(10);
+          outgoing_counter += 1;
+          LOGI(TAG, "%d", outgoing_counter);
+      }
+
+    while(1){
+    }
+}
+
+
+
+void setup_ethernet() {
+    
+    //Setup using sending side params
     ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
     /*Making queues*/
@@ -155,78 +179,81 @@ void test_ethernet(void* argument) {
     
     QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-    PacketDispatcherInit(handler_configs, 2);
+    /*Init and pass packet dispatcher*/
+
+    //These are found in handler_stuff.h
+    static packet_handler_config_t handlers[] = {
+        Callback_ArmBoardControlSignals,
+        Callback_ArmBoardMovementFeedback
+    };
+
+    PacketDispatcherInit(handlers, 2);
     ETH_udp_init(2, queues, DispatchPacket);
 
     /*Config + add ARP receiving side*/
-    uint8_t ip[4] = NETWORK_IP;
-    uint8_t mac[6] = NETWORK_MAC;
-
     ETH_add_arp(ip, mac, 5);
+}
 
-    /*Sending a message*/
-    uint8_t packet1_payload[4] = {14,06,20,04};
 
-    /*Test sending*/
-    while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
-          ETH_udp_send(ip, 8, packet1_payload, 4, 1);
-          osDelay(10);
-          outgoing_counter += 1;
-          LOGI(TAG, "%d", outgoing_counter);
-      }
+/* HANDLER FUNCTIONS */
 
-    while(1){
+
+
+
+/* Config for 1 pbmessage: ArmBoardControlSignals */
+static result_t Callback_ArmBoardControlSignals(void *buffer) {
+    if (buffer == NULL) {
+        return RESULT_ERR_INVALID_ARG;
     }
-
-    // ETH_udp_send(ip, 7, "udp message");
-    // osDelay(100);
-    // ETH_raw_send(mac, "ggg");
-    // ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
-    // osDelay(100);
-
-    //Populated protobuf
-    // ArmBoardControlSignals* sig;
-    // sig->control_base = 10.0f;
-    // sig->control_gripper_pitch = 20.0f;
-    // sig->control_gripper_rotation = 30.0f;
-    // sig->control_jaw = 40.0f;
-    // sig->stepper_bottom_ena = 1;
-    // sig->stepper_bottom_rev = 1;
-    // sig->stepper_top_ena = 1;
-    // sig->stepper_top_rev = 1;
-
-    // // sending packet
-    // uint8_t** encoded_data = NULL;
-    // size_t* encoded_length = 0;
-    // result_t res = pb_message_encode(sig, ArmBoardControlSignals_fields, &encoded_data, &encoded_length);
-
-    // if (res != RESULT_OK) {
-    //     free(encoded_data);
-    //     LOGE(TAG, "Encoding failed");
-    //     return;
-    // }
-
-    // LOGI(TAG, "Encoding successfull");
-
-    // control_signals_t* structVar = {0};
-    // size_t struct_len = 0;
-    // res = pb_message_decode(encoded_data, encoded_length, ArmBoardControlSignals_fields, struct_len, (void **) &structVar);
-
-    // if (res != RESULT_OK) {
-    //     free(encoded_data);
-    //     LOGE(TAG, "Decoding failed");
-    //     return;
-    // }
-    // LOGI(TAG, "Decoding successfull");
-
-    // LOGI(TAG, "Message says: %s %d %f", structVar->stepper_bottom_ENA);
-
-    // ETH_udp_send(ip, 7, encoded_data);
-    // free(encoded_data);
+    
+    ArmBoardControlSignals* pckt = (ArmBoardControlSignals *)buffer;
+    pckt->control_base; //bldc
+    pckt->control_gripper_pitch; //bldc
+    pckt->control_gripper_rotation; //bldc
+    pckt->control_jaw; //bldc
+    pckt->stepper_bottom_rev; //ignore
+    pckt->stepper_top_rev; //ignore
+    pckt->stepper_bottom_rev;
+    pckt->stepper_top_rev;
+    return RESULT_OK;
 }
 
-void test_stepper(void *argument) {
-    stepper_t step;
-    init_stepper(&step, 1, 50, &htim2);
-    rotate_stepper(&step, 10);
+/* Config for 2 pbmessage: ArmBoardMovementFeedback */
+static result_t Callback_ArmBoardMovementFeedback(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  
+  ArmBoardMovementFeedback* pckt = (ArmBoardMovementFeedback *)buffer;
+  pckt->arm_error;
+  
+  return RESULT_OK;
 }
+
+/* Config for 3 pbmessage: ArmBoardActualPositions */
+//Idk if we need this
+static result_t Callback_ArmBoardActualPositions(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  
+  ArmBoardActualPositions* pckt = (ArmBoardActualPositions *)buffer;
+  
+  return RESULT_OK;
+}
+
+/* Config for 4 pbmessage: ArmBoardTargetMovement */
+static result_t Callback_ArmBoardTargetMovement(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+  
+  ArmBoardTargetMovement* pckt = (ArmBoardTargetMovement *)buffer;
+  
+  return RESULT_OK;
+}
+
+PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals, PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
+PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardMovementFeedback, PBEnvelope_arm_feedback_tag, arm_feedback, Callback_ArmBoardMovementFeedback);
+PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardActualPositions, PBEnvelope_arm_pos_tag, arm_pos, Callback_ArmBoardActualPositions);
+PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardTargetMovement, PBEnvelope_arm_target_tag, arm_target, Callback_ArmBoardTargetMovement);
