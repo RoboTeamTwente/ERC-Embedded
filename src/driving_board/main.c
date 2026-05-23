@@ -75,20 +75,20 @@ static float rpm = 0;
 // Task attributes for CMSIS-RTOS v2
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
-    .stack_size = 1024 * 8,
-    .priority = (osPriority_t)osPriorityNormal,
+    .stack_size = 1024 * 4,
+    .priority = (osPriority_t)tskIDLE_PRIORITY,
 };
 
 const osThreadAttr_t pwmTask_attributes = {
     .name = "pwmTask",
     .stack_size = 256 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+    .priority = (osPriority_t)tskIDLE_PRIORITY,
 };
 
 const osThreadAttr_t drivingEncoderTask_attributes = {
-    .name = "pwmTask",
+    .name = "encoderTask",
     .stack_size = 256 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+    .priority = (osPriority_t)tskIDLE_PRIORITY,
 };
 
 
@@ -123,7 +123,7 @@ static result_t HandleTypeMotorMsgPacket(void *buffer) {
 
 
 
-static uint8_t packet1_buffer[DrivingBoardMotorMessage_size * 5];
+//static uint8_t packet1_buffer[DrivingBoardMotorMessage_size * 5];
 
 /**
  * static packet_handler_config_t handler_configs[] = {
@@ -351,7 +351,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
         free(diag_encoded);
 
     LOGI(TAG,"Sent DrivingBoardDiagnostics");}
-    free(diag_encoded);
+    else free(diag_encoded);  
 
     //send motor progress
 
@@ -390,12 +390,10 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
             1);
 
         free(progress_encoded);
-
-    LOGI(TAG,"Sent DrivingBoardMotorPeriodicProgress");}
-    free(progress_encoded);
  
-    
-    
+    LOGI(TAG,"Sent DrivingBoardMotorPeriodicProgress");}
+    else free(progress_encoded);
+
     __asm__ __volatile__("nop");
     osDelay(300);
     //sending packet
