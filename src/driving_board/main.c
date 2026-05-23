@@ -1,7 +1,7 @@
 #ifndef PIO_UNIT_TESTING
 
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
-#include "control_drive.h"
+#include "control_drive_manual.h"
 #include "cubemx_main.h"
 #include "components/common/envelope.pb.h"
 //#include "diagnostics.pb.h"
@@ -9,6 +9,8 @@
 #include "components/common/packet_dispatcher/packet_dispatcher.h"
 #include "components/driving_board/motor_periodic_progress.pb.h"
 #include "components/driving_board/motor_diagnostics.pb.h"
+#include "components/basestation/manual_brake.pb.h"
+#include "components/basestation/manual_drive.pb.h"
 #include "components/common/motor_driver/cubemars_ak/cubemars_ak.h"
 #include "fdcan.h"
 #include "usart.h"
@@ -40,6 +42,14 @@
 #include "calculator.h"
 #include <math.h>
 
+#define LF_ID 1
+#define LM_ID 2
+#define LB_ID 3
+
+#define RF_ID 4
+#define RM_ID 5
+#define RB_ID 6
+
 static char *TAG = "MAIN";
 
 extern ExtU rtU;
@@ -67,23 +77,17 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 //uint16_t dac_value;
-/**
- * void MainTask(void *argument);
+
+void MainTask(void *argument);
 void PwmTask(void *argument);
 void DrivingEncoderTask(void *argument);
- */
-
-
 void DriveTask(void *argument);
-void MainTaskListener();
+void MainTaskListener(void *argument);
 
-static float revolutions = 0;
-static float radians = 0;
-static float rpm = 0;
 
 // Task attributes for CMSIS-RTOS v2
-/**
- * const osThreadAttr_t mainTask_attributes = {
+
+const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
     .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY,
@@ -100,9 +104,6 @@ const osThreadAttr_t drivingEncoderTask_attributes = {
     .stack_size = 256 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY,
 };
- */
-
-
 
 
 const osThreadAttr_t driveTask_attributes = {
@@ -142,31 +143,52 @@ static result_t HandleTypeMotorMsgPacket(void *buffer) {
 
   DrivingBoardMotorMessage *packet = (DrivingBoardMotorMessage *)buffer;
   incomming_counter += 1;
+  
   LOGI(TAG,"Envelope of type distance to go info has value: %f\n", packet->distance_to_go);
-  LOGI(TAG, "This is packet: %d\n", incomming_counter);
+  LOGI(TAG, "MotorMsg Packet This is packet: %d\n", incomming_counter);
   return RESULT_OK;
 }
 
+static result_t HandleTypeManualDrivePacket(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
 
+  BasestationManualDrive *packet = (BasestationManualDrive *)buffer;
+  incomming_counter += 1;
+  
+  rtU.controllerSpeed = packet->forward_backward;
+  rtU.controllerSteering = packet->turn;
 
-//static uint8_t packet1_buffer[DrivingBoardMotorMessage_size * 5];
+  LOGI(TAG,"Envelope of type forward_backward to go info has value: %f\n", packet->forward_backward);
+  LOGI(TAG,"Envelope of type turn to go info has value: %f\n", packet->turn);
+  LOGI(TAG, "BasestationManualDrive This is packet: %d\n", incomming_counter);
+  return RESULT_OK;
+}
 
-/**
- * static packet_handler_config_t handler_configs[] = {
-    {.handler = HandleTypeMotorMsgPacket,
-     .task_name = "Motor Msg Handler",
-     .packet_type = PBEnvelope_drive_motor_tag,
-     .item_size = DrivingBoardMotorMessage_size,
-     .task_priority = PACKET_HANDLER_PRIORITY,
-     .queue_length = 5,
-     .queue_buffer = packet1_buffer}};
- */
+static result_t HandleTypeManualBrakePacket(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  BasestationManualBrake *packet = (BasestationManualBrake *)buffer;
+  incomming_counter += 1;
+  
+  rtU.break_l = packet->brake;
+  LOGI(TAG,"Envelope of type brake info has value: %f\n", packet->brake);
+  LOGI(TAG, "ManualBrakePacket This is packet: %d\n", incomming_counter);
+  return RESULT_OK;
+}
 
 
 PACKET_HANDLER_CONFIG_STATIC(motor_msg_handler, PBEnvelope_drive_motor_tag, drive_motor,
                              HandleTypeMotorMsgPacket);
 
+PACKET_HANDLER_CONFIG_STATIC(manual_drive_handler, PBEnvelope_manual_drive_tag, manual_drive,
+                             HandleTypeManualDrivePacket);
 
+PACKET_HANDLER_CONFIG_STATIC(manual_brake_handler, PBEnvelope_manual_brake_tag, manual_brake,
+                             HandleTypeManualBrakePacket);
 
 extern int receive_counter;
 
@@ -212,6 +234,7 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
 }
 
 static cubemars_ak_information motor_info = {0};
+static volatile cubemars_ak_information motors[256] = {0};//TODO:NOT BEING UPDATED RN CHANGE LATER
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
                                uint32_t RxFifo0ITs) {
@@ -228,15 +251,17 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
     return;
   }
   cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
+
+  cl3e_parse_can_message(&rx_header, rx_data);
 }
 
-void MainTaskListener() {
+void MainTaskListener(void *argument) {
   LOGI(TAG, "Listener Task");
   for (;;) {
     LOGI(TAG, "Listening...");
     LOGI("CAN", "RX FIFO0 fill=%lu",
          HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0));
-    HAL_Delay(5000);
+    osDelay(5000);
   }
 }
 
@@ -274,7 +299,7 @@ void init_board() {
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
-  control_drive_initialize();
+  control_drive_manual_initialize();
 
   //ethernet
   uint8_t mac[6] = NETWORK_MAC;
@@ -287,13 +312,9 @@ void init_board() {
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
   ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
   
-/**
- *   osThreadNew(MainTask, NULL, &mainTask_attributes);
+  osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
   osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
- */
-
-
   osThreadNew(DriveTask, NULL, &driveTask_attributes);
   osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
 
@@ -337,35 +358,7 @@ void init_board() {
 }
 
 
-
-
 int main(void) { init_board(); }
-
-/**
- * void FillDiagnostics(DiagnosticsData *diag)
-{
-    if (diag == NULL) return;
-
-    diag->board_state = STATE_OPERATING;
-    diag->motor_count = 10;
-
-    // Front left motor
-    diag->motors[0].state = STATE_OPERATING;
-    diag->motors[0].motor_id = 1;
-    diag->motors[0].rpm = rpm;
-    diag->motors[0].voltage = 0;
-    diag->motors[0].encoder_angle = radians;
-
-    // Middle left motor
-    diag->motors[1].state = STATE_OPERATING;
-    diag->motors[1].motor_id = 2;
-    diag->motors[1].rpm = get_motor_rpm(2);
-    diag->motors[1].voltage = get_motor_voltage(2);
-    diag->motors[1].encoder_angle = get_motor_angle(2);
-    //add more of the motors later
-}
- */
-
 
 /**
  * @brief  Main application task
@@ -374,30 +367,7 @@ int main(void) { init_board(); }
  */
 void MainTask(void *argument) {//send messages calculates actual values from reallife hall sensors(encoders)
 
-/**
- *   rtU.actspeed[0] =7.15;
-  rtU.actspeed[1] =7.12;
-  rtU.actspeed[2] =7.15;
-  rtU.actspeed[3] =6.75;
-  rtU.actspeed[4] =6.72;
-  rtU.actspeed[5] =6.75;
-
-  rtU.actang[0]=0.078;
-  rtU.actang[1]=-0.078;
-  rtU.actang[2]=0.109;
-  rtU.actang[3]=-0.109;
-
-  rtU.dist2goal = 2.0;  // meters
-  rtU.steerang  = 1.0;
- */
-
-
-  //uint8_t ip[4] = {0, 0, 0, 0};
-  //uint8_t mac[6] = {255, 255, 255, 255, 255, 255};
-  //ETH_udp_init();
-
-
-  packet_handler_config_t handler_configs[] = {motor_msg_handler};
+  packet_handler_config_t handler_configs[] = {motor_msg_handler, manual_drive_handler, manual_brake_handler};
 
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
@@ -416,29 +386,14 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
-  PacketDispatcherInit(handler_configs, 1);
+  PacketDispatcherInit(handler_configs, 3);
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
-
-  /**
-   * while (outgoing_counter < 1000) {
-    ETH_udp_send(ip, 8, packet1_payload, 46, 1);
-    osDelay(100);
-    outgoing_counter += 1;
-    LOGI(TAG, "%d", outgoing_counter);
-  }
-   */
   
  
   while (1) {
-    /**
-     *     ETH_udp_send(ip, 7, "udp message");
-    osDelay(100);
-    ETH_raw_send(mac, "ggg");
-    ETH_raw_send(mac, "long ass raw message looooong looooooonger looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest");
-    osDelay(100); 
-     */
+
     DrivingBoardDiagnostics diag =DrivingBoardDiagnostics_init_zero;
 
     diag.state = DrivingBoardDiagnostics_State_OPERATING;
@@ -522,30 +477,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
     __asm__ __volatile__("nop");
     osDelay(300);
-    //sending packet
-    /**
-     * DiagnosticsData diag;
-    FillDiagnostics(&diag);
-    
-    uint8_t *encoded_data = NULL;
-    size_t encoded_length = 0;
-    result_t res = DBMDiagnosticsEncode(&diag, &encoded_data, &encoded_length);
 
-    if (res == RESULT_OK)
-    {
-      ETH_udp_send(ip, 7, encoded_data);
-      free(encoded_data);
-    }
-    else
-    {
-      free(encoded_data);
-      LOGE(TAG, "Encoding failed for diag");
-    }
-
-    float distance_left = 10.5f;
-     */
-
-    
   }
 }
 
@@ -563,7 +495,7 @@ void PwmTask(void *argument)
       rtU.deltaTime = (now - last_tick) * 0.001f;
       last_tick = now;
       
-      control_drive_step();
+      control_drive_manual_step();
 
       wake_time += period;// schedule next exact tick
       osDelayUntil(wake_time);
@@ -571,49 +503,209 @@ void PwmTask(void *argument)
 }
 
 void DrivingEncoderTask(void *argument){
-  int16_t counter = 0;
-  int16_t last_counter = 0;
-  int16_t total_count = 0;
-  const float counts_per_rev = 80.0f;//20 PPR * 4 
-  const float dt = 0.1f;//100 ms
+
   for(;;)
   {
-    counter = __HAL_TIM_GET_COUNTER(&htim4);
-    int16_t delta = counter - last_counter;
+    cl3e_request_position(&hfdcan1, 1);
+    osDelay(10);
 
-    total_count += delta; 
-    last_counter = counter;
-
-    //Position
-    revolutions = total_count / counts_per_rev;
-    //degrees = revolutions * 360.0f;
-    radians = revolutions * 2.0f * M_PI;
-    // Speed
-    rpm = (delta / counts_per_rev) * (60.0f / dt);
-
-    osDelay(100); // 100 ms
-
-    //TODO: Make this work for multiple encoders
-
-    // For a 600 PPR encoder
-    //float revolutions = count / 2400.0f;
-    //float degrees = count / 2400.0f * 360.0f;
-    //LOGI(TAG, "encoder revolutions: %f \n", revolutions);
-    //LOGI(TAG, "encoder degrees: %f \n", degrees);
+    LOGI("CL3E", "pos=%ld", g_cl3e_info.actual_position);
   }
 }
 
 void DriveTask(void *argument) {
   LOGI(TAG, "Sender Task");
-    for(;;)
-  {
-    LOGI(TAG, "Sending...");
-    cubemars_ak_set_speed(&hfdcan1, 111, 10000);
-    HAL_Delay(1000);
+  
+    
+uint32_t last_tick = osKernelGetTickCount();
 
-    cubemars_ak_set_speed(&hfdcan1, 111, 0);
-    HAL_Delay(2000);
-  }
+    for (;;)
+    {
+        uint32_t now = osKernelGetTickCount();
+
+        rtU.deltaTime =
+            (now - last_tick) * 0.001f;
+
+        last_tick = now;
+
+        /*
+         * LEFT FRONT
+         */
+        rtU.LFActualPos =
+            motors[LF_ID].motor_position / 10.0f;
+
+        rtU.LFActualSpeed =
+            motors[LF_ID].motor_speed * 10.0f;
+
+        rtU.LFCurrent =
+            motors[LF_ID].motor_current / 100.0f;
+
+        rtU.LFTemperature =
+            motors[LF_ID].motor_temperature;
+
+        rtU.LFStatus =
+            motors[LF_ID].status_code;
+
+        rtU.LFCanId =
+            motors[LF_ID].motor_id;
+
+        /*
+         * LEFT MIDDLE
+         */
+        rtU.LMActualPos =
+            motors[LM_ID].motor_position / 10.0f;
+
+        rtU.LMActualSpeed =
+            motors[LM_ID].motor_speed * 10.0f;
+
+        rtU.LMCurrent =
+            motors[LM_ID].motor_current / 100.0f;
+
+        rtU.LMTemperature =
+            motors[LM_ID].motor_temperature;
+
+        rtU.LMStatus =
+            motors[LM_ID].status_code;
+
+        rtU.LMCanId =
+            motors[LM_ID].motor_id;
+
+        /*
+         * LEFT BACK
+         */
+        rtU.LBActualPos =
+            motors[LB_ID].motor_position / 10.0f;
+
+        rtU.LBActualSpeed =
+            motors[LB_ID].motor_speed * 10.0f;
+
+        rtU.LBCurrent =
+            motors[LB_ID].motor_current / 100.0f;
+
+        rtU.LBTemperature =
+            motors[LB_ID].motor_temperature;
+
+        rtU.LBStatus =
+            motors[LB_ID].status_code;
+
+        rtU.LBCanId =
+            motors[LB_ID].motor_id;
+
+        /*
+         * RIGHT FRONT
+         */
+        rtU.RFActualPos =
+            motors[RF_ID].motor_position / 10.0f;
+
+        rtU.RFActualSpeed =
+            motors[RF_ID].motor_speed * 10.0f;
+
+        rtU.RFCurrent =
+            motors[RF_ID].motor_current / 100.0f;
+
+        rtU.RFTemperature =
+            motors[RF_ID].motor_temperature;
+
+        rtU.RFStatus =
+            motors[RF_ID].status_code;
+
+        rtU.RFCanId =
+            motors[RF_ID].motor_id;
+
+        /*
+         * RIGHT MIDDLE
+         */
+        rtU.RMActualPos =
+            motors[RM_ID].motor_position / 10.0f;
+
+        rtU.RMActualSpeed =
+            motors[RM_ID].motor_speed * 10.0f;
+
+        rtU.RMCurrent =
+            motors[RM_ID].motor_current / 100.0f;
+
+        rtU.RMTemperature =
+            motors[RM_ID].motor_temperature;
+
+        rtU.RMStatus =
+            motors[RM_ID].status_code;
+
+        rtU.RMCanId =
+            motors[RM_ID].motor_id;
+
+        /*
+         * RIGHT BACK
+         */
+        rtU.RBActualPos =
+            motors[RB_ID].motor_position / 10.0f;
+
+        rtU.RBActualSpeed =
+            motors[RB_ID].motor_speed * 10.0f;
+
+        rtU.RBCurrent =
+            motors[RB_ID].motor_current / 100.0f;
+
+        rtU.RBTemperature =
+            motors[RB_ID].motor_temperature;
+
+        rtU.RBStatus =
+            motors[RB_ID].status_code;
+
+        rtU.RBCanId =
+            motors[RB_ID].motor_id;
+
+        /*
+         * DRIVER INPUTS
+         */
+        rtU.controllerSpeed = 1.0f;
+        rtU.controllerSteering = 0.2f;
+        rtU.break_l = 0.0f;
+
+        /*
+         * RUN CONTROLLER
+         */
+        control_drive_manual_step();
+
+        /*
+         * SEND OUTPUTS TO MOTORS
+         */
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            LF_ID,
+            (int32_t)rtY.controlLF);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            LM_ID,
+            (int32_t)rtY.controlLM);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            LB_ID,
+            (int32_t)rtY.controlLB);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            RF_ID,
+            (int32_t)rtY.controlRF);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            RM_ID,
+            (int32_t)rtY.controlRM);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            RB_ID,
+            (int32_t)rtY.controlRB);
+
+          LOGI("AK1",
+        "pos=%.1f deg speed=%d",
+        motors[1].motor_position / 10.0f,
+        motors[1].motor_speed);
+
+        osDelay(1);
+    }
 }
 
 #endif //! PIO_UNIT_TESTS
