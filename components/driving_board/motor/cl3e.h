@@ -1,5 +1,5 @@
-#ifndef BLDC_H
-#define BLDC_H
+#ifndef CL3E_H
+#define CL3E_H
 
 #include <stdint.h>
 #include "stm32h7xx_hal.h"

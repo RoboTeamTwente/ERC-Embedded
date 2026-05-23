@@ -19,8 +19,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "cubemx_main.h"
 #include "cmsis_os.h"
+#include "fdcan.h"
 #include "lwip.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/

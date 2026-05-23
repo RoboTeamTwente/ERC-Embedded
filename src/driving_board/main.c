@@ -9,6 +9,9 @@
 #include "components/common/packet_dispatcher/packet_dispatcher.h"
 #include "components/driving_board/motor_periodic_progress.pb.h"
 #include "components/driving_board/motor_diagnostics.pb.h"
+#include "components/common/motor_driver/cubemars_ak/cubemars_ak.h"
+#include "fdcan.h"
+#include "usart.h"
 #include "components/common/motor.pb.h"
 #include "components/driving_board/motor_msg.pb.h"
 #include "ethernet.h"
@@ -64,16 +67,23 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 //uint16_t dac_value;
-void MainTask(void *argument);
+/**
+ * void MainTask(void *argument);
 void PwmTask(void *argument);
 void DrivingEncoderTask(void *argument);
+ */
+
+
+void DriveTask(void *argument);
+void MainTaskListener();
 
 static float revolutions = 0;
 static float radians = 0;
 static float rpm = 0;
 
 // Task attributes for CMSIS-RTOS v2
-const osThreadAttr_t mainTask_attributes = {
+/**
+ * const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
     .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY,
@@ -88,6 +98,22 @@ const osThreadAttr_t pwmTask_attributes = {
 const osThreadAttr_t drivingEncoderTask_attributes = {
     .name = "encoderTask",
     .stack_size = 256 * 4,
+    .priority = (osPriority_t)tskIDLE_PRIORITY,
+};
+ */
+
+
+
+
+const osThreadAttr_t driveTask_attributes = {
+    .name = "driveTask",
+    .stack_size = 1024 * 2,
+    .priority = (osPriority_t)tskIDLE_PRIORITY,
+};
+
+const osThreadAttr_t mainTaskListener_attributes = {
+    .name = "mainTaskListener",
+    .stack_size = 1024 * 2,
     .priority = (osPriority_t)tskIDLE_PRIORITY,
 };
 
@@ -144,6 +170,78 @@ PACKET_HANDLER_CONFIG_STATIC(motor_msg_handler, PBEnvelope_drive_motor_tag, driv
 
 extern int receive_counter;
 
+static void CAN_ConfigRx_AllStandard(void) {
+  FDCAN_FilterTypeDef filter = {0};
+
+  filter.IdType = FDCAN_STANDARD_ID;
+  filter.FilterIndex = 0;
+  filter.FilterType = FDCAN_FILTER_MASK;
+  filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+
+  // Accept everything: (ID & 0x000) == (0x000 & 0x000)
+  filter.FilterID1 = 0x000;
+  filter.FilterID2 = 0x000;
+
+  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
+    LOGE("CAN", "Filter config failed, err=0x%08lx",
+         HAL_FDCAN_GetError(&hfdcan1));
+    Error_Handler();
+  }
+
+  if (HAL_FDCAN_ConfigGlobalFilter(
+          &hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+          FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
+    LOGE("CAN", "Global filter failed, err=0x%08lx",
+         HAL_FDCAN_GetError(&hfdcan1));
+    Error_Handler();
+  }
+}
+
+void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan,
+                                        uint32_t BufferIndexes) {
+  LOGI("CAN", "TX complete buffers=0x%08lx\n", BufferIndexes);
+}
+
+void HAL_FDCAN_TxBufferAbortCallback(FDCAN_HandleTypeDef *hfdcan,
+                                     uint32_t BufferIndexes) {
+  LOGI("CAN", "TX abort buffers=0x%08lx\n", BufferIndexes);
+}
+
+void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
+  LOGE("CAN", "Error callback HALerr=0x%08lx\n", HAL_FDCAN_GetError(hfdcan));
+}
+
+static cubemars_ak_information motor_info = {0};
+
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
+                               uint32_t RxFifo0ITs) {
+  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0) {
+    return;
+  }
+
+  FDCAN_RxHeaderTypeDef rx_header = {0};
+  uint8_t rx_data[8] = {0};
+
+  if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) !=
+      HAL_OK) {
+    LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
+    return;
+  }
+  cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
+}
+
+void MainTaskListener() {
+  LOGI(TAG, "Listener Task");
+  for (;;) {
+    LOGI(TAG, "Listening...");
+    LOGI("CAN", "RX FIFO0 fill=%lu",
+         HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0));
+    HAL_Delay(5000);
+  }
+}
+
+
+
 
 void init_board() {
 
@@ -189,10 +287,15 @@ void init_board() {
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
   ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
   
-
-  osThreadNew(MainTask, NULL, &mainTask_attributes);
+/**
+ *   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
   osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
+ */
+
+
+  osThreadNew(DriveTask, NULL, &driveTask_attributes);
+  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
 
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
@@ -202,6 +305,29 @@ void init_board() {
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
   HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
+
+  CAN_ConfigRx_AllStandard();
+  if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
+                                     FDCAN_INTERRUPT_LINE0) != HAL_OK) {
+    LOGE("CAN", "Interrupt line config failed err=0x%08lx",
+         HAL_FDCAN_GetError(&hfdcan1));
+    Error_Handler();
+  }
+
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
+                                     0) != HAL_OK) {
+    LOGE("CAN", "Activate RX notification failed err=0x%08lx",
+         HAL_FDCAN_GetError(&hfdcan1));
+    Error_Handler();
+  }
+  if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
+    LOGE(TAG, "FDCAN start failed, err=0x%08lx", HAL_FDCAN_GetError(&hfdcan1));
+    for (;;)
+      ;
+  }
+  LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
+       hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
+       hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
   osKernelStart();
 
@@ -474,6 +600,19 @@ void DrivingEncoderTask(void *argument){
     //float degrees = count / 2400.0f * 360.0f;
     //LOGI(TAG, "encoder revolutions: %f \n", revolutions);
     //LOGI(TAG, "encoder degrees: %f \n", degrees);
+  }
+}
+
+void DriveTask(void *argument) {
+  LOGI(TAG, "Sender Task");
+    for(;;)
+  {
+    LOGI(TAG, "Sending...");
+    cubemars_ak_set_speed(&hfdcan1, 111, 10000);
+    HAL_Delay(1000);
+
+    cubemars_ak_set_speed(&hfdcan1, 111, 0);
+    HAL_Delay(2000);
   }
 }
 

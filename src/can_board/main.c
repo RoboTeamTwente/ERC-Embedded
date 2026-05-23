@@ -103,7 +103,7 @@ void MainTaskListener() {
     LOGI(TAG, "Listening...");
     LOGI("CAN", "RX FIFO0 fill=%lu",
          HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0));
-    HAL_Delay(5000);
+    osDelay(5000);
   }
 }
 
@@ -148,10 +148,10 @@ void MainTaskSender() {
     // HAL_Delay(500);
 
     cubemars_ak_set_speed(&hfdcan1, 111, 10000);
-    HAL_Delay(1000);
+    osDelay(1000);
 
     cubemars_ak_set_speed(&hfdcan1, 111, 0);
-    HAL_Delay(2000);
+    osDelay(2000);
 
     // cubemars_ak_print_feedback(&motor_info);
     //
@@ -299,7 +299,7 @@ int main() {
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
   osThreadNew(MainTaskSender, NULL, &mainTaskSender_attributes);
-  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
+  //osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
 
   //MainTaskListener();
   // MainTask(NULL);
