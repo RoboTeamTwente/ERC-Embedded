@@ -592,7 +592,7 @@ uint32_t last_tick = osKernelGetTickCount();
 
         rtU.LBActualSpeed =
             motors[LB_ID].motor_speed;
-            
+
         rtU.LBCurrent =
             motors[LB_ID].motor_current;
 
@@ -667,13 +667,6 @@ uint32_t last_tick = osKernelGetTickCount();
 
         rtU.RBCanId =
             motors[RB_ID].motor_id;
-
-        /*
-         * DRIVER INPUTS
-         */
-        rtU.controllerSpeed = 1.0f;
-        rtU.controllerSteering = 0.2f;
-        rtU.break_l = 0.0f;
 
         /*
          * RUN CONTROLLER
