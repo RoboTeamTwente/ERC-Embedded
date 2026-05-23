@@ -40,14 +40,14 @@ osThreadId_t sendEthTaskHandle;
 
 const osThreadAttr_t pwm_scope_attributes = {
     .name = "pwm_scope",
-    .stack_size = 1024 * 2,
+    .stack_size = 1024 * 4,
     .priority = tskIDLE_PRIORITY,
 };
 
 const osThreadAttr_t send_eth_attributes = {
     .name = "send eth",
-    .stack_size = 1024 * 2,
-    .priority = tskIDLE_PRIORITY,
+    .stack_size = 1024 * 8,
+    .priority = tskIDLE_PRIORITY + 10U,
 };
 
 /*Ethernet constants*/
@@ -83,7 +83,10 @@ int main(void) {
   MPU_Config_wrapper();
   HAL_Init();
   SystemClock_Config();
+  SCB_EnableICache();
 
+  /* Enable D-Cache---------------------------------------------------------*/
+  //SCB_EnableDCache();
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_TIM2_Init();
@@ -123,6 +126,7 @@ void HandlePacket(receive_frame_t *receive_frame) {
 void setup_ethernet() { /*Making queues*/ }
 
 int outgoing_counter = 0;
+
 static void send_eth_task(void *argument) {
 
   int SendQueueSize = 80;
@@ -143,6 +147,7 @@ static void send_eth_task(void *argument) {
 
   // PacketDispatcherInit(handlers, 2);
   ETH_udp_init(2, queues, HandlePacket);
+  LOGI(TAG, "Infront of sending");
 
   /*Config + add ARP receiving side*/
   ETH_add_arp(ip, mac, 5);
