@@ -11,6 +11,13 @@
 
 typedef struct {
   ip_addr_t addr;
+  struct pbuf *pbuf;
+  u16_t port;
+
+} receive_frame_low_t;
+
+typedef struct {
+  ip_addr_t addr;
   void *payload;
   u16_t port;
   uint16_t len;

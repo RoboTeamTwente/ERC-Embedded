@@ -24,16 +24,18 @@
 #include "components/sensor_board/ph_sensor.pb.h"
 #include "gpio.h"
 #include "ip_mac_constants.h"
+#include "ip_mac_constants_test.h"
 #include "logging.h"
 #include "netif.h"
 #include "networking_constants.h"
 #include "packet_dispatcher.h"
 #include "queue.h"
+#include "result.h"
 #include "stm32h7xx_hal_eth.h"
 #include "task_constants.h"
+#include "test/networking/constants/ip_mac_constants_test.h"
 #include "tim.h"
 #include <stdint.h>
-#include <time.h>
 #define TAG "MAIN"
 
 extern void MX_FREERTOS_Init(void);
@@ -65,7 +67,7 @@ void uart_setup() {
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
     .stack_size = 1024 * 8,
-    .priority = (osPriority_t)osPriorityNormal,
+    .priority = tskIDLE_PRIORITY + 2U,
 };
 
 void ethernet_linkstatus_callback(void *arg) {
@@ -99,8 +101,8 @@ int main(void) {
 
   uart_setup();
   LOG_init(&huart_com);
-  uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  uint8_t ip[4] = SAMPLE_BOARD_IP;
+  uint8_t mac[6] = TEST_BOARD_MAC;
+  uint8_t ip[4] = TEST_BOARD_IP;
   uint8_t netmask[4] = NETMASK;
   uint8_t gateway[4] = GATEWAY;
   ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
@@ -124,10 +126,10 @@ static result_t HandleType1Packet(void *buffer) {
   SensorBoardGPSInfo *packet = (SensorBoardGPSInfo *)buffer;
   incomming_counter += 1;
   printf("Envelope of type gps info has value: %f\n", packet->speed);
-  printf("This is packet: %d\n", incomming_counter);
+  // printf("This is packet: %d\n", incomming_counter);
 
-  LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
-  LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
+  // LOGI(TAG, "DMA ERROR CODE: %d\n", heth.DMAErrorCode);
+  // LOGI(TAG, "ERROR CODE: %d\n", heth.ErrorCode);
   return RESULT_OK;
 }
 
@@ -149,6 +151,7 @@ static packet_handler_config_t handler_configs[] = {
      .queue_buffer = packet1_buffer}};
 
 extern int receive_counter;
+extern int rx_packet_counter;
 void MainTask(void *argument) {
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
@@ -164,24 +167,32 @@ void MainTask(void *argument) {
                          ucQueueStorageArea2, &xStaticQueue2);
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  uint8_t ip[4] = NETWORK_IP;
-  uint8_t mac[6] = NETWORK_MAC;
+  uint8_t ip[4] = TEST_SEND_IP;
+  uint8_t mac[6] = TEST_SEND_MAC;
 
   PacketDispatcherInit(handler_configs, 1);
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
-  while (outgoing_counter < 100) {
-    ETH_udp_send(ip, 1500, packet1_payload, 46, 1);
-    osDelay(10);
+  result_t err;
+  while (outgoing_counter < 1000) {
+    err = ETH_udp_send(ip, 1500, packet1_payload, 46, 1);
+    if (err != RESULT_OK) {
+      outgoing_counter -= 1;
+    }
+    osDelay(1);
     outgoing_counter += 1;
-    LOGI(TAG, "%d", outgoing_counter);
+    // LOGI(TAG, "Total messages send: %d", outgoing_counter);
+    // LOGI(TAG, "Total messages handled: %d", incomming_counter);
+    // LOGI(TAG, "Total messages received: %d", receive_counter);
   }
 
   while (1) {
     __asm__ __volatile__("nop");
     LOGI(TAG, "Total messages send: %d", outgoing_counter);
-    LOGI(TAG, "Total messages received: %d", receive_counter);
+    LOGI(TAG, "Total messages handled: %d", incomming_counter);
+    LOGI(TAG, "Total messages queued: %d", receive_counter);
+    LOGI(TAG, "Total messages received: %d", rx_packet_counter);
     osDelay(300);
   }
 }

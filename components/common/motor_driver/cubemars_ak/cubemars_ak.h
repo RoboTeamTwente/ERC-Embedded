@@ -1,4 +1,5 @@
 #ifndef CUBEMARS_AK
+#define CUBEMARS_AK
 
 #include "cubemars_ak_definitions.h"
 #include "fdcan.h"
@@ -246,4 +247,8 @@ result_t cubermars_ak_set_origin(FDCAN_HandleTypeDef* can_handler,
 result_t cubemars_ak_set_brake_current(FDCAN_HandleTypeDef* can_handler,
                                        uint8_t controller_id, float current_a);
 
+void cubemars_ak_print_feedback(cubemars_ak_information* info);
+
+result_t cubemars_ak_uart_get_motor_id(UART_HandleTypeDef* uart_handler,
+                                       uint8_t* motor_id);
 #endif
