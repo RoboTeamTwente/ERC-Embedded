@@ -108,31 +108,6 @@ const osThreadAttr_t pwm_scope_attributes = {
 
 int main(void) {
 
-    // MPU_Config_wrapper();
-    // HAL_Init();
-    // SystemClock_Config();
-
-    // MX_GPIO_Init();
-    // MX_DMA_Init();
-    // MX_TIM2_Init();
-
-    // my_BSP_COM_Init();
-    // LOG_init(&huart_com);
-
-    // osKernelInitialize();
-
-    // pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
-
-    // if (pwmScopeTaskHandle == NULL) {Error_Handler();}
-
-    // stepperTaskHandle = osThreadNew(stepper_task,NULL,&stepper_attributes);
-
-    // if (stepperTaskHandle == NULL) {Error_Handler();}
-
-    // osKernelStart();
-
-    // while (1) {}
-
     /*Inits*/
     MPU_Config_wrapper();
     HAL_Init();
@@ -154,24 +129,24 @@ int main(void) {
     LOG_init(&huart_com);
 
     //Setup ethernet
-    // setup_ethernet();
+    setup_ethernet();
 
     // Init scheduler
     osKernelInitialize();
 
     /* Create the thread(s) */
 
-    // testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
+    testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
 
-    // if (testethernetTaskHandle == NULL) {
-    //     //HANDLE
-    // }
-
-    pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
-
-    if (pwmScopeTaskHandle == NULL) {
+    if (testethernetTaskHandle == NULL) {
         //HANDLE
     }
+
+    // pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
+
+    // if (pwmScopeTaskHandle == NULL) {
+    //     //HANDLE
+    // }
 
     // Start scheduler
     osKernelStart();
@@ -265,12 +240,11 @@ void setup_ethernet() {
 
     //These are found in handler_stuff.h
     static packet_handler_config_t handlers[] = {
-        Callback_ArmBoardControlSignals,
-        Callback_ArmBoardMovementFeedback
+        Callback_ArmBoardControlSignals
     };
 
-    PacketDispatcherInit(handlers, 2);
-    ETH_udp_init(2, queues, DispatchPacket);
+    // PacketDispatcherInit(handlers, 1);
+    ETH_udp_init(2, queues, HandlePacket);
 
     /*Config + add ARP receiving side*/
     ETH_add_arp(ip, mac, 5);
@@ -278,9 +252,6 @@ void setup_ethernet() {
 
 
 /* HANDLER FUNCTIONS */
-
-
-
 
 /* Config for 1 pbmessage: ArmBoardControlSignals */
 static result_t Callback_ArmBoardControlSignals(void *buffer) {
@@ -300,42 +271,4 @@ static result_t Callback_ArmBoardControlSignals(void *buffer) {
     return RESULT_OK;
 }
 
-/* Config for 2 pbmessage: ArmBoardMovementFeedback */
-static result_t Callback_ArmBoardMovementFeedback(void *buffer) {
-  if (buffer == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
-  
-  ArmBoardMovementFeedback* pckt = (ArmBoardMovementFeedback *)buffer;
-  pckt->arm_error;
-  
-  return RESULT_OK;
-}
-
-/* Config for 3 pbmessage: ArmBoardActualPositions */
-//Idk if we need this
-static result_t Callback_ArmBoardActualPositions(void *buffer) {
-  if (buffer == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
-  
-  ArmBoardActualPositions* pckt = (ArmBoardActualPositions *)buffer;
-  
-  return RESULT_OK;
-}
-
-/* Config for 4 pbmessage: ArmBoardTargetMovement */
-static result_t Callback_ArmBoardTargetMovement(void *buffer) {
-  if (buffer == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
-  
-  ArmBoardTargetMovement* pckt = (ArmBoardTargetMovement *)buffer;
-  
-  return RESULT_OK;
-}
-
 PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals, PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
-PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardMovementFeedback, PBEnvelope_arm_feedback_tag, arm_feedback, Callback_ArmBoardMovementFeedback);
-PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardActualPositions, PBEnvelope_arm_pos_tag, arm_pos, Callback_ArmBoardActualPositions);
-PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardTargetMovement, PBEnvelope_arm_target_tag, arm_target, Callback_ArmBoardTargetMovement);
