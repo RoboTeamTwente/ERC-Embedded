@@ -255,14 +255,16 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
   cl3e_parse_can_message(&rx_header, rx_data);
 }
 
-void MainTaskListener(void *argument) {
-  LOGI(TAG, "Listener Task");
-  for (;;) {
-    LOGI(TAG, "Listening...");
-    LOGI("CAN", "RX FIFO0 fill=%lu",
-         HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0));
-    osDelay(5000);
-  }
+
+
+static void fill_motor(MotorInformation *m, int id)
+{
+    m->state = MotorInformation_State_OPERATING;
+    m->motor_id = id;
+
+    m->rpm = motors[id].motor_speed;
+    m->voltage = 24.0f;
+    m->encoder_angle = motors[id].motor_position;
 }
 
 
@@ -360,6 +362,18 @@ void init_board() {
 
 int main(void) { init_board(); }
 
+
+void MainTaskListener(void *argument) {
+  LOGI(TAG, "Listener Task");
+  for (;;) {
+    LOGI(TAG, "Listening...");
+    LOGI("CAN", "RX FIFO0 fill=%lu",
+         HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0));
+    osDelay(5000);
+  }
+}
+
+
 /**
  * @brief  Main application task
  * @param  argument: Not used
@@ -398,12 +412,12 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
     diag.state = DrivingBoardDiagnostics_State_OPERATING;
 
-    diag.front_left_motor.state = MotorInformation_State_OPERATING;
-
-    diag.front_left_motor.motor_id = 1;
-    diag.front_left_motor.rpm = 1200.0f;
-    diag.front_left_motor.voltage = 24.0f;
-    diag.front_left_motor.encoder_angle = 1.57f;
+    fill_motor(&diag.front_left_motor, LF_ID);
+    fill_motor(&diag.middle_left_motor, LM_ID);
+    fill_motor(&diag.back_left_motor, LB_ID);
+    fill_motor(&diag.front_right_motor, RF_ID);
+    fill_motor(&diag.middle_right_motor, RM_ID);
+    fill_motor(&diag.back_right_motor, RB_ID);
 
     PBEnvelope diag_envelope = PBEnvelope_init_zero;
 
@@ -532,13 +546,13 @@ uint32_t last_tick = osKernelGetTickCount();
          * LEFT FRONT
          */
         rtU.LFActualPos =
-            motors[LF_ID].motor_position / 10.0f;
+            motors[LF_ID].motor_position;
 
         rtU.LFActualSpeed =
-            motors[LF_ID].motor_speed * 10.0f;
+            motors[LF_ID].motor_speed;
 
         rtU.LFCurrent =
-            motors[LF_ID].motor_current / 100.0f;
+            motors[LF_ID].motor_current;
 
         rtU.LFTemperature =
             motors[LF_ID].motor_temperature;
@@ -553,13 +567,13 @@ uint32_t last_tick = osKernelGetTickCount();
          * LEFT MIDDLE
          */
         rtU.LMActualPos =
-            motors[LM_ID].motor_position / 10.0f;
+            motors[LM_ID].motor_position;
 
         rtU.LMActualSpeed =
-            motors[LM_ID].motor_speed * 10.0f;
+            motors[LM_ID].motor_speed;
 
         rtU.LMCurrent =
-            motors[LM_ID].motor_current / 100.0f;
+            motors[LM_ID].motor_current;
 
         rtU.LMTemperature =
             motors[LM_ID].motor_temperature;
@@ -574,13 +588,13 @@ uint32_t last_tick = osKernelGetTickCount();
          * LEFT BACK
          */
         rtU.LBActualPos =
-            motors[LB_ID].motor_position / 10.0f;
+            motors[LB_ID].motor_position;
 
         rtU.LBActualSpeed =
-            motors[LB_ID].motor_speed * 10.0f;
-
+            motors[LB_ID].motor_speed;
+            
         rtU.LBCurrent =
-            motors[LB_ID].motor_current / 100.0f;
+            motors[LB_ID].motor_current;
 
         rtU.LBTemperature =
             motors[LB_ID].motor_temperature;
@@ -595,13 +609,13 @@ uint32_t last_tick = osKernelGetTickCount();
          * RIGHT FRONT
          */
         rtU.RFActualPos =
-            motors[RF_ID].motor_position / 10.0f;
+            motors[RF_ID].motor_position;
 
         rtU.RFActualSpeed =
-            motors[RF_ID].motor_speed * 10.0f;
+            motors[RF_ID].motor_speed;
 
         rtU.RFCurrent =
-            motors[RF_ID].motor_current / 100.0f;
+            motors[RF_ID].motor_current;
 
         rtU.RFTemperature =
             motors[RF_ID].motor_temperature;
@@ -616,13 +630,13 @@ uint32_t last_tick = osKernelGetTickCount();
          * RIGHT MIDDLE
          */
         rtU.RMActualPos =
-            motors[RM_ID].motor_position / 10.0f;
+            motors[RM_ID].motor_position;
 
         rtU.RMActualSpeed =
-            motors[RM_ID].motor_speed * 10.0f;
+            motors[RM_ID].motor_speed;
 
         rtU.RMCurrent =
-            motors[RM_ID].motor_current / 100.0f;
+            motors[RM_ID].motor_current;
 
         rtU.RMTemperature =
             motors[RM_ID].motor_temperature;
@@ -637,13 +651,13 @@ uint32_t last_tick = osKernelGetTickCount();
          * RIGHT BACK
          */
         rtU.RBActualPos =
-            motors[RB_ID].motor_position / 10.0f;
+            motors[RB_ID].motor_position;
 
         rtU.RBActualSpeed =
-            motors[RB_ID].motor_speed * 10.0f;
+            motors[RB_ID].motor_speed;
 
         rtU.RBCurrent =
-            motors[RB_ID].motor_current / 100.0f;
+            motors[RB_ID].motor_current;
 
         rtU.RBTemperature =
             motors[RB_ID].motor_temperature;
