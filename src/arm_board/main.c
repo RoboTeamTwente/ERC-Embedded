@@ -97,13 +97,13 @@ osThreadId_t task_2Handle;
 const osThreadAttr_t task2_attributes = {
     .name = "task2",
     .stack_size = 1024 * 8, //Make sure this is enough
-    .priority = (osPriority_t)osPriorityNormal,
+    .priority = tskIDLE_PRIORITY,
 };
 
 const osThreadAttr_t pwm_scope_attributes = {
     .name       = "pwm_scope",
     .stack_size = 1024 * 4,
-    .priority   = (osPriority_t)osPriorityNormal,
+    .priority   = tskIDLE_PRIORITY,
 };
 
 int main(void) {
@@ -127,9 +127,6 @@ int main(void) {
 
     //Log init
     LOG_init(&huart_com);
-
-    //Setup ethernet
-    setup_ethernet();
 
     // Init scheduler
     osKernelInitialize();
@@ -201,26 +198,7 @@ extern int receiving_counter;
 int outgoing_counter = 0;
 void test_ethernet(void* argument) {
 
-    /*Sending a message*/
-    uint8_t packet1_payload[4] = {14,06,20,04};
-
-    /*Test sending*/
-    while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
-          ETH_udp_send(ip, 8, packet1_payload, 4, 1);
-          osDelay(10);
-          outgoing_counter += 1;
-          LOGI(TAG, "%d", outgoing_counter);
-      }
-
-    while(1){
-    }
-}
-
-
-
-void setup_ethernet() {
-    
-    //Setup using sending side params
+  //Setup using sending side params
     ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
     /*Making queues*/
@@ -248,6 +226,20 @@ void setup_ethernet() {
 
     /*Config + add ARP receiving side*/
     ETH_add_arp(ip, mac, 5);
+
+    /*Sending a message*/
+    uint8_t packet1_payload[4] = {14,06,20,04};
+
+    /*Test sending*/
+    while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
+          ETH_udp_send(ip, 8, packet1_payload, 4, 1);
+          osDelay(10);
+          outgoing_counter += 1;
+          LOGI(TAG, "%d", outgoing_counter);
+      }
+
+    while(1){
+    }
 }
 
 
