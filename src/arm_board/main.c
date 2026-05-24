@@ -58,10 +58,6 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart_com;
 
 /* Private function prototypes */
-static void test_stepper(void* argument);
-static void test_ethernet(void* argument);
-static void test_dma(void* argument);
-static void pwm_scope_task(void *argument);
 static result_t Callback_ArmBoardControlSignals(void *buffer);
 static result_t Callback_ArmBoardMovementFeedback(void *buffer);
 
@@ -88,7 +84,6 @@ void my_BSP_COM_Init() {
     MX_USART3_Init(&huart_com, &BspCOMInit);
 }
 
-osThreadId_t pwmScopeTaskHandle;
 osThreadId_t stepperTaskHandle;
 osThreadId_t testethernetTaskHandle;
 
@@ -99,12 +94,31 @@ const osThreadAttr_t task2_attributes = {
     .stack_size = 1024 * 6, //Make sure this is enough
     .priority = tskIDLE_PRIORITY,
 };
+static void test_ethernet(void* argument);
 
+osThreadId_t pwmScopeTaskHandle;
 const osThreadAttr_t pwm_scope_attributes = {
     .name       = "pwm_scope",
-    .stack_size = 1024 * 16,
+    .stack_size = 1024 * 8,
     .priority   = tskIDLE_PRIORITY,
 };
+static void pwm_scope_task(void *argument);
+
+osThreadId_t stepper1_task_handle;
+const osThreadAttr_t stepper1_task_attr = {
+    .name       = "stepper1_task",
+    .stack_size = 1024 * 8,
+    .priority   = tskIDLE_PRIORITY,
+};
+static void stepper1_task(void *argument);
+
+osThreadId_t stepper2_task_handle;
+const osThreadAttr_t stepper2_task_attr = {
+    .name       = "stepper2_task",
+    .stack_size = 1024 * 8,
+    .priority   = tskIDLE_PRIORITY,
+};
+static void stepper2_task(void *argument);
 
 int main(void) {
 
@@ -116,7 +130,7 @@ int main(void) {
     MX_GPIO_Init();
     MX_DMA_Init();
 
-    // SCB_EnableICache();
+    SCB_EnableICache();
     // SCB_EnableDCache();
 
     //Init timers
@@ -134,14 +148,22 @@ int main(void) {
     /* Create the thread(s) */
 
     testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
-
     if (testethernetTaskHandle == NULL) {
         //HANDLE
     }
 
     pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
-
     if (pwmScopeTaskHandle == NULL) {
+        //HANDLE
+    }
+
+    stepper1_task_handle = osThreadNew(stepper1_task, NULL, &stepper1_task_attr);
+    if (stepper1_task_handle == NULL) {
+        //HANDLE
+    }
+
+    stepper2_task_handle = osThreadNew(stepper2_task, NULL, &stepper2_task_attr);
+    if (stepper2_task_handle == NULL) {
         //HANDLE
     }
 
@@ -153,7 +175,15 @@ int main(void) {
 
 }
 
+static void stepper1_task(void *argument) {
+}
+
+static void stepper2_task(void *argument) {
+}
+
+
 static void pwm_scope_task(void *argument) {
+
     stepper_t step;
     init_stepper(&step, 1, 50, &htim2);
 
@@ -176,7 +206,7 @@ static void pwm_scope_task(void *argument) {
             for (int i = 0; i < 10; i++) {
                 LOGI(TAG,"Burst %d/10 — %lu pulses",i + 1,(unsigned long)pulse_count);
 
-                do_pwm_dma(&step, (int)pulse_count);
+                do_pwm_dma(&step, (int)pulse_count, (step.frequency_hz));
                 osDelay(10);
             }
             LOGI(TAG,"Done with %lu pulses, switching...",(unsigned long)pulse_count);
@@ -195,7 +225,7 @@ extern int receiving_counter;
 int outgoing_counter = 0;
 void test_ethernet(void* argument) {
 
-  //Setup using sending side params
+    //Setup using sending side params
     ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
     /*Making queues*/
@@ -218,8 +248,8 @@ void test_ethernet(void* argument) {
         Callback_ArmBoardControlSignals
     };
 
-    // PacketDispatcherInit(handlers, 1);
-    ETH_udp_init(2, queues, HandlePacket);
+    PacketDispatcherInit(handlers, 1);
+    ETH_udp_init(2, queues, DispatchPacket);
 
     /*Config + add ARP receiving side*/
     ETH_add_arp(ip, mac, 5);
@@ -249,14 +279,25 @@ static result_t Callback_ArmBoardControlSignals(void *buffer) {
     }
     
     ArmBoardControlSignals* pckt = (ArmBoardControlSignals *)buffer;
-    pckt->control_base; //bldc
-    pckt->control_gripper_pitch; //bldc
-    pckt->control_gripper_rotation; //bldc
-    pckt->control_jaw; //bldc
-    pckt->stepper_bottom_rev; //ignore
-    pckt->stepper_top_rev; //ignore
+    //base bldc
+    pckt->control_base; 
+
+    //gripper bldc
+    pckt->control_gripper_pitch; 
+
+    //gripper bldc
+    pckt->control_gripper_rotation;
+
+    //gripper jaw bldc
+    pckt->control_jaw; 
+
+    //bottom stepper
     pckt->stepper_bottom_rev;
+    pckt->stepper_bottom_freq; //ignore
+
+    //top stepper
     pckt->stepper_top_rev;
+    pckt->stepper_top_freq; //ignore
     return RESULT_OK;
 }
 

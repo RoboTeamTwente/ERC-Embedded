@@ -27,13 +27,6 @@
 #define ENA_PIN 4 //Enable signal
 #define ALM_PIN 5 //Alarm signal (OUT)
 
-#define STEPS_PER_REV 200 //The amount of steps that makes it turn 360 degrees
-#define DEGREES_PER_STEP (360/STEPS_PER_REV) //At 200, 1 step turns the motor 1.8 degrees
-
-
-#define RPM 100 //Rotations per minute
-#define STEP_PULSE_MIN_WIDTH_TICKS 3U // 3 us at the 1 MHz timer tick rate
-
 #define TAG "STEPPER"
 
 /* Class variables */
@@ -41,46 +34,50 @@ int64_t pulse_ctr = 0;
 int64_t amt_steps = 100;
 
 void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim);
-static uint32_t get_step_frequency_hz(void);
-static uint32_t get_pwm_ARR_ticks(uint32_t frequency_hz);
-static uint32_t get_pwm_CCR_ticks(uint32_t ARR_ticks, uint8_t duty_cycle);
+static uint32_t calc_ARR_ticks(uint32_t frequency_hz);
+static uint32_t calc_CCR_ticks(uint32_t ARR_ticks, uint8_t duty_cycle);
 void set_pin(int pinname, char what);
 
-// static stepper_t* active_stepper = NULL;
-
-result_t init_stepper(stepper_t* stepper, uint8_t id, uint8_t duty_cycle, TIM_HandleTypeDef* tim) {
-    stepper->stepper_id = id;
+result_t init_stepper(stepper_t* stepper, uint8_t duty_cycle, TIM_HandleTypeDef* htim) {
     stepper->duty_cycle = duty_cycle;
     stepper->htim = tim;
     stepper->current_angle = 0;
-    stepper->step_frequency_hz = get_step_frequency_hz();
+
+    float steps_per_second = ((float) RPM * (float) STEPS_PER_REV) / 60.0f;
+
+    //Lower bounded at 1
+    steps_per_second = (steps_per_second < 1.0f) ? 1U : steps_per_second;
+    stepper->frequency_hz = (uint32_t) steps_per_second;
 
     TIM_HandleTypeDef* htim = stepper->htim;
 
-    uint32_t ARR_ticks = get_pwm_ARR_ticks(stepper->step_frequency_hz);
+    uint32_t ARR_ticks = calc_ARR_ticks(stepper->frequency_hz);
     __HAL_TIM_SET_AUTORELOAD(htim, ARR_ticks - 1U); 
+
     //!TODO: arr ticks -1 but ccr ticks not...
-    uint32_t CCR_ticks = get_pwm_CCR_ticks(ARR_ticks, duty_cycle);
+    uint32_t CCR_ticks = calc_CCR_ticks(ARR_ticks, duty_cycle);
     __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, CCR_ticks);
+
     HAL_TIM_PWM_Stop(htim, TIM_CHANNEL_1);
 
+    LOGI(TAG, "Stepper %u initialized", stepper->htim);
     return RESULT_OK;
 }
 
-void do_pwm_dma(stepper_t* stepper, int amt_steps) {
+void do_pwm_dma(stepper_t* stepper, int amt_steps, uint32_t freq) {
+
+    //set the stepper freq to the new frequency
+    stepper->frequency_hz = freq;
 
     TIM_HandleTypeDef* htim = stepper->htim;
-    uint32_t ARR_ticks = get_pwm_ARR_ticks(stepper->step_frequency_hz);
-    uint32_t my_Duty_Cycle = get_pwm_CCR_ticks(ARR_ticks, stepper->duty_cycle);
+    uint32_t ARR_ticks = calc_ARR_ticks(stepper->frequency_hz);
+    uint32_t my_duty_cycle = calc_CCR_ticks(ARR_ticks, stepper->duty_cycle);
 
-    // Sync timer ARR to match current step_frequency_hz before starting DMA
     __HAL_TIM_SET_AUTORELOAD(htim, ARR_ticks - 1U);
  
     //the size of the data arr will be one larger than the amt of steps
     //This is for a trailing 0 value, which will set pwm to 0 after finishing transfer
     int data_arr_size = amt_steps + 1;
-
-    //Dynamically assign an array of the amount of steps
     uint32_t* data_arr_ptr = (uint32_t*) calloc(data_arr_size, sizeof(uint32_t));
 
     if (data_arr_ptr == NULL) {
@@ -90,7 +87,7 @@ void do_pwm_dma(stepper_t* stepper, int amt_steps) {
 
     //Fill the array with the desired duty cycle
     for (int i = 0; i < amt_steps; i++) {
-        data_arr_ptr[i] = my_Duty_Cycle;
+        data_arr_ptr[i] = my_duty_cycle;
     }
 
     //!TODO: error handling
@@ -108,7 +105,7 @@ void do_pwm_dma(stepper_t* stepper, int amt_steps) {
     
 }
 
-void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute) {
+void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute, uint32_t freq) {
 
     /* Calculate shortest the relative angle */
     //!NOTE: the "angles" are in amounts of steps and they are absolute
@@ -120,7 +117,7 @@ void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute) {
     bool pin_val = (CW_angle < CCW_angle) ? 1 : 0; 
     set_pin(DIR_PIN, pin_val);
 
-    do_pwm_dma(stepper, amt_steps_relative);
+    do_pwm_dma(stepper, amt_steps_relative, freq);
 
     stepper->current_angle = amt_steps_absolute;
 }
@@ -133,35 +130,20 @@ void set_pin(int pinname, char what) {
 }
 
 /**
- * @brief Calculates the steps per second based on the RPM and STEPS_PER_REV
- * 
- * @return steps_per_second
- */
-static uint32_t get_step_frequency_hz(void) {
-    float steps_per_second = ((float) RPM * (float) STEPS_PER_REV) / 60.0f;
-
-    //Lower bounded by 1
-    if (steps_per_second < 1.0f) {
-        return 1U;
-    }
-
-    return (uint32_t) steps_per_second;
-}
-
-/**
  * @brief Calculates the amount of ticks to put in the AutoReload register based on the frequency in Hz that we want
  * 
  * @param frequency_hz frequency in Hz
  * @return uint32_t amt of ticks to put in the ARR
  */
-static uint32_t get_pwm_ARR_ticks(uint32_t frequency_hz) {
-    //Minimum = 1
+static uint32_t calc_ARR_ticks(uint32_t frequency_hz) {
+    //Minimum frequency = 1Hz
     if (frequency_hz == 0U) {
         frequency_hz = 1U;
     }
 
     uint32_t ARR_ticks = STEPPER_PWM_TIMER_TICK_HZ / frequency_hz;
-    //Minimum = 2
+    
+    //ARR is lower bounded by 2 (effectively 1 when done -1)
     if (ARR_ticks < 2U) {
         ARR_ticks = 2U;
     }
@@ -176,7 +158,7 @@ static uint32_t get_pwm_ARR_ticks(uint32_t frequency_hz) {
  * @param duty_cycle desired duty cycle: value from 1-100
  * @return compare_ticks, the amt of ticks for in CCR
  */
-static uint32_t get_pwm_CCR_ticks(uint32_t ARR_ticks, uint8_t duty_cycle) {
+static uint32_t calc_CCR_ticks(uint32_t ARR_ticks, uint8_t duty_cycle) {
     //Calculate the value to go in the CCR register based on
     uint32_t compare_ticks = (ARR_ticks * duty_cycle) / 100U;
 
