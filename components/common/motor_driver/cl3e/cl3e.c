@@ -96,7 +96,7 @@ void CL3E_DriveFromControl(TIM_HandleTypeDef *htim, uint32_t channel, GPIO_TypeD
     CL3E_SetFrequency(htim, channel, freq);
 }
 
-cl3e_information g_cl3e_info = {0};
+cl3e_information g_cl3e_info[CL3E_MAX_MOTORS] = {0};
 
 void cl3e_request_position(FDCAN_HandleTypeDef *hfdcan, uint8_t node_id)
 {
@@ -132,37 +132,46 @@ void cl3e_parse_can_message(
 
     uint16_t cob_id = rx_header->Identifier;
 
-    /* SDO response */
+    //SDO response
     if ((cob_id & 0x780) == 0x580) {
 
-        /* object 0x6064 */
+        uint8_t node_id = cob_id - 0x580;
+
+        //object 0x6064
         if (data[1] == 0x64 && data[2] == 0x60) {
-    g_cl3e_info.node_id = cob_id - 0x580;
-    g_cl3e_info.actual_position = 
-        (int32_t)(((uint32_t)data[4])|
-        ((uint32_t)data[5] << 8) |  
-        ((uint32_t)data[6] << 16) |
-        ((uint32_t)data[7] << 24));
+
+            for (int i = 0; i < CL3E_MAX_MOTORS; i++) {
+
+                if (g_cl3e_info[i].node_id == node_id ||
+                    g_cl3e_info[i].node_id == 0) {
+
+                    g_cl3e_info[i].node_id = node_id;
+
+                    g_cl3e_info[i].actual_position =
+                        (int32_t)(
+                            ((uint32_t)data[4]) |
+                            ((uint32_t)data[5] << 8) |
+                            ((uint32_t)data[6] << 16) |
+                            ((uint32_t)data[7] << 24));
+
+                    break;
+                }
+            }
         }
     }
 }
 
-float cl3e_get_position_rev(int32_t encoder_cpr)
+float cl3e_get_position_rev(uint8_t motor_index, int32_t encoder_cpr)
 {
-    return (float)g_cl3e_info.actual_position /(float)encoder_cpr;
+    return (float)g_cl3e_info[motor_index].actual_position / (float)encoder_cpr;
 }
 
-float cl3e_get_position_deg(int32_t encoder_cpr)
+float cl3e_get_position_deg(uint8_t motor_index, int32_t encoder_cpr)
 {
-    return cl3e_get_position_rev(encoder_cpr) * 360.0f;
+    return cl3e_get_position_rev(motor_index, encoder_cpr) * 360.0f;
 }
 
-float cl3e_get_position_rad(int32_t encoder_cpr)
+float cl3e_get_position_rad(uint8_t motor_index, int32_t encoder_cpr)
 {
-    return cl3e_get_position_rev(encoder_cpr) * 2.0f * (float)M_PI;
-}
-
-float cl3e_get_position_mm(int32_t encoder_cpr, float mm_per_rev)
-{
-    return cl3e_get_position_rev(encoder_cpr) * mm_per_rev;
+    return cl3e_get_position_rev(motor_index, encoder_cpr) * 2.0f * (float)M_PI;
 }

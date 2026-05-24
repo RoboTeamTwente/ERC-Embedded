@@ -42,7 +42,7 @@
 #include "calculator.h"
 #include <math.h>
 
-#define LF_ID 1
+#define LF_ID 1//placeholder should definitely change
 #define LM_ID 2
 #define LB_ID 3
 
@@ -521,9 +521,10 @@ void DrivingEncoderTask(void *argument){
   for(;;)
   {
     cl3e_request_position(&hfdcan1, 1);
+    cl3e_request_position(&hfdcan1, 2);
     osDelay(10);
 
-    LOGI("CL3E", "pos=%ld", g_cl3e_info.actual_position);
+    LOGI("CL3E: motor 0", "pos=%ld", g_cl3e_info[0].actual_position);
   }
 }
 
