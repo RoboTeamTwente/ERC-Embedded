@@ -3,6 +3,7 @@
 #include "tim.h"
 #include "string.h"
 
+//How many ticks in 1 Hz?
 #define STEPPER_PWM_TIMER_TICK_HZ 1000000U
 
 //1:1 recration of protobuf
@@ -12,9 +13,6 @@ typedef struct {
     uint8_t current_angle; //Value from 0-199 (in steps)
     TIM_HandleTypeDef* htim; //The timer that is used
     uint32_t step_frequency_hz;
-    uint32_t* pwm_dma_buffer;
-    size_t pwm_dma_buffer_len;
-    bool pwm_dma_active;
 } stepper_t;
 
 //1:1 recration of protobuf
