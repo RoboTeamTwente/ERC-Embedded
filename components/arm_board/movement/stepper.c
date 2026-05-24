@@ -40,7 +40,7 @@ void set_pin(int pinname, char what);
 
 result_t init_stepper(stepper_t* stepper, uint8_t duty_cycle, TIM_HandleTypeDef* htim) {
     stepper->duty_cycle = duty_cycle;
-    stepper->htim = tim;
+    stepper->htim = htim;
     stepper->current_angle = 0;
 
     float steps_per_second = ((float) RPM * (float) STEPS_PER_REV) / 60.0f;
@@ -48,8 +48,6 @@ result_t init_stepper(stepper_t* stepper, uint8_t duty_cycle, TIM_HandleTypeDef*
     //Lower bounded at 1
     steps_per_second = (steps_per_second < 1.0f) ? 1U : steps_per_second;
     stepper->frequency_hz = (uint32_t) steps_per_second;
-
-    TIM_HandleTypeDef* htim = stepper->htim;
 
     uint32_t ARR_ticks = calc_ARR_ticks(stepper->frequency_hz);
     __HAL_TIM_SET_AUTORELOAD(htim, ARR_ticks - 1U); 
