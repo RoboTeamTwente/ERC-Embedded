@@ -96,13 +96,13 @@ osThreadId_t testethernetTaskHandle;
 osThreadId_t task_2Handle;
 const osThreadAttr_t task2_attributes = {
     .name = "task2",
-    .stack_size = 1024 * 8, //Make sure this is enough
+    .stack_size = 1024 * 6, //Make sure this is enough
     .priority = tskIDLE_PRIORITY,
 };
 
 const osThreadAttr_t pwm_scope_attributes = {
     .name       = "pwm_scope",
-    .stack_size = 1024 * 4,
+    .stack_size = 1024 * 16,
     .priority   = tskIDLE_PRIORITY,
 };
 
@@ -133,17 +133,17 @@ int main(void) {
 
     /* Create the thread(s) */
 
-    testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
+    // testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
 
-    if (testethernetTaskHandle == NULL) {
-        //HANDLE
-    }
-
-    // pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
-
-    // if (pwmScopeTaskHandle == NULL) {
+    // if (testethernetTaskHandle == NULL) {
     //     //HANDLE
     // }
+
+    pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
+
+    if (pwmScopeTaskHandle == NULL) {
+        //HANDLE
+    }
 
     // Start scheduler
     osKernelStart();
@@ -177,10 +177,7 @@ static void pwm_scope_task(void *argument) {
                 LOGI(TAG,"Burst %d/10 — %lu pulses",i + 1,(unsigned long)pulse_count);
 
                 do_pwm_dma(&step, (int)pulse_count);
-
-                while (step.pwm_dma_active) {
-                    osDelay(10);
-                }
+                osDelay(10);
             }
             LOGI(TAG,"Done with %lu pulses, switching...",(unsigned long)pulse_count);
             osDelay(4000U);
@@ -233,9 +230,9 @@ void test_ethernet(void* argument) {
     /*Test sending*/
     while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
           ETH_udp_send(ip, 8, packet1_payload, 4, 1);
-          osDelay(10);
           outgoing_counter += 1;
           LOGI(TAG, "%d", outgoing_counter);
+          osDelay(1000);
       }
 
     while(1){

@@ -12,7 +12,7 @@ typedef struct {
     uint8_t duty_cycle; //Value of 1-100%
     uint8_t current_angle; //Value from 0-199 (in steps)
     TIM_HandleTypeDef* htim; //The timer that is used
-    uint32_t step_frequency_hz;
+    uint32_t step_frequency_hz; //The frequency we want for the stepper (Hertz)
 } stepper_t;
 
 //1:1 recration of protobuf
