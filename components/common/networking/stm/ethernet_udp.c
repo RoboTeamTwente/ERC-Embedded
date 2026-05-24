@@ -77,24 +77,14 @@ void udp_receiver(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port) {
   result_t err = RESULT_OK;
   rx_packet_counter += 1;
-
-  receive_frame_t buffer = {
-      .payload = malloc(p->len), .addr = *addr, .port = port, .len = p->len};
-  if ((&buffer)->payload == NULL) {
-    LOGE(TAG, "Couldn't allocate receive buffer");
-    return;
-  }
-  memcpy(((&buffer)->payload), (int8_t *)(p->payload), p->len);
-  if ((&buffer)->payload != NULL) {
-    if (xQueueSend(udp_receiver_queue, &buffer, 10) != pdPASS) {
-      err = RESULT_ERR_OVERFLOW;
-      rx_errored_packet_counter += 1;
-    } else {
-      (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)RQ_ETHERNET_PRIO),
-                        eSetBits);
-    }
+  pbuf_ref(p);
+  receive_frame_low_t buffer = {.pbuf = p, .addr = *addr, .port = port};
+  if (xQueueSend(udp_receiver_queue, &buffer, 10) != pdPASS) {
+    err = RESULT_ERR_OVERFLOW;
+    rx_errored_packet_counter += 1;
   } else {
-    LOGE(TAG, "Buffer copy failed");
+    (void)xTaskNotify(receiver_notifier, (1UL << (uint32_t)RQ_ETHERNET_PRIO),
+                      eSetBits);
   }
   if (err != RESULT_OK) {
     LOGE(TAG, "Could not push incomming message to queue: %s",
@@ -109,17 +99,21 @@ void udp_receiver_task(void *pvParameters) {
 
   for (;;) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    LOGI(TAG, "UDP receiver notification received");
-    receive_frame_t frame;
+    // LOGI(TAG, "UDP receiver notification received");
+    receive_frame_low_t frame;
     BaseType_t r = xQueueReceive(udp_receiver_queue, &frame, 10);
+    receive_frame_t processed_frame = {.payload = frame.pbuf->payload,
+                                       .port = frame.port,
+                                       .addr = frame.addr,
+                                       .len = frame.pbuf->len};
     if (r != pdPASS) {
-      free(frame.payload);
+      pbuf_free(frame.pbuf);
       continue;
     }
-    r_callback(&frame);
+    r_callback(&processed_frame);
     receive_counter += 1;
-    LOGI(TAG, "Received message: %d", receive_counter);
-    free(frame.payload);
+    // LOGI(TAG, "Received message: %d", receive_counter);
+    pbuf_free(frame.pbuf);
   }
 }
 

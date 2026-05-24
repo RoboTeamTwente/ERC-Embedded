@@ -26,7 +26,7 @@
 #include "string.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "bldc.h"
+#include "cl3e.h"
 #include <time.h>
 #include <stdint.h>
 #include "result.h"
@@ -119,14 +119,6 @@ static result_t HandleTypeMotorMsgPacket(void *buffer) {
 }
 
 
-/**
- * static uint8_t packet1_payload[] = {
-    0x62, 0x2C, 0x09, 0x13, 0xF2, 0x41, 0xCF, 0x66, 0x1D, 0x4A, 0x40, 0x11,
-    0x2C, 0x65, 0x19, 0xE2, 0x58, 0x97, 0x1B, 0x40, 0x1D, 0x00, 0x00, 0x0C,
-    0x42, 0x2D, 0x00, 0x00, 0x87, 0x43, 0x35, 0x9A, 0x99, 0x99, 0x3F, 0x3D,
-    0x66, 0x66, 0xE6, 0x3F, 0x40, 0x09, 0x48, 0x01, 0x50, 0x01};
- */
-
 
 static uint8_t packet1_buffer[DrivingBoardMotorMessage_size * 5];
 
@@ -208,35 +200,6 @@ void init_board() {
   }
 }
 
-
-/**
- * void pwm_test(){//gradually increases decreases pwm duty cycle
-  
-  int32_t CH1_DC = 0;
-
-  HAL_Init();
-  SystemClock_Config();
-  MX_GPIO_Init();
-  MX_TIM1_Init();
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  while (1)
-  {
-    while(CH1_DC < 65535)
-    {
-    	  TIM1->CCR1 = CH1_DC;
-    	  CH1_DC += 70;
-    	  HAL_Delay(1);
-    }
-    while(CH1_DC > 0)
-    {
-        TIM1->CCR1 = CH1_DC;//were writing directly to hardware register so method for updating pwm is not needed
-        CH1_DC -= 70;
-        HAL_Delay(1);
-    }
-  
-    }
-  }
- */
 
 
 
@@ -445,54 +408,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
     float distance_left = 10.5f;
      */
-    
-/**
- * result_t res = DBMPProgressEncode(distance_left, &encoded_data, &encoded_length);
-    if (res != RESULT_OK) {
-      LOGI(TAG, "Encoding failed");
-    }
-    else{
-      LOGI(TAG, "Encoding successful");
-    }
- */
-    
-    
 
-
-/**
- *  pb_encoding_t enc;
-1
-    result_t res = DBMMsgEncode(10.0f, 30.0f, 2.5f, &enc);
-
-    if (res != RESULT_OK)
-    {
-    //error msg
-    free(enc.data);
-    }
-    //send with eth
-    free(enc.data);
- */
-/**
- * LOGI(TAG, "desspeed[0]   = %f, desspeed[1]   = %f, desspeed[2]   = %f, desspeed[3]   = %f, desspeed[4]   = %f, desspeed[5]   = %f\n", rtY.desspeed[0], rtY.desspeed[1], rtY.desspeed[2], rtY.desspeed[3], rtY.desspeed[4], rtY.desspeed[5]);
-  LOGI(TAG, "controlb[0]   = %f, controlb[1]   = %f, controlb[2]   = %f, controlb[3]   = %f, controlb[4]   = %f, controlb[5]   = %f\n", rtY.controlb[0], rtY.controlb[1], rtY.controlb[2], rtY.controlb[3], rtY.controlb[4], rtY.controlb[5]);
-  LOGI(TAG, "desang[0]     = %f, desang[1]     = %f, desang[2]     = %f, desang[3]     = %f\n", rtY.desang[0], rtY.desang[1], rtY.desang[2], rtY.desang[3]);
-  LOGI(TAG, "pwnenable[0]  = %f, pwnenable[1]  = %f, pwnenable[2]  = %f, pwnenable[3]  = %f\n", rtY.pwnenable[0], rtY.pwnenable[1], rtY.pwnenable[2], rtY.pwnenable[3]);
-  LOGI(TAG, "pwmrev[0]     = %f, pwmrev[1]     = %f, pwmrev[2]     = %f, pwmrev[3]     = %f\n", rtY.pwmrev[0], rtY.pwmrev[1], rtY.pwmrev[2], rtY.pwmrev[3]);
-  
- */
-  
-
-  
-  
-    
-     
-    //BSP_LED_Toggle(LED_GREEN);
-    //BSP_LED_Toggle(LED_BLUE);
-    //BSP_LED_Toggle(LED_RED);
-    //LOGI(TAG, "%d + %d = %d", 5, 2, add(5, 2));
-
-   // LOGI(TAG, "This is the driving board");
-   // osDelay(1000);
     
   }
 }
@@ -506,17 +422,15 @@ void PwmTask(void *argument)
     //CL3E_Test();//I ll delete it later it blocks the task bc of delays
     for(;;)
     {
-        uint32_t now = osKernelGetTickCount();
+      uint32_t now = osKernelGetTickCount();
+      CL3E_DriveFromControl(&htim1, 1, GPIOA, 3, rtY.controlLF);
+      rtU.deltaTime = (now - last_tick) * 0.001f;
+      last_tick = now;
+      
+      control_drive_step();
 
-        rtU.deltaTime = (now - last_tick) * 0.001f;
-        last_tick = now;
-
-        //control_drive_step();
-        //set_bldc_pwm();
-        //motor_test_forward();
-
-        wake_time += period;// schedule next exact tick
-        osDelayUntil(wake_time);
+      wake_time += period;// schedule next exact tick
+      osDelayUntil(wake_time);
     }
 }
 
