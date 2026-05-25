@@ -1,7 +1,0 @@
-/* Definitions for DefaultTask */
-osThreadId_t DefaultTaskHandle;
-const osThreadAttr_t DefaultTask_attributes = {
-#t.name = "DefaultTask",
-#t.stack_size = 128 * 4,
-#t.priority = (osPriority_t) osPriorityNormal,
-};
