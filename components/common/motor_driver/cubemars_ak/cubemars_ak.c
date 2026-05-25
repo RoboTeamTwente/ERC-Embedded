@@ -2,6 +2,7 @@
 
 #include "logging.h"
 #include "result.h"
+#include "stm32h7xx_hal_fdcan.h"
 
 const static char* TAG = "Cubemars AK";
 
@@ -16,6 +17,52 @@ static FDCAN_TxHeaderTypeDef tx_header = {
     .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
     .MessageMarker = 0,
 };
+
+static uint8_t cubemars_ak_known_ids[CUBEMARS_AK_MAX_NUMBER_OF_MOTORS];
+static cubemars_ak_information
+    cubemars_ak_known_info[CUBEMARS_AK_MAX_NUMBER_OF_MOTORS];
+
+result_t cubemars_ak_process_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
+                                      const uint8_t data[8]) {
+    if (rx_header == NULL || data == NULL) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    if (rx_header->IdType != FDCAN_EXTENDED_ID) {
+        return RESULT_ERR_BAD_FORMAT;
+    }
+
+    if (rx_header->DataLength != FDCAN_DLC_BYTES_8) {
+        return RESULT_ERR_BAD_FORMAT;
+    }
+
+    uint8_t motor_id = (uint8_t)(rx_header->Identifier & 0xFFu);
+    uint32_t function_id = rx_header->Identifier >> 8;
+
+    if (function_id != CUBEMARS_AK_CAN_SERVO_FEEDBACK_ID) {
+        return RESULT_ERR_BAD_FORMAT;
+    }
+
+    int i = 0;
+    while (i < CUBEMARS_AK_MAX_NUMBER_OF_MOTORS &&
+           (motor_id != cubemars_ak_known_ids[i] ||
+            cubemars_ak_known_ids[i] == 0)) {
+        i++;
+    }
+    if (i == CUBEMARS_AK_MAX_NUMBER_OF_MOTORS) {
+        return RESULT_ERR_NO_MEM;
+    }
+    cubemars_ak_information* out = &cubemars_ak_known_info[i];
+    out->motor_id = motor_id;
+    out->motor_position = (int16_t)*(data) / CUBEMARS_AK_CAN_POSITION_SCALE;
+    out->motor_speed = (int16_t)*(data + 2) / CUBEMARS_AK_CAN_SPEED_SCALE;
+    out->motor_current = (int16_t)*(data + 4) / CUBEMARS_AK_CAN_CURRENT_SCALE;
+    out->motor_temperature =
+        (int8_t)data[6] / CUBEMARS_AK_CAN_TEMPERATURE_SCALE;
+    out->status_code = (cubemars_ak_error_code)data[7];
+
+    return RESULT_OK;
+}
 
 void cubemars_ak_print_feedback(cubemars_ak_information* info) {
     LOGI(TAG,
@@ -48,42 +95,6 @@ static int32_t cubemars_get_i32_be(const uint8_t* buf, size_t* idx) {
 
     return (int32_t)value;
 }
-
-result_t cubemars_ak_parse_can_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
-                                        const uint8_t data[8],
-                                        cubemars_ak_information* out) {
-    if (rx_header == NULL || data == NULL || out == NULL) {
-        return RESULT_ERR_INVALID_ARG;
-    }
-
-    if (rx_header->IdType != FDCAN_EXTENDED_ID) {
-        return RESULT_ERR_BAD_FORMAT;
-    }
-
-    if (rx_header->DataLength != FDCAN_DLC_BYTES_8) {
-        return RESULT_ERR_BAD_FORMAT;
-    }
-
-    uint8_t motor_id = (uint8_t)(rx_header->Identifier & 0xFFu);
-    uint32_t function_id = rx_header->Identifier >> 8;
-
-    if (function_id != CUBEMARS_AK_CAN_SERVO_FEEDBACK_ID) {
-        return RESULT_ERR_BAD_FORMAT;
-    }
-
-    out->motor_id = motor_id;
-    size_t index = 0;
-    out->motor_current = cubemars_get_i16_be(data, &index);
-    out->motor_position = (int16_t)*(data) / CUBEMARS_AK_CAN_POSITION_SCALE;
-    out->motor_speed = (int16_t)*(data + 2) / CUBEMARS_AK_CAN_SPEED_SCALE;
-    out->motor_current = (int16_t)*(data + 4) / CUBEMARS_AK_CAN_CURRENT_SCALE;
-    out->motor_temperature =
-        (int8_t)data[6] / CUBEMARS_AK_CAN_TEMPERATURE_SCALE;
-    out->status_code = (cubemars_ak_error_code)data[7];
-
-    return RESULT_OK;
-}
-
 result_t cubemars_ak_set_speed(FDCAN_HandleTypeDef* can_handler,
                                uint8_t controller_id, int32_t erpm) {
     if (can_handler == NULL) {
