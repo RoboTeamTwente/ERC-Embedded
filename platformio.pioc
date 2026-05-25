@@ -40,6 +40,7 @@ build_flags=
     +<components/common/**>
     +<components/common/*/inc>
     +<components/common/*/network_board/**>
+    +<test/networking/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp
@@ -77,6 +78,7 @@ board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
+    +<components/common/*/stm/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/${this.__env__}/**>
     -<components/${this.__env__}/firmware/Drivers/*>
@@ -101,9 +103,11 @@ build_flags=
 
 [env:driving_board]
 board = nucleo_h753zi
+board_build.stm32cube.custom_config_header = yes
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
-    +<components/common/*.c>
+    +<components/common/*/*.c>
+    +<components/common/*/stm/**/*.c>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
@@ -113,6 +117,7 @@ lib_deps = ${extra.common_lib_deps}
 build_flags=
     +<components/common/*/inc> 
     +<components/common/*>
+    +<components/common/*/stm/**>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
@@ -138,6 +143,33 @@ build_flags=
     +<components/common/*/inc/**>
     +<components/common/*>
     +<components/debugging_board/**>
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=softfp
+    -Wl,-u,_printf_float
+    -D CONFIG_LOG_LEVEL=LOG_INFO
+
+[env:can_board]
+board = nucleo_h753zi
+custom_nanopb_protos = +<components/**/*.proto>
+board_build.ldscript = components/can_board/firmware/STM32H753XX_FLASH.ld
+build_src_filter = +<src/${this.__env__}/**/*.c>
+    +<components/common/*/${this.__env__}/**/*.c>
+    +<components/common/*/*.c>
+    +<components/common/*/stm/*.c>
+    +<components/common/motor_driver/**>
+    +<components/can_board/**>
+    -<components/can_board/firmware/Drivers/**>
+    +<components/can_board/firmware/Drivers/BSP/**>
+
+lib_deps = ${extra.common_lib_deps}
+test_filter = common/*
+build_flags=
+    +<components/common/*/inc/**>
+    +<components/common/*>
+    +<components/can_board/**>
+    +<components/common/*>
+    +<components/common/motor_driver/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp

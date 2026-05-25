@@ -47,6 +47,9 @@ result_t ETH_init(linkstatus_callback_t link_state_change_callback,
  *
  * @param[in] receiver_callback
  *      Callback function invoked when a UDP packet is received.
+ * @return status of udp message
+ *         RESULT_OK -> works
+ *         Otherswise -> error
  */
 void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
                   receive_callback_t receiver_callback);
@@ -72,9 +75,13 @@ void ETH_udp_init(uint8_t sender_prio_num, QueueHandle_t *send_queues,
  * @param[in] prio_num
  *      Priority level used for transmission. Must be less than the value
  *      specified in ETH_udp_init().
+ *
+ * @return status of udp message
+ *         RESULT_OK -> works
+ *         Otherswise -> error
  */
-void ETH_udp_send(uint8_t ip[4], int port, uint8_t *payload,
-                  uint16_t payload_len, uint8_t prio_num);
+result_t ETH_udp_send(uint8_t ip[4], int port, uint8_t *payload,
+                      uint16_t payload_len, uint8_t prio_num);
 
 /**
  * @brief Configure MAC address filtering.
