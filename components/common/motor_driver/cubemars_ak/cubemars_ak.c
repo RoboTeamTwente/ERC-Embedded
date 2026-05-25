@@ -60,7 +60,6 @@ result_t cubemars_ak_process_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
     out->motor_temperature =
         (int8_t)data[6] / CUBEMARS_AK_CAN_TEMPERATURE_SCALE;
     out->status_code = (cubemars_ak_error_code)data[7];
-
     return RESULT_OK;
 }
 
