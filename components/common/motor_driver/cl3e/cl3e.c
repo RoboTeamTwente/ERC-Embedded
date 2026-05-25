@@ -25,6 +25,60 @@ extern TIM_HandleTypeDef htim3;//from main
 //#define STEP_DELAY_MS 2
 #define MAX_BLDC_VOLTAGE 24.0f
 
+void cl3e_set_target_position(
+    FDCAN_HandleTypeDef *hfdcan,
+    uint8_t node_id,
+    int32_t target_position)
+{
+    FDCAN_TxHeaderTypeDef tx_header = {0};
+
+    tx_header.Identifier = 0x600 + node_id;
+    tx_header.IdType = FDCAN_STANDARD_ID;
+    tx_header.TxFrameType = FDCAN_DATA_FRAME;
+    tx_header.DataLength = FDCAN_DLC_BYTES_8;
+
+    uint8_t data[8];
+
+    data[0] = 0x23;       // expedited download, 4 bytes
+    data[1] = 0x7A;       // 607Ah low byte
+    data[2] = 0x60;       // 607Ah high byte
+    data[3] = 0x00;       // subindex
+
+    data[4] = (uint8_t)(target_position);
+    data[5] = (uint8_t)(target_position >> 8);
+    data[6] = (uint8_t)(target_position >> 16);
+    data[7] = (uint8_t)(target_position >> 24);
+
+    HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &tx_header, data);
+}
+
+void cl3e_start_position_move(
+    FDCAN_HandleTypeDef *hfdcan,
+    uint8_t node_id,
+    uint16_t controlword)
+{
+    FDCAN_TxHeaderTypeDef tx_header = {0};
+
+    tx_header.Identifier = 0x600 + node_id;
+    tx_header.IdType = FDCAN_STANDARD_ID;
+    tx_header.TxFrameType = FDCAN_DATA_FRAME;
+    tx_header.DataLength = FDCAN_DLC_BYTES_8;
+
+    uint8_t data[8];
+
+    data[0] = 0x2B;       // expedited download 2 bytes
+    data[1] = 0x40;       // 6040h
+    data[2] = 0x60;
+    data[3] = 0x00;
+
+    data[4] = controlword & 0xFF;
+    data[5] = (controlword >> 8) & 0xFF;
+    data[6] = 0;
+    data[7] = 0;
+
+    HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &tx_header, data);
+}
+
 uint32_t CL3E_GetTimerClock(TIM_HandleTypeDef *htim)
 {
     uint32_t pclk;
