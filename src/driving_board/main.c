@@ -90,32 +90,32 @@ void MainTaskListener(void *argument);
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
     .stack_size = 1024 * 4,
-    .priority = (osPriority_t)tskIDLE_PRIORITY,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t pwmTask_attributes = {
     .name = "pwmTask",
     .stack_size = 256 * 4,
-    .priority = (osPriority_t)tskIDLE_PRIORITY,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t drivingEncoderTask_attributes = {
     .name = "encoderTask",
     .stack_size = 256 * 4,
-    .priority = (osPriority_t)tskIDLE_PRIORITY,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 
 const osThreadAttr_t driveTask_attributes = {
     .name = "driveTask",
     .stack_size = 1024 * 2,
-    .priority = (osPriority_t)tskIDLE_PRIORITY,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t mainTaskListener_attributes = {
     .name = "mainTaskListener",
     .stack_size = 1024 * 2,
-    .priority = (osPriority_t)tskIDLE_PRIORITY,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 
@@ -301,6 +301,7 @@ void init_board() {
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_FDCAN1_Init();
   control_drive_manual_initialize();
 
   //ethernet
@@ -522,7 +523,7 @@ void DrivingEncoderTask(void *argument){
   {
     cl3e_request_position(&hfdcan1, 1);
     cl3e_request_position(&hfdcan1, 2);
-    osDelay(10);
+    osDelay(1000);
 
     LOGI("CL3E: motor 0", "pos=%ld", g_cl3e_info[0].actual_position);
   }
@@ -679,6 +680,13 @@ uint32_t last_tick = osKernelGetTickCount();
          */
         cubemars_ak_set_speed(
             &hfdcan1,
+            93,
+            10000);
+
+            /**
+             * 
+        cubemars_ak_set_speed(
+            &hfdcan1,
             LF_ID,
             (int32_t)rtY.controlLF);
 
@@ -706,7 +714,8 @@ uint32_t last_tick = osKernelGetTickCount();
             &hfdcan1,
             RB_ID,
             (int32_t)rtY.controlRB);
-
+             */
+        osDelay(100);
           LOGI("AK1",
         "pos=%.1f deg speed=%d",
         motors[1].motor_position / 10.0f,
