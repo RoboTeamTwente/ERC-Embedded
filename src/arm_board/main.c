@@ -76,14 +76,14 @@ static result_t Callback_ArmBoardMovementFeedback(void *buffer);
 
 /*Ethernet constants*/
 
-//Sending side
+//MY LAPTOP
 uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
-uint8_t my_ip[4] = SAMPLE_BOARD_IP;
+uint8_t my_ip[4] = {192, 168, 0, 111};
 uint8_t netmask[4] = NETMASK;
 uint8_t gateway[4] = GATEWAY;
 
-//Receiving side
-uint8_t ip[4] = NETWORK_IP;
+//OTHER LAPTOP
+uint8_t ip[4] = {192, 168, 0, 50};
 uint8_t mac[6] = NETWORK_MAC;
 
 osThreadId_t stepperTaskHandle;
@@ -186,15 +186,15 @@ int main(void) {
     //     //HANDLE
     // }
 
-    stepper1_task_handle = osThreadNew(stepper1_task, NULL, &stepper1_task_attr);
-    if (stepper1_task_handle == NULL) {
-        //HANDLE
-    }
+    // stepper1_task_handle = osThreadNew(stepper1_task, NULL, &stepper1_task_attr);
+    // if (stepper1_task_handle == NULL) {
+    //     //HANDLE
+    // }
 
-    stepper2_task_handle = osThreadNew(stepper2_task, NULL, &stepper2_task_attr);
-    if (stepper2_task_handle == NULL) {
-        //HANDLE
-    }
+    // stepper2_task_handle = osThreadNew(stepper2_task, NULL, &stepper2_task_attr);
+    // if (stepper2_task_handle == NULL) {
+    //     //HANDLE
+    // }
 
     // Start scheduler
     osKernelStart();
@@ -255,7 +255,7 @@ static void pwm_scope_task(void *argument) {
 
 /* Callback function that handles a specific packet*/
 void HandlePacket(receive_frame_t *receive_frame) {
-    printf("Wayoo, message received");
+    LOGI(TAG, "Wayoo, message received");
 }
 
 extern int receiving_counter;
@@ -285,7 +285,7 @@ void test_ethernet(void* argument) {
         Callback_ArmBoardControlSignals
     };
 
-    // PacketDispatcherInit(handlers, 1);
+    PacketDispatcherInit(handlers, 1);
     ETH_udp_init(2, queues, HandlePacket);
 
     /*Config + add ARP receiving side*/
@@ -299,7 +299,7 @@ void test_ethernet(void* argument) {
           ETH_udp_send(ip, 8, packet1_payload, 4, 1);
           outgoing_counter += 1;
           LOGI(TAG, "%d", outgoing_counter);
-          osDelay(1000);
+          osDelay(5000);
       }
 
     while(1){
@@ -311,6 +311,8 @@ void test_ethernet(void* argument) {
 
 /* Config for 1 pbmessage: ArmBoardControlSignals */
 static result_t Callback_ArmBoardControlSignals(void *buffer) {
+    LOGI(TAG, "PACKET RECEIVED");
+
     if (buffer == NULL) {
         return RESULT_ERR_INVALID_ARG;
     }
