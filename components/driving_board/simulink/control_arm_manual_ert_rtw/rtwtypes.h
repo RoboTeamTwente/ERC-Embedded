@@ -5,11 +5,11 @@
  *
  * File: rtwtypes.h
  *
- * Code generated for Simulink model 'control_drive_manual'.
+ * Code generated for Simulink model 'control_arm_manual'.
  *
- * Model version                  : 1.13
+ * Model version                  : 1.8
  * Simulink Coder version         : 25.2 (R2025b) 28-Jul-2025
- * C/C++ source code generated on : Mon May 18 12:32:25 2026
+ * C/C++ source code generated on : Thu May 21 11:07:17 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: STMicroelectronics->ST10/Super10

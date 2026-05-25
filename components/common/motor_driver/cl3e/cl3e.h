@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "stm32h7xx_hal.h"
+#include "fdcan.h"
 
 #define CL3E_MAX_MOTORS 2
 typedef struct
@@ -12,7 +13,17 @@ typedef struct
 
 } cl3e_information;
 
+
 extern cl3e_information g_cl3e_info[CL3E_MAX_MOTORS];
+
+void cl3e_set_mode(
+    FDCAN_HandleTypeDef *hfdcan,
+    uint8_t node_id,
+    int8_t mode);
+
+void cl3e_set_target_position(FDCAN_HandleTypeDef *hfdcan, uint8_t node_id, int32_t target_position);
+
+void cl3e_start_position_move(FDCAN_HandleTypeDef *hfdcan, uint8_t node_id, uint16_t controlword);
 
 void cl3e_request_position(FDCAN_HandleTypeDef *hfdcan, uint8_t node_id);
 

@@ -1,7 +1,7 @@
 
 #include <stdint.h>
 #include "math.h"
-#include "control_drive_manual.h"//get control output
+//#include "control_drive_manual.h"//get control output
 #include <rtwtypes.h>
 #include "stm32h7xx_hal.h" //needed in order to reach HAL timer handlers, dictionary for microcontroller that defines periperals
 #include "cl3e.h"
@@ -9,8 +9,8 @@
 #include "result.h"
 
 
-extern ExtU rtU;
-extern ExtY rtY;// Simulink output
+//extern ExtU rtU;
+//extern ExtY rtY;// Simulink output
 extern TIM_HandleTypeDef htim1;//from main
 extern TIM_HandleTypeDef htim3;//from main
 
@@ -25,17 +25,54 @@ extern TIM_HandleTypeDef htim3;//from main
 //#define STEP_DELAY_MS 2
 #define MAX_BLDC_VOLTAGE 24.0f
 
+void cl3e_set_mode(
+    FDCAN_HandleTypeDef *hfdcan,
+    uint8_t node_id,
+    int8_t mode)
+{
+    FDCAN_TxHeaderTypeDef tx_header = {
+    .Identifier = 0x600 + node_id,
+    .IdType = FDCAN_STANDARD_ID,
+    .TxFrameType = FDCAN_DATA_FRAME,
+    .DataLength = FDCAN_DLC_BYTES_8,
+    .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+    .BitRateSwitch = FDCAN_BRS_OFF,
+    .FDFormat = FDCAN_CLASSIC_CAN,
+    .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+    .MessageMarker = 0,
+    };
+
+    uint8_t data[8];
+
+    data[0] = 0x2F;   // expedited download, 1 byte
+    data[1] = 0x60;   // 6060h low byte
+    data[2] = 0x60;   // 6060h high byte
+    data[3] = 0x00;   // subindex
+
+    data[4] = (uint8_t)mode;
+    data[5] = 0;
+    data[6] = 0;
+    data[7] = 0;
+
+    HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &tx_header, data);
+}
+
 void cl3e_set_target_position(
     FDCAN_HandleTypeDef *hfdcan,
     uint8_t node_id,
     int32_t target_position)
 {
-    FDCAN_TxHeaderTypeDef tx_header = {0};
-
-    tx_header.Identifier = 0x600 + node_id;
-    tx_header.IdType = FDCAN_STANDARD_ID;
-    tx_header.TxFrameType = FDCAN_DATA_FRAME;
-    tx_header.DataLength = FDCAN_DLC_BYTES_8;
+    FDCAN_TxHeaderTypeDef tx_header = {
+    .Identifier = 0x600 + node_id,
+    .IdType = FDCAN_STANDARD_ID,
+    .TxFrameType = FDCAN_DATA_FRAME,
+    .DataLength = FDCAN_DLC_BYTES_8,
+    .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+    .BitRateSwitch = FDCAN_BRS_OFF,
+    .FDFormat = FDCAN_CLASSIC_CAN,
+    .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+    .MessageMarker = 0,
+    };
 
     uint8_t data[8];
 
@@ -57,12 +94,17 @@ void cl3e_start_position_move(
     uint8_t node_id,
     uint16_t controlword)
 {
-    FDCAN_TxHeaderTypeDef tx_header = {0};
-
-    tx_header.Identifier = 0x600 + node_id;
-    tx_header.IdType = FDCAN_STANDARD_ID;
-    tx_header.TxFrameType = FDCAN_DATA_FRAME;
-    tx_header.DataLength = FDCAN_DLC_BYTES_8;
+    FDCAN_TxHeaderTypeDef tx_header = {
+    .Identifier = 0x600 + node_id,
+    .IdType = FDCAN_STANDARD_ID,
+    .TxFrameType = FDCAN_DATA_FRAME,
+    .DataLength = FDCAN_DLC_BYTES_8,
+    .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+    .BitRateSwitch = FDCAN_BRS_OFF,
+    .FDFormat = FDCAN_CLASSIC_CAN,
+    .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+    .MessageMarker = 0,
+    };
 
     uint8_t data[8];
 

@@ -1,7 +1,8 @@
 #ifndef PIO_UNIT_TESTING
 
 #include "cmsis_os2.h" // FreeRTOS wrapper header (v2)
-#include "control_drive_manual.h"
+//#include "control_drive_manual.h"
+#include "control_arm_manual.h"
 #include "cubemx_main.h"
 #include "components/common/envelope.pb.h"
 //#include "diagnostics.pb.h"
@@ -134,6 +135,26 @@ void ethernet_linkstatus_callback(void *arg) {
 #define DISPATCHER_INPUT_QUEUE_LENGTH 8U
 
 
+static void CAN_LogStatus(FDCAN_HandleTypeDef *hfdcan) {
+  FDCAN_ProtocolStatusTypeDef protocol_status;
+  FDCAN_ErrorCountersTypeDef error_counters;
+
+  if (HAL_FDCAN_GetProtocolStatus(hfdcan, &protocol_status) == HAL_OK) {
+    LOGI("CAN",
+         "LastErrorCode=%lu DataLastErrorCode=%lu Activity=%lu BusOff=%lu",
+         protocol_status.LastErrorCode, protocol_status.DataLastErrorCode,
+         protocol_status.Activity, protocol_status.BusOff);
+  }
+
+  if (HAL_FDCAN_GetErrorCounters(hfdcan, &error_counters) == HAL_OK) {
+    LOGI("CAN", "TxErrorCnt=%lu RxErrorCnt=%lu RxErrorPassive=%lu",
+         error_counters.TxErrorCnt, error_counters.RxErrorCnt,
+         error_counters.RxErrorPassive);
+  }
+
+  LOGI("CAN", "HAL error=0x%08lx", HAL_FDCAN_GetError(hfdcan));
+}
+
 static int incomming_counter = 0;
 static int outgoing_counter = 0;
 static result_t HandleTypeMotorMsgPacket(void *buffer) {
@@ -156,9 +177,11 @@ static result_t HandleTypeManualDrivePacket(void *buffer) {
 
   BasestationManualDrive *packet = (BasestationManualDrive *)buffer;
   incomming_counter += 1;
-  
-  rtU.controllerSpeed = packet->forward_backward;
+  /**
+   *   rtU.controllerSpeed = packet->forward_backward;
   rtU.controllerSteering = packet->turn;
+   */
+
 
   LOGI(TAG,"Envelope of type forward_backward to go info has value: %f\n", packet->forward_backward);
   LOGI(TAG,"Envelope of type turn to go info has value: %f\n", packet->turn);
@@ -173,8 +196,10 @@ static result_t HandleTypeManualBrakePacket(void *buffer) {
 
   BasestationManualBrake *packet = (BasestationManualBrake *)buffer;
   incomming_counter += 1;
-  
-  rtU.break_l = packet->brake;
+  /**
+   *   rtU.break_l = packet->brake;
+   */
+
   LOGI(TAG,"Envelope of type brake info has value: %f\n", packet->brake);
   LOGI(TAG, "ManualBrakePacket This is packet: %d\n", incomming_counter);
   return RESULT_OK;
@@ -301,7 +326,9 @@ void init_board() {
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
-  control_drive_manual_initialize();
+  MX_FDCAN1_Init();
+  //control_drive_manual_initialize();
+  control_arm_manual_initialize();
 
   //ethernet
   uint8_t mac[6] = NETWORK_MAC;
@@ -352,6 +379,7 @@ void init_board() {
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
+   
   osKernelStart();
 
 
@@ -500,18 +528,38 @@ void PwmTask(void *argument)
     uint32_t last_tick = osKernelGetTickCount();
     uint32_t wake_time = last_tick;
     const uint32_t period = 1;
+    rtU.x=1;
+    rtU.y=2;
+    rtU.z=1;
+    cl3e_set_mode(&hfdcan1, 127, 1);
+    cl3e_start_position_move(&hfdcan1, 127, 0x0006);
+    osDelay(100);
+
+    cl3e_start_position_move(&hfdcan1, 127, 0x0007);
+    osDelay(100);
+
+    cl3e_start_position_move(&hfdcan1, 127, 0x000F);
+    osDelay(100);
 
     //CL3E_Test();//I ll delete it later it blocks the task bc of delays
     for(;;)
     {
       uint32_t now = osKernelGetTickCount();
-      CL3E_DriveFromControl(&htim1, 1, GPIOA, 3, rtY.controlLF);
+
+      
+      cl3e_set_target_position(&hfdcan1, 127, 10000);
+
+        cl3e_start_position_move(&hfdcan1, 127, 0x001F);
+
+      //CL3E_DriveFromControl(&htim1, 1, GPIOA, 3, rtY.controlLF);
       rtU.deltaTime = (now - last_tick) * 0.001f;
       last_tick = now;
       
-      control_drive_manual_step();
+      //control_drive_manual_step();
+      control_arm_manual_step();
 
       wake_time += period;// schedule next exact tick
+      osDelay(100);
       osDelayUntil(wake_time);
     }
 }
@@ -520,11 +568,13 @@ void DrivingEncoderTask(void *argument){
 
   for(;;)
   {
-    cl3e_request_position(&hfdcan1, 1);
-    cl3e_request_position(&hfdcan1, 2);
-    osDelay(10);
+    cl3e_request_position(&hfdcan1, 127);
+    
+    CAN_LogStatus(&hfdcan1);
+    osDelay(1000);
 
     LOGI("CL3E: motor 0", "pos=%ld", g_cl3e_info[0].actual_position);
+    rtU.baseActualPosition = g_cl3e_info[0].actual_position;
   }
 }
 
@@ -537,15 +587,16 @@ uint32_t last_tick = osKernelGetTickCount();
     for (;;)
     {
         uint32_t now = osKernelGetTickCount();
-
-        rtU.deltaTime =
+/**
+ * rtU.deltaTime =
             (now - last_tick) * 0.001f;
 
         last_tick = now;
 
-        /*
-         * LEFT FRONT
-         */
+        
+        //LEFT FRONT
+        
+        
         rtU.LFActualPos =
             motors[LF_ID].motor_position;
 
@@ -564,9 +615,8 @@ uint32_t last_tick = osKernelGetTickCount();
         rtU.LFCanId =
             motors[LF_ID].motor_id;
 
-        /*
-         * LEFT MIDDLE
-         */
+        //LEFT MIDDLE
+        
         rtU.LMActualPos =
             motors[LM_ID].motor_position;
 
@@ -585,9 +635,8 @@ uint32_t last_tick = osKernelGetTickCount();
         rtU.LMCanId =
             motors[LM_ID].motor_id;
 
-        /*
-         * LEFT BACK
-         */
+        //LEFT BACK
+         
         rtU.LBActualPos =
             motors[LB_ID].motor_position;
 
@@ -606,9 +655,8 @@ uint32_t last_tick = osKernelGetTickCount();
         rtU.LBCanId =
             motors[LB_ID].motor_id;
 
-        /*
-         * RIGHT FRONT
-         */
+        // RIGHT FRONT
+        
         rtU.RFActualPos =
             motors[RF_ID].motor_position;
 
@@ -627,9 +675,8 @@ uint32_t last_tick = osKernelGetTickCount();
         rtU.RFCanId =
             motors[RF_ID].motor_id;
 
-        /*
-         * RIGHT MIDDLE
-         */
+        //RIGHT MIDDLE
+        
         rtU.RMActualPos =
             motors[RM_ID].motor_position;
 
@@ -648,9 +695,8 @@ uint32_t last_tick = osKernelGetTickCount();
         rtU.RMCanId =
             motors[RM_ID].motor_id;
 
-        /*
-         * RIGHT BACK
-         */
+        //RIGHT BACK
+      
         rtU.RBActualPos =
             motors[RB_ID].motor_position;
 
@@ -669,14 +715,12 @@ uint32_t last_tick = osKernelGetTickCount();
         rtU.RBCanId =
             motors[RB_ID].motor_id;
 
-        /*
-         * RUN CONTROLLER
-         */
-        control_drive_manual_step();
+        //RUN CONTROLLER
+       
+        //control_drive_manual_step();
 
-        /*
-         * SEND OUTPUTS TO MOTORS
-         */
+        //SEND OUTPUTS TO MOTORS
+      
         cubemars_ak_set_speed(
             &hfdcan1,
             LF_ID,
@@ -711,6 +755,8 @@ uint32_t last_tick = osKernelGetTickCount();
         "pos=%.1f deg speed=%d",
         motors[1].motor_position / 10.0f,
         motors[1].motor_speed);
+ */
+        
 
         osDelay(1);
     }
