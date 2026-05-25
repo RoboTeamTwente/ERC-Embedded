@@ -215,8 +215,8 @@ static packet_handler_config_t handler_configs[] = {
      .queue_length = 5,
      .queue_buffer = GPS_packet_buffer},
 
-    {.handler = HandleGPSPacket,
-     .task_name = "GPS Handler",
+    {.handler = HandleDrivingPacket,
+     .task_name = "drive Handler",
      .packet_type = PBEnvelope_manual_drive_tag,
      .item_size = BasestationManualDrive_size,
      .task_priority = tskIDLE_PRIORITY + 1U,
@@ -241,7 +241,7 @@ void ethernet_task(void *_arg) {
   uint8_t ip[4] = TEST_SEND_IP;
   uint8_t mac[6] = TEST_SEND_MAC;
 
-  PacketDispatcherInit(handler_configs, 1);
+  PacketDispatcherInit(handler_configs, 2);
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);

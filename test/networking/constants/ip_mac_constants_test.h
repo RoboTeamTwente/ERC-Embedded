@@ -1,7 +1,7 @@
 #ifndef IP_MAC_CONSTANTS_TEST
 #define IP_MAC_CONSTANTS_TEST
 
-#define BOARD 1
+#define BOARD 2
 
 #if BOARD == 1
 #define TEST_SEND_IP {192, 168, 0, 111}
@@ -11,7 +11,7 @@
 #define TEST_BOARD_MAC {0x6C, 0x24, 0x08, 0xD2, 0xFA, 0x50}
 #endif
 
-#if BOARD == 2
+#if BOARD == 2 // sending to jetson
 #define TEST_SEND_IP {192, 168, 0, 5}
 #define TEST_SEND_MAC {0x6C, 0x24, 0x08, 0xD2, 0xFA, 0x50}
 
@@ -19,7 +19,7 @@
 #define TEST_BOARD_MAC {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00}
 #endif
 
-#if BOARD == 3
+#if BOARD == 3 // sending to jetson
 #define TEST_SEND_IP {192, 168, 0, 5}
 #define TEST_SEND_MAC {0x6C, 0x24, 0x08, 0xD2, 0xFA, 0x50}
 
