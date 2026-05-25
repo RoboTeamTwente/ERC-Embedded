@@ -77,7 +77,7 @@ static result_t Callback_ArmBoardMovementFeedback(void *buffer);
 /*Ethernet constants*/
 
 //MY LAPTOP
-uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
+uint8_t my_mac[6] = {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00};
 uint8_t my_ip[4] = {192, 168, 0, 111};
 uint8_t netmask[4] = NETMASK;
 uint8_t gateway[4] = GATEWAY;
@@ -296,11 +296,11 @@ void test_ethernet(void* argument) {
 
     /*Test sending*/
     while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
-          ETH_udp_send(ip, 8, packet1_payload, 4, 1);
-          outgoing_counter += 1;
-          LOGI(TAG, "%d", outgoing_counter);
-          osDelay(5000);
-      }
+        ETH_udp_send(ip, 8, packet1_payload, 4, 1);
+        outgoing_counter += 1;
+        LOGI(TAG, "%d", outgoing_counter);
+        osDelay(5000);
+    }
 
     while(1){
     }
