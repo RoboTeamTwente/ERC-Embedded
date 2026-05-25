@@ -5,3 +5,6 @@
 	url = git@github.com:RoboTeamTwente/ERC-Protobufs.git
 [submodule "sensor_board/ssn/ERC-Protobufs"]
 	branch = master
+[submodule "erc-control-steering"]
+    path = erc-control-steering
+    url = git@github.com:RoboTeamTwente/erc-control-steering.git
