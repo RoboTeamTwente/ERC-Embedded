@@ -97,9 +97,9 @@ void do_pwm_dma(stepper_t* stepper, int amt_steps, uint32_t freq) {
         osDelay(1); //Delay for thread switching
     }
 
-    if (res != HAL_OK) {
-        free(data_arr_ptr);
-    } 
+    
+    free(data_arr_ptr);
+    
     
 }
 
