@@ -250,9 +250,9 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
     LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
     return;
   }
-  cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
+  //cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
 
-  cl3e_parse_can_message(&rx_header, rx_data);
+  //cl3e_parse_can_message(&rx_header, rx_data);
 }
 
 
@@ -277,7 +277,7 @@ void init_board() {
   SCB_EnableICache();
 
   /* Enable D-Cache---------------------------------------------------------*/
-  //SCB_EnableDCache();
+  SCB_EnableDCache();
 
   HAL_Init();
   SystemClock_Config();
@@ -302,6 +302,7 @@ void init_board() {
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_FDCAN1_Init();
+  MX_USART2_UART_Init();
   control_drive_manual_initialize();
 
   //ethernet
@@ -315,20 +316,6 @@ void init_board() {
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
   ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
   
-  osThreadNew(MainTask, NULL, &mainTask_attributes);
-  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
-  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
-  osThreadNew(DriveTask, NULL, &driveTask_attributes);
-  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
-
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
 
   CAN_ConfigRx_AllStandard();
   if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
@@ -352,6 +339,22 @@ void init_board() {
   LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
+
+       
+  osThreadNew(MainTask, NULL, &mainTask_attributes);
+  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
+  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
+  osThreadNew(DriveTask, NULL, &driveTask_attributes);
+  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
+
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
 
   osKernelStart();
 
@@ -528,200 +531,19 @@ void DrivingEncoderTask(void *argument){
     LOGI("CL3E: motor 0", "pos=%ld", g_cl3e_info[0].actual_position);
   }
 }
-
-void DriveTask(void *argument) {
-  LOGI(TAG, "Sender Task");
-  
-    
-uint32_t last_tick = osKernelGetTickCount();
+void DriveTask(void *argument)
+{
+    osDelay(3000);
 
     for (;;)
     {
-        uint32_t now = osKernelGetTickCount();
+        LOGI("TEST", "sending");
 
-        rtU.deltaTime =
-            (now - last_tick) * 0.001f;
+        cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+        osDelay(1000);
 
-        last_tick = now;
-
-        /*
-         * LEFT FRONT
-         */
-        rtU.LFActualPos =
-            motors[LF_ID].motor_position;
-
-        rtU.LFActualSpeed =
-            motors[LF_ID].motor_speed;
-
-        rtU.LFCurrent =
-            motors[LF_ID].motor_current;
-
-        rtU.LFTemperature =
-            motors[LF_ID].motor_temperature;
-
-        rtU.LFStatus =
-            motors[LF_ID].status_code;
-
-        rtU.LFCanId =
-            motors[LF_ID].motor_id;
-
-        /*
-         * LEFT MIDDLE
-         */
-        rtU.LMActualPos =
-            motors[LM_ID].motor_position;
-
-        rtU.LMActualSpeed =
-            motors[LM_ID].motor_speed;
-
-        rtU.LMCurrent =
-            motors[LM_ID].motor_current;
-
-        rtU.LMTemperature =
-            motors[LM_ID].motor_temperature;
-
-        rtU.LMStatus =
-            motors[LM_ID].status_code;
-
-        rtU.LMCanId =
-            motors[LM_ID].motor_id;
-
-        /*
-         * LEFT BACK
-         */
-        rtU.LBActualPos =
-            motors[LB_ID].motor_position;
-
-        rtU.LBActualSpeed =
-            motors[LB_ID].motor_speed;
-
-        rtU.LBCurrent =
-            motors[LB_ID].motor_current;
-
-        rtU.LBTemperature =
-            motors[LB_ID].motor_temperature;
-
-        rtU.LBStatus =
-            motors[LB_ID].status_code;
-
-        rtU.LBCanId =
-            motors[LB_ID].motor_id;
-
-        /*
-         * RIGHT FRONT
-         */
-        rtU.RFActualPos =
-            motors[RF_ID].motor_position;
-
-        rtU.RFActualSpeed =
-            motors[RF_ID].motor_speed;
-
-        rtU.RFCurrent =
-            motors[RF_ID].motor_current;
-
-        rtU.RFTemperature =
-            motors[RF_ID].motor_temperature;
-
-        rtU.RFStatus =
-            motors[RF_ID].status_code;
-
-        rtU.RFCanId =
-            motors[RF_ID].motor_id;
-
-        /*
-         * RIGHT MIDDLE
-         */
-        rtU.RMActualPos =
-            motors[RM_ID].motor_position;
-
-        rtU.RMActualSpeed =
-            motors[RM_ID].motor_speed;
-
-        rtU.RMCurrent =
-            motors[RM_ID].motor_current;
-
-        rtU.RMTemperature =
-            motors[RM_ID].motor_temperature;
-
-        rtU.RMStatus =
-            motors[RM_ID].status_code;
-
-        rtU.RMCanId =
-            motors[RM_ID].motor_id;
-
-        /*
-         * RIGHT BACK
-         */
-        rtU.RBActualPos =
-            motors[RB_ID].motor_position;
-
-        rtU.RBActualSpeed =
-            motors[RB_ID].motor_speed;
-
-        rtU.RBCurrent =
-            motors[RB_ID].motor_current;
-
-        rtU.RBTemperature =
-            motors[RB_ID].motor_temperature;
-
-        rtU.RBStatus =
-            motors[RB_ID].status_code;
-
-        rtU.RBCanId =
-            motors[RB_ID].motor_id;
-
-        /*
-         * RUN CONTROLLER
-         */
-        control_drive_manual_step();
-
-        /*
-         * SEND OUTPUTS TO MOTORS
-         */
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            93,
-            10000);
-
-            /**
-             * 
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            LF_ID,
-            (int32_t)rtY.controlLF);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            LM_ID,
-            (int32_t)rtY.controlLM);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            LB_ID,
-            (int32_t)rtY.controlLB);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            RF_ID,
-            (int32_t)rtY.controlRF);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            RM_ID,
-            (int32_t)rtY.controlRM);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            RB_ID,
-            (int32_t)rtY.controlRB);
-             */
-        osDelay(100);
-          LOGI("AK1",
-        "pos=%.1f deg speed=%d",
-        motors[1].motor_position / 10.0f,
-        motors[1].motor_speed);
-
-        osDelay(1);
+        cubemars_ak_set_speed(&hfdcan1, 93, 0);
+        osDelay(1000);
     }
 }
 
