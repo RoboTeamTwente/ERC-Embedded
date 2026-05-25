@@ -214,7 +214,7 @@ result_t ETH_udp_send_init(struct udp_pcb *pcb, uint8_t num_buckets,
 
       (void *)1, /* Parameter passed into the task. */
 
-      tskIDLE_PRIORITY, /* Priority at which the task is created. */
+      tskIDLE_PRIORITY + 2U, /* Priority at which the task is created. */
 
       sendStack, /* Array to use as the task's stack. */
 

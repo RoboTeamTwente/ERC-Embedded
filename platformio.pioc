@@ -165,6 +165,7 @@ build_flags=
     +<components/can_board/**>
     +<components/common/*>
     +<components/common/motor_driver/**>
+    +<test/networking/constants/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp

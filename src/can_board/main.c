@@ -1,18 +1,24 @@
 // #include "FreeRTOS.h"
 #include "cmsis_os.h"
 #include "cmsis_os2.h"
+#include "components/basestation/manual_drive.pb.h"
 #include "components/common/motor_driver/cubemars_ak/cubemars_ak.h"
+#include "components/common/networking/inc/ethernet.h"
+#include "components/common/networking_constants/networking_constants.h"
 #include "components/debugging_board/firmware/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h"
 #include "cubemx_main.h"
 #include "fdcan.h"
 #include "gpio.h"
+#include "ip_mac_constants.h"
+#include "ip_mac_constants_test.h"
 #include "logging.h"
+#include "packet_dispatcher.h"
 #include "result.h"
 #include "stdbool.h"
 #include "stm32h7xx_hal_fdcan.h"
 #include "stm32h7xx_nucleo.h"
+#include "test/networking/constants/ip_mac_constants_test.h"
 #include "usart.h"
-#include "components/common/networking/inc/ethernet.h"
 // #include "task.h"
 #include "tim.h"
 
@@ -33,7 +39,11 @@ const osThreadAttr_t mainTaskListener_attributes = {
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
-
+const osThreadAttr_t ethernet_task_attributes = {
+    .name = "ethernet_task_attributes",
+    .stack_size = 1024 * 8,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
+};
 const static char *TAG = "MAIN";
 
 FDCAN_TxHeaderTypeDef tx_header = {
@@ -147,10 +157,10 @@ void MainTaskSender() {
     // cubemars_ak_set_speed(&hfdcan1, 93, 00);
     // HAL_Delay(500);
 
-    cubemars_ak_set_speed(&hfdcan1, 111, 10000);
+    cubemars_ak_set_speed(&hfdcan1, 93, 10000);
     HAL_Delay(1000);
 
-    cubemars_ak_set_speed(&hfdcan1, 111, 0);
+    cubemars_ak_set_speed(&hfdcan1, 93, 0);
     HAL_Delay(2000);
 
     // cubemars_ak_print_feedback(&motor_info);
@@ -166,9 +176,79 @@ void MainTaskSender() {
   }
 }
 
-void MainTask(void *_arg) {
-  LOGI(TAG, "In main function");
-  for (;;) {
+static result_t HandleGPSPacket(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  SensorBoardGPSInfo *packet = (SensorBoardGPSInfo *)buffer;
+  printf("Got gps Packet\n");
+  return RESULT_OK;
+}
+
+static uint8_t GPS_packet_payload[] = {
+    0x62, 0x2C, 0x09, 0x13, 0xF2, 0x41, 0xCF, 0x66, 0x1D, 0x4A, 0x40, 0x11,
+    0x2C, 0x65, 0x19, 0xE2, 0x58, 0x97, 0x1B, 0x40, 0x1D, 0x00, 0x00, 0x0C,
+    0x42, 0x2D, 0x00, 0x00, 0x87, 0x43, 0x35, 0x9A, 0x99, 0x99, 0x3F, 0x3D,
+    0x66, 0x66, 0xE6, 0x3F, 0x40, 0x09, 0x48, 0x01, 0x50, 0x01};
+
+static uint8_t GPS_packet_buffer[SensorBoardGPSInfo_size * 5];
+
+static result_t HandleDrivingPacket(void *buffer) {
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  BasestationManualDrive *packet = (BasestationManualDrive *)buffer;
+  printf("Got Driving Packet\n");
+  return RESULT_OK;
+}
+
+static uint8_t drive_packet_buffer[BasestationManualDrive_size * 5];
+
+static packet_handler_config_t handler_configs[] = {
+    {.handler = HandleGPSPacket,
+     .task_name = "GPS Handler",
+     .packet_type = PBEnvelope_gps_info_tag,
+     .item_size = SensorBoardGPSInfo_size,
+     .task_priority = tskIDLE_PRIORITY + 1U,
+     .queue_length = 5,
+     .queue_buffer = GPS_packet_buffer},
+
+    {.handler = HandleGPSPacket,
+     .task_name = "GPS Handler",
+     .packet_type = PBEnvelope_manual_drive_tag,
+     .item_size = BasestationManualDrive_size,
+     .task_priority = tskIDLE_PRIORITY + 1U,
+     .queue_length = 5,
+     .queue_buffer = drive_packet_buffer}};
+
+void ethernet_task(void *_arg) {
+  int SendQueueSize = 80;
+  static StaticQueue_t xStaticQueue1;
+  uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t udp_receiver_queue1 =
+      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea1, &xStaticQueue1);
+
+  static StaticQueue_t xStaticQueue2;
+  uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t udp_receiver_queue2 =
+      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea2, &xStaticQueue2);
+  QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
+
+  uint8_t ip[4] = TEST_SEND_IP;
+  uint8_t mac[6] = TEST_SEND_MAC;
+
+  PacketDispatcherInit(handler_configs, 1);
+
+  ETH_udp_init(2, queues, DispatchPacket);
+  ETH_add_arp(ip, mac, 5);
+  while (1) {
+    ETH_udp_send(ip, 1500, GPS_packet_payload, 46, 1);
+    osDelay(1000);
+    LOGI(TAG, "ethernet sending");
   }
 }
 static void CAN_ConfigRx(void) {
@@ -246,14 +326,13 @@ int main() {
   MX_TIM1_Init();
   MX_FDCAN1_Init();
   MX_USART2_UART_Init();
-  uint8_t ip[4] = {0,0,0,0};
-  uint8_t netmask[4] = {0,0,0,0};
-  uint8_t gateway[4] = {0,0,0,0};
-  uint8_t mac[6] = {0,0,0,0,0,0};
+  uint8_t ip[4] = TEST_BOARD_IP;
+  uint8_t netmask[4] = NETMASK;
+  uint8_t gateway[4] = GATEWAY;
+  uint8_t mac[6] = TEST_BOARD_MAC;
   ETH_init(NULL, ip, netmask, gateway, mac);
 
   osKernelInitialize();
-
 
   BSP_LED_Init(LED_GREEN);
   BSP_LED_Init(LED_RED);
@@ -300,8 +379,8 @@ int main() {
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
   osThreadNew(MainTaskSender, NULL, &mainTaskSender_attributes);
   osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
-
-  //MainTaskListener();
-  // MainTask(NULL);
+  osThreadNew(ethernet_task, NULL, &ethernet_task_attributes);
+  // MainTaskListener();
+  //  MainTask(NULL);
   osKernelStart();
 }
