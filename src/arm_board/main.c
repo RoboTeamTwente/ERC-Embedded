@@ -186,15 +186,15 @@ int main(void) {
     //     //HANDLE
     // }
 
-    stepper1_task_handle = osThreadNew(stepper1_task, NULL, &stepper1_task_attr);
-    if (stepper1_task_handle == NULL) {
-        //HANDLE
-    }
+    // stepper1_task_handle = osThreadNew(stepper1_task, NULL, &stepper1_task_attr);
+    // if (stepper1_task_handle == NULL) {
+    //     //HANDLE
+    // }
 
-    stepper2_task_handle = osThreadNew(stepper2_task, NULL, &stepper2_task_attr);
-    if (stepper2_task_handle == NULL) {
-        //HANDLE
-    }
+    // stepper2_task_handle = osThreadNew(stepper2_task, NULL, &stepper2_task_attr);
+    // if (stepper2_task_handle == NULL) {
+    //     //HANDLE
+    // }
 
     // Start scheduler
     osKernelStart();
