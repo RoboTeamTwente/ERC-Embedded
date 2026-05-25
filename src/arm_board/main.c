@@ -55,22 +55,8 @@ extern void MX_DMA_Init(void);
 
 /*Handles*/
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart_com;
-
-/* Private function prototypes */
-static result_t Callback_ArmBoardControlSignals(void *buffer);
-static result_t Callback_ArmBoardMovementFeedback(void *buffer);
-
-/*Ethernet constants*/
-//Sending side
-uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
-uint8_t my_ip[4] = SAMPLE_BOARD_IP;
-uint8_t netmask[4] = NETMASK;
-uint8_t gateway[4] = GATEWAY;
-
-//Receiving side
-uint8_t ip[4] = NETWORK_IP;
-uint8_t mac[6] = NETWORK_MAC;
 
 void my_BSP_COM_Init() {
     BspCOMInit.BaudRate = 115200;
@@ -84,14 +70,31 @@ void my_BSP_COM_Init() {
     MX_USART3_Init(&huart_com, &BspCOMInit);
 }
 
+/* Private function prototypes */
+static result_t Callback_ArmBoardControlSignals(void *buffer);
+static result_t Callback_ArmBoardMovementFeedback(void *buffer);
+
+/*Ethernet constants*/
+
+//Sending side
+uint8_t my_mac[6] = SAMPEL_BOARD_MAC;
+uint8_t my_ip[4] = SAMPLE_BOARD_IP;
+uint8_t netmask[4] = NETMASK;
+uint8_t gateway[4] = GATEWAY;
+
+//Receiving side
+uint8_t ip[4] = NETWORK_IP;
+uint8_t mac[6] = NETWORK_MAC;
+
 osThreadId_t stepperTaskHandle;
 osThreadId_t testethernetTaskHandle;
 
-// Task attributes for CMSIS-RTOS v2
+/* Task attributes for CMSIS-RTOS v2 */
+
 osThreadId_t task_2Handle;
 const osThreadAttr_t task2_attributes = {
     .name = "task2",
-    .stack_size = 1024 * 6, //Make sure this is enough
+    .stack_size = 1024 * 8, //Make sure this is enough
     .priority = tskIDLE_PRIORITY,
 };
 static void test_ethernet(void* argument);
@@ -120,7 +123,20 @@ const osThreadAttr_t stepper2_task_attr = {
 };
 static void stepper2_task(void *argument);
 
+//Stepper objects
+stepper_t stepper1;
+stepper_t stepper2;
+
+/* FOR QUEUE CREATION */
+const int queue_size = 5;
+const int item_size = sizeof(uint32_t);
+
+QueueHandle_t stepper1_queue_handle;
+QueueHandle_t stepper2_queue_handle;
+
 int main(void) {
+
+    LOGI(TAG, "-----------------main-----------------");
 
     /*Inits*/
     MPU_Config_wrapper();
@@ -135,6 +151,7 @@ int main(void) {
 
     //Init timers
     MX_TIM2_Init();
+    MX_TIM3_Init();
 
     //INit all configured peripherals
     my_BSP_COM_Init(); 
@@ -142,8 +159,20 @@ int main(void) {
     //Log init
     LOG_init(&huart_com);
 
+    init_stepper(&stepper1, 50, &htim2);
+    init_stepper(&stepper2, 50, &htim3);
+
     // Init scheduler
     osKernelInitialize();
+
+    /*Create queues*/
+    static StaticQueue_t stepper1_queue;
+    uint8_t stepper1_queue_buffer[queue_size * item_size];
+    QueueHandle_t stepper1_queue_handle = xQueueCreateStatic(queue_size, item_size, stepper1_queue_buffer, &stepper1_queue);
+    
+    static StaticQueue_t stepper2_queue;
+    uint8_t stepper2_queue_buffer[queue_size * item_size];
+    QueueHandle_t stepper2_queue_handle = xQueueCreateStatic(queue_size, item_size, stepper2_queue_buffer, &stepper2_queue);
 
     /* Create the thread(s) */
 
@@ -152,10 +181,10 @@ int main(void) {
         //HANDLE
     }
 
-    pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
-    if (pwmScopeTaskHandle == NULL) {
-        //HANDLE
-    }
+    // pwmScopeTaskHandle = osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes);
+    // if (pwmScopeTaskHandle == NULL) {
+    //     //HANDLE
+    // }
 
     stepper1_task_handle = osThreadNew(stepper1_task, NULL, &stepper1_task_attr);
     if (stepper1_task_handle == NULL) {
@@ -176,16 +205,29 @@ int main(void) {
 }
 
 static void stepper1_task(void *argument) {
+    // LOGI(TAG, "HERE");
+
+    while(1) {
+        do_pwm_dma(&stepper1, 10, (3 * 10^6));
+        LOGI(TAG, "stepper1");
+        osDelay(1000);
+    }
 }
 
 static void stepper2_task(void *argument) {
-}
+    LOGI(TAG, "HERE");
 
+    while(1) {
+        do_pwm_dma(&stepper2, 10, (3 * 10^6));
+        LOGI(TAG, "stepper2");
+        osDelay(1000);
+    }
+}
 
 static void pwm_scope_task(void *argument) {
 
     stepper_t step;
-    init_stepper(&step, 1, 50, &htim2);
+    init_stepper(&step, 50, &htim2);
 
     static const uint32_t scope_pulse_counts[] = {
         10U, 20U, 50U,
@@ -197,7 +239,7 @@ static void pwm_scope_task(void *argument) {
         sizeof(scope_pulse_counts) /
         sizeof(scope_pulse_counts[0]);
 
-    for (;;) {
+    while (1) {
         for (size_t p = 0; p < count; p++) {
             uint32_t pulse_count = scope_pulse_counts[p];
 
@@ -214,7 +256,6 @@ static void pwm_scope_task(void *argument) {
         }
     }
 }
-
 
 /* Callback function that handles a specific packet*/
 void HandlePacket(receive_frame_t *receive_frame) {
@@ -293,7 +334,7 @@ static result_t Callback_ArmBoardControlSignals(void *buffer) {
 
     //bottom stepper
     pckt->stepper_bottom_rev;
-    pckt->stepper_bottom_freq; //ignore
+    pckt->stepper_bottom_freq; 
 
     //top stepper
     pckt->stepper_top_rev;

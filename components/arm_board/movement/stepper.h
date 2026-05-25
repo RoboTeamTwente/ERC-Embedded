@@ -4,7 +4,7 @@
 #include "string.h"
 
 //!NOTE: this is assuming that all steppers are the same stepper and thus have the same specs
-#define STEPPER_PWM_TIMER_TICK_HZ 1000000U //How many ticks in 1 Hz?
+#define STEPPER_PWM_TIMER_TICK_HZ 1000000U //Amt of Herz we calculate with after setting the prescaler (should be 1Mhz)
 #define STEP_PULSE_MIN_WIDTH_TICKS 3U // 3 us at the 1 MHz timer tick rate
 #define RPM 100 //Rotations per minute
 #define STEPS_PER_REV 200 //The amount of steps that makes it turn 360 degrees
