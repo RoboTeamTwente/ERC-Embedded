@@ -7,5 +7,5 @@
     url = https://github.com/RoboTeamTwente/erc-control-steering.git
 
 [submodule "erc-control-arm"]
-    path = erc-control-arm
-    url = https://github.com/RoboTeamTwente/erc-control-arm.git
+	path = erc-control-arm
+	url = https://github.com/RoboTeamTwente/erc-control-arm.git
