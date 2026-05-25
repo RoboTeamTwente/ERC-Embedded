@@ -25,7 +25,6 @@
 #define PLS_PIN 2 //Pulse signal
 #define DIR_PIN 3 //Direction signal
 #define ENA_PIN 4 //Enable signal
-#define ALM_PIN 5 //Alarm signal (OUT)
 
 #define TAG "STEPPER"
 
@@ -41,20 +40,15 @@ void set_pin(int pinname, char what);
 result_t init_stepper(stepper_t* stepper, uint8_t duty_cycle, TIM_HandleTypeDef* htim) {
     stepper->duty_cycle = duty_cycle;
     stepper->htim = htim;
-    stepper->current_angle = 0;
+    // stepper->current_angle = 0;
+    // stepper->frequency_hz = 1U;
 
-    float steps_per_second = ((float) RPM * (float) STEPS_PER_REV) / 60.0f;
+    // uint32_t ARR_ticks = calc_ARR_ticks(stepper->frequency_hz);
+    // __HAL_TIM_SET_AUTORELOAD(htim, ARR_ticks - 1U); 
 
-    //Lower bounded at 1
-    steps_per_second = (steps_per_second < 1.0f) ? 1U : steps_per_second;
-    stepper->frequency_hz = (uint32_t) steps_per_second;
-
-    uint32_t ARR_ticks = calc_ARR_ticks(stepper->frequency_hz);
-    __HAL_TIM_SET_AUTORELOAD(htim, ARR_ticks - 1U); 
-
-    //!TODO: arr ticks -1 but ccr ticks not...
-    uint32_t CCR_ticks = calc_CCR_ticks(ARR_ticks, duty_cycle);
-    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, CCR_ticks);
+    // //!TODO: arr ticks -1 but ccr ticks not...
+    // uint32_t CCR_ticks = calc_CCR_ticks(ARR_ticks, duty_cycle);
+    // __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, CCR_ticks);
 
     HAL_TIM_PWM_Stop(htim, TIM_CHANNEL_1);
 
@@ -134,8 +128,8 @@ void set_pin(int pinname, char what) {
  * @return uint32_t amt of ticks to put in the ARR
  */
 static uint32_t calc_ARR_ticks(uint32_t frequency_hz) {
-    //Minimum frequency = 1Hz
-    if (frequency_hz == 0U) {
+    //Minimum divide by 1
+    if (frequency_hz < 1U) {
         frequency_hz = 1U;
     }
 
@@ -144,6 +138,11 @@ static uint32_t calc_ARR_ticks(uint32_t frequency_hz) {
     //ARR is lower bounded by 2 (effectively 1 when done -1)
     if (ARR_ticks < 2U) {
         ARR_ticks = 2U;
+    }
+
+    //ARR is upper bounded by 65 535, freq of 16Hz
+    if (ARR_ticks > 65535) {
+        ARR_ticks = 65535;
     }
 
     return ARR_ticks;
