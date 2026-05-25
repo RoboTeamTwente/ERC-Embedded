@@ -7,7 +7,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2025 STMicroelectronics.
+  * Copyright (c) 2026 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -19,7 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "cubemx_main.h"
 #include "lwip/opt.h"
 #include "lwip/timeouts.h"
 #include "netif/ethernet.h"
@@ -672,7 +672,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef* ethHandle)
     HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
     /* Peripheral interrupt init */
-    HAL_NVIC_SetPriority(ETH_IRQn, 15, 0);
+    HAL_NVIC_SetPriority(ETH_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(ETH_IRQn);
   /* USER CODE BEGIN ETH_MspInit 1 */
 
