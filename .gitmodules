@@ -1,10 +1,11 @@
-[submodule "protobufs"]
-	path = ERC-Protobufs
-	url = git@github.com:RoboTeamTwente/ERC-Protobufs.git
 [submodule "ERC-Protobufs"]
-	url = git@github.com:RoboTeamTwente/ERC-Protobufs.git
-[submodule "sensor_board/ssn/ERC-Protobufs"]
-	branch = master
+    path = ERC-Protobufs
+    url = git@github.com:RoboTeamTwente/ERC-Protobufs.git
+
 [submodule "erc-control-steering"]
-	path = erc-control-steering
-	url = https://github.com/RoboTeamTwente/erc-control-steering.git
+    path = erc-control-steering
+    url = https://github.com/RoboTeamTwente/erc-control-steering.git
+
+[submodule "erc-control-arm"]
+    path = erc-control-arm
+    url = https://github.com/RoboTeamTwente/erc-control-arm.git
