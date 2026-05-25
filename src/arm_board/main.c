@@ -94,7 +94,7 @@ osThreadId_t testethernetTaskHandle;
 osThreadId_t task_2Handle;
 const osThreadAttr_t task2_attributes = {
     .name = "task2",
-    .stack_size = 1024 * 8, //Make sure this is enough
+    .stack_size = 1024 * 10, //Make sure this is enough
     .priority = tskIDLE_PRIORITY,
 };
 static void test_ethernet(void* argument);
@@ -186,15 +186,15 @@ int main(void) {
     //     //HANDLE
     // }
 
-    // stepper1_task_handle = osThreadNew(stepper1_task, NULL, &stepper1_task_attr);
-    // if (stepper1_task_handle == NULL) {
-    //     //HANDLE
-    // }
+    stepper1_task_handle = osThreadNew(stepper1_task, NULL, &stepper1_task_attr);
+    if (stepper1_task_handle == NULL) {
+        //HANDLE
+    }
 
-    // stepper2_task_handle = osThreadNew(stepper2_task, NULL, &stepper2_task_attr);
-    // if (stepper2_task_handle == NULL) {
-    //     //HANDLE
-    // }
+    stepper2_task_handle = osThreadNew(stepper2_task, NULL, &stepper2_task_attr);
+    if (stepper2_task_handle == NULL) {
+        //HANDLE
+    }
 
     // Start scheduler
     osKernelStart();
@@ -205,21 +205,17 @@ int main(void) {
 }
 
 static void stepper1_task(void *argument) {
-    // LOGI(TAG, "HERE");
 
     while(1) {
-        do_pwm_dma(&stepper1, 10, (3 * 10^6));
-        LOGI(TAG, "stepper1");
+        do_pwm_dma(&stepper1, 10, 100);
         osDelay(1000);
     }
 }
 
 static void stepper2_task(void *argument) {
-    LOGI(TAG, "HERE");
 
     while(1) {
-        do_pwm_dma(&stepper2, 10, (3 * 10^6));
-        LOGI(TAG, "stepper2");
+        do_pwm_dma(&stepper2, 12, 100); //10 steps, freq = 10 kHz
         osDelay(1000);
     }
 }
@@ -289,8 +285,8 @@ void test_ethernet(void* argument) {
         Callback_ArmBoardControlSignals
     };
 
-    PacketDispatcherInit(handlers, 1);
-    ETH_udp_init(2, queues, DispatchPacket);
+    // PacketDispatcherInit(handlers, 1);
+    ETH_udp_init(2, queues, HandlePacket);
 
     /*Config + add ARP receiving side*/
     ETH_add_arp(ip, mac, 5);
@@ -335,10 +331,12 @@ static result_t Callback_ArmBoardControlSignals(void *buffer) {
     //bottom stepper
     pckt->stepper_bottom_rev;
     pckt->stepper_bottom_freq; 
+    pckt->stepper_bottom_dir; 
 
     //top stepper
     pckt->stepper_top_rev;
-    pckt->stepper_top_freq; //ignore
+    pckt->stepper_top_freq; 
+    pckt->stepper_top_dir; 
     return RESULT_OK;
 }
 
