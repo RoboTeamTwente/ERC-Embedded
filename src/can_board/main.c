@@ -157,11 +157,11 @@ void MainTaskSender() {
     // cubemars_ak_set_speed(&hfdcan1, 93, 00);
     // HAL_Delay(500);
 
-    cubemars_ak_set_speed(&hfdcan1, 93, 10000);
-    HAL_Delay(1000);
+    // cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+    osDelay(1000);
 
-    cubemars_ak_set_speed(&hfdcan1, 93, 0);
-    HAL_Delay(2000);
+    // cubemars_ak_set_speed(&hfdcan1, 93, 0);
+    // HAL_Delay(2000);
 
     // cubemars_ak_print_feedback(&motor_info);
     //
@@ -200,7 +200,12 @@ static result_t HandleDrivingPacket(void *buffer) {
   }
 
   BasestationManualDrive *packet = (BasestationManualDrive *)buffer;
-  printf("Got Driving Packet\n");
+  int speed = 0;
+  if (packet->forward_backward > 100000) {
+    speed = 10000;
+  }
+  cubemars_ak_set_speed(&hfdcan1, 93, speed);
+  printf("Got Driving Packet %i\n", packet->forward_backward);
   return RESULT_OK;
 }
 
