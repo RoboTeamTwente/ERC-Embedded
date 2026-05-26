@@ -22,6 +22,41 @@ static FDCAN_TxHeaderTypeDef tx_header = {
     .MessageMarker = 0,
 };
 
+void buffer_append_int32(uint8_t* buffer, int32_t number, size_t* index) {
+    buffer[(*index)++] = number >> 24;
+    buffer[(*index)++] = number >> 16;
+    buffer[(*index)++] = number >> 8;
+    buffer[(*index)++] = number;
+}
+void buffer_append_int16(uint8_t* buffer, int16_t number, size_t* index) {
+    buffer[(*index)++] = number >> 8;
+    buffer[(*index)++] = number;
+}
+int16_t buffer_get_int16(const uint8_t* buffer, size_t* index) {
+    int16_t res =
+        ((uint16_t)buffer[*index]) << 8 | ((uint16_t)buffer[*index + 1]);
+    return res;
+}
+uint16_t buffer_get_uint16(const uint8_t* buffer, size_t* index) {
+    uint16_t res =
+        ((uint16_t)buffer[*index]) << 8 | ((uint16_t)buffer[*index + 1]);
+    return res;
+}
+int32_t buffer_get_int32(const uint8_t* buffer, size_t* index) {
+    int32_t res = ((uint32_t)buffer[*index]) << 24 |
+                  ((uint32_t)buffer[*index + 1]) << 16 |
+                  ((uint32_t)buffer[*index + 2]) << 8 |
+                  ((uint32_t)buffer[*index + 3]);
+    return res;
+}
+uint32_t buffer_get_uint32(const uint8_t* buffer, size_t* index) {
+    uint32_t res = ((uint32_t)buffer[*index]) << 24 |
+                   ((uint32_t)buffer[*index + 1]) << 16 |
+                   ((uint32_t)buffer[*index + 2]) << 8 |
+                   ((uint32_t)buffer[*index + 3]);
+    return res;
+}
+
 static uint8_t cubemars_ak_known_ids[CUBEMARS_AK_MAX_NUMBER_OF_MOTORS];
 static cubemars_ak_information
     cubemars_ak_known_info[CUBEMARS_AK_MAX_NUMBER_OF_MOTORS];
@@ -60,10 +95,14 @@ result_t cubemars_ak_process_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
         return RESULT_ERR_NO_MEM;
     }
     cubemars_ak_information* out = &cubemars_ak_known_info[i];
+    size_t index = 0;
     out->motor_id = motor_id;
-    out->motor_position = (int16_t)*(data) / CUBEMARS_AK_CAN_POSITION_SCALE;
-    out->motor_speed = (int16_t)*(data + 2) / CUBEMARS_AK_CAN_SPEED_SCALE;
-    out->motor_current = (int16_t)*(data + 4) / CUBEMARS_AK_CAN_CURRENT_SCALE;
+    out->motor_position =
+        buffer_get_int16(data, &index) / CUBEMARS_AK_CAN_POSITION_SCALE;
+    out->motor_speed =
+        buffer_get_int16(data, &index) / CUBEMARS_AK_CAN_SPEED_SCALE;
+    out->motor_current =
+        buffer_get_int16(data, &index) / CUBEMARS_AK_CAN_CURRENT_SCALE;
     out->motor_temperature =
         (int8_t)data[6] / CUBEMARS_AK_CAN_TEMPERATURE_SCALE;
     out->status_code = (cubemars_ak_error_code)data[7];
@@ -119,23 +158,6 @@ inline uint32_t cubemars_ak_get_can_id(uint8_t _controler_id,
     return _controler_id | ((uint32_t)_type << 8);
 }
 
-static int16_t cubemars_get_i16_be(const uint8_t* buf, size_t* idx) {
-    uint16_t value = ((uint16_t)buf[*idx] << 8) | ((uint16_t)buf[*idx + 1]);
-
-    *idx += 2;
-
-    return (int16_t)value;
-}
-
-static int32_t cubemars_get_i32_be(const uint8_t* buf, size_t* idx) {
-    uint32_t value = ((uint32_t)buf[*idx] << 24) |
-                     ((uint32_t)buf[*idx + 1] << 16) |
-                     ((uint32_t)buf[*idx + 2] << 8) | ((uint32_t)buf[*idx + 3]);
-
-    *idx += 4;
-
-    return (int32_t)value;
-}
 result_t cubemars_ak_set_speed(FDCAN_HandleTypeDef* can_handler,
                                uint8_t controller_id, int32_t erpm) {
     if (can_handler == NULL) {
@@ -145,10 +167,9 @@ result_t cubemars_ak_set_speed(FDCAN_HandleTypeDef* can_handler,
     tx_header.Identifier =
         cubemars_ak_get_can_id(controller_id, CUBEMARS_AK_SET_RPM);
     tx_header.DataLength = FDCAN_DLC_BYTES_4;
-
-    erpm = (int32_t)__REV(
-        (uint32_t)
-            erpm);  // You can hate me for this, but its funky and I like it
+    uint8_t buff[4] = {0};
+    size_t index;
+    buffer_append_int32(buff, erpm * CUBEMARS_AK_CAN_SPEED_SCALE, &index);
 
     if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header,
                                       (uint8_t*)&erpm) != HAL_OK) {
@@ -166,19 +187,17 @@ result_t cubemars_ak_set_position(FDCAN_HandleTypeDef* can_handler,
         return RESULT_ERR_INVALID_ARG;
     }
 
-    int32_t position_raw =
-        (int32_t)(position_deg * CUBEMARS_AK_MOTOR_POSITION_SCALE);
-
     tx_header.Identifier =
         cubemars_ak_get_can_id(controller_id, CUBEMARS_AK_SET_POSITION);
     tx_header.DataLength = FDCAN_DLC_BYTES_4;
 
-    position_raw =
-        (int32_t)__REV((uint32_t)position_raw);  // You can hate me for this,
-                                                 // but its funky and I like it
+    uint8_t buff[4] = {0};
+    size_t index;
+    buffer_append_int32(buff, position_deg * CUBEMARS_AK_CAN_POSITION_SCALE,
+                        &index);
 
-    if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header,
-                                      (uint8_t*)&position_raw) != HAL_OK) {
+    if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header, buff) !=
+        HAL_OK) {
         return RESULT_FAIL;
     }
 
@@ -217,17 +236,17 @@ result_t cubemars_ak_set_brake_current(FDCAN_HandleTypeDef* can_handler,
         return RESULT_ERR_INVALID_ARG;
     }
 
-    int32_t current_raw =
-        (int32_t)(current_a * CUBEMARS_AK_BRAKE_CURRENT_SCALE);
-
     tx_header.Identifier =
         cubemars_ak_get_can_id(controller_id, CUBEMARS_AK_SET_CURRENT_BRAKE);
     tx_header.DataLength = FDCAN_DLC_BYTES_4;
 
-    current_raw = (int32_t)__REV((uint32_t)current_raw);
+    uint8_t buff[4] = {0};
+    size_t index;
+    buffer_append_int32(buff, current_a * CUBEMARS_AK_BRAKE_CURRENT_SCALE,
+                        &index);
 
     if (HAL_FDCAN_AddMessageToTxFifoQ(can_handler, &tx_header,
-                                      (uint8_t*)&current_raw) != HAL_OK) {
+                                      (uint8_t*)&current_a) != HAL_OK) {
         return RESULT_FAIL;
     }
 
