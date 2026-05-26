@@ -259,22 +259,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
     LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
     return;
   }
-  //cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
+  cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
 
   //cl3e_parse_can_message(&rx_header, rx_data);
 }
 
 
 
-static void fill_motor(MotorInformation *m, int id)
-{
-    m->state = MotorInformation_State_OPERATING;
-    m->motor_id = id;
 
-    m->rpm = motors[id].motor_speed;
-    m->voltage = 24.0f;
-    m->encoder_angle = motors[id].motor_position;
-}
 
 
 
@@ -429,12 +421,6 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
     diag.state = DrivingBoardDiagnostics_State_OPERATING;
 
-    fill_motor(&diag.front_left_motor, LF_ID);
-    fill_motor(&diag.middle_left_motor, LM_ID);
-    fill_motor(&diag.back_left_motor, LB_ID);
-    fill_motor(&diag.front_right_motor, RF_ID);
-    fill_motor(&diag.middle_right_motor, RM_ID);
-    fill_motor(&diag.back_right_motor, RB_ID);
 
     PBEnvelope diag_envelope = PBEnvelope_init_zero;
 
@@ -514,19 +500,17 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
 void PwmTask(void *argument)
 {
-    uint32_t last_tick = osKernelGetTickCount();
-    uint32_t wake_time = last_tick;
+   // uint32_t last_tick = osKernelGetTickCount();
+    //uint32_t wake_time = last_tick;
     const uint32_t period = 1;
 
-    init_stepper(&stepperLF, 50, &htim1);
-    init_stepper(&stepperLB, 50, &htim3);
-    init_stepper(&stepperRF, 50, &htim4);
-    init_stepper(&stepperRB, 50, &htim5);
 
    
     for(;;)
     {
-      uint32_t now = osKernelGetTickCount();
+          osDelay(1000);
+        /**
+         * uint32_t now = osKernelGetTickCount();
 
 
 
@@ -534,10 +518,12 @@ void PwmTask(void *argument)
       rtU.deltaTime = (now - last_tick) * 0.001f;
       last_tick = now;
       
-      control_drive_manual_step();
+      //control_drive_manual_step();
 
       wake_time += period;// schedule next exact tick
       osDelayUntil(wake_time);
+         */
+      
     }
 }
 
@@ -550,6 +536,7 @@ void DrivingEncoderTask(void *argument){
 
   }
 }
+
 void DriveTask(void *argument)
 {
     osDelay(3000);
@@ -559,10 +546,10 @@ void DriveTask(void *argument)
     {
         LOGI("TEST", "sending");
 
-        cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+       // cubemars_ak_set_speed(&hfdcan1, 93, 10000);
         osDelay(1000);
 
-        cubemars_ak_set_speed(&hfdcan1, 93, 0);
+       // cubemars_ak_set_speed(&hfdcan1, 93, 0);
         osDelay(1000);
         //uint32_t now = osKernelGetTickCount();
 
@@ -571,7 +558,7 @@ void DriveTask(void *argument)
        /*
         * LEFT FRONT
         */
-       rtU.LFActualPos =rtU.RFActualPos;
+       //rtU.LFActualPos =rtU.RFActualPos;
 
           
 
@@ -628,10 +615,7 @@ void DriveTask(void *argument)
            (int32_t)rtY.controlRB);
             */
       
-         LOGI("AK1",
-       "pos=%.1f deg speed=%d",
-       motors[1].motor_position / 10.0f,
-       motors[1].motor_speed);
+
 
 
                /*
