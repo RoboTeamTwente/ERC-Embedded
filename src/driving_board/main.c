@@ -50,6 +50,11 @@
 #define RM_ID 5
 #define RB_ID 6
 
+stepper_t stepperLF;
+stepper_t stepperLB;
+stepper_t stepperRF;
+stepper_t stepperRB;
+
 static char *TAG = "MAIN";
 
 extern ExtU rtU;
@@ -513,7 +518,7 @@ void PwmTask(void *argument)
       rtU.deltaTime = (now - last_tick) * 0.001f;
       last_tick = now;
       
-      control_drive_manual_step();
+      //control_drive_manual_step();
 
       wake_time += period;// schedule next exact tick
       osDelayUntil(wake_time);
@@ -534,6 +539,12 @@ void DrivingEncoderTask(void *argument){
 void DriveTask(void *argument)
 {
     osDelay(3000);
+    init_stepper(stepperLF, 50, &htim1)
+    init_stepper(&stepperLB, 50, &htim3);
+    init_stepper(&stepperRF, 50, &htim4);
+    init_stepper(&stepperRB, 50, &htim5);
+
+    uint32_t last_tick = osKernelGetTickCount();
 
     for (;;)
     {
@@ -544,6 +555,223 @@ void DriveTask(void *argument)
 
         cubemars_ak_set_speed(&hfdcan1, 93, 0);
         osDelay(1000);
+        uint32_t now = osKernelGetTickCount();
+
+        rtU.deltaTime =
+            (now - last_tick) * 0.001f;
+
+        last_tick = now;
+
+        control_drive_manual_step();
+        /*
+         * LEFT FRONT
+         */
+        rtU.LFActualPos =
+            motors[LF_ID].motor_position;
+
+        rtU.LFActualSpeed =
+            motors[LF_ID].motor_speed;
+
+        rtU.LFCurrent =
+            motors[LF_ID].motor_current;
+
+        rtU.LFTemperature =
+            motors[LF_ID].motor_temperature;
+
+        rtU.LFStatus =
+            motors[LF_ID].status_code;
+
+        rtU.LFCanId =
+            motors[LF_ID].motor_id;
+
+        /*
+         * LEFT MIDDLE
+         */
+        rtU.LMActualPos =
+            motors[LM_ID].motor_position;
+
+        rtU.LMActualSpeed =
+            motors[LM_ID].motor_speed;
+
+        rtU.LMCurrent =
+            motors[LM_ID].motor_current;
+
+        rtU.LMTemperature =
+            motors[LM_ID].motor_temperature;
+
+        rtU.LMStatus =
+            motors[LM_ID].status_code;
+
+        rtU.LMCanId =
+            motors[LM_ID].motor_id;
+
+        /*
+         * LEFT BACK
+         */
+        rtU.LBActualPos =
+            motors[LB_ID].motor_position;
+
+        rtU.LBActualSpeed =
+            motors[LB_ID].motor_speed;
+
+        rtU.LBCurrent =
+            motors[LB_ID].motor_current;
+
+        rtU.LBTemperature =
+            motors[LB_ID].motor_temperature;
+
+        rtU.LBStatus =
+            motors[LB_ID].status_code;
+
+        rtU.LBCanId =
+            motors[LB_ID].motor_id;
+
+        /*
+         * RIGHT FRONT
+         */
+        rtU.RFActualPos =
+            motors[RF_ID].motor_position;
+
+        rtU.RFActualSpeed =
+            motors[RF_ID].motor_speed;
+
+        rtU.RFCurrent =
+            motors[RF_ID].motor_current;
+
+        rtU.RFTemperature =
+            motors[RF_ID].motor_temperature;
+
+        rtU.RFStatus =
+            motors[RF_ID].status_code;
+
+        rtU.RFCanId =
+            motors[RF_ID].motor_id;
+
+        /*
+         * RIGHT MIDDLE
+         */
+        rtU.RMActualPos =
+            motors[RM_ID].motor_position;
+
+        rtU.RMActualSpeed =
+            motors[RM_ID].motor_speed;
+
+        rtU.RMCurrent =
+            motors[RM_ID].motor_current;
+
+        rtU.RMTemperature =
+            motors[RM_ID].motor_temperature;
+
+        rtU.RMStatus =
+            motors[RM_ID].status_code;
+
+        rtU.RMCanId =
+            motors[RM_ID].motor_id;
+
+        /*
+         * RIGHT BACK
+         */
+        rtU.RBActualPos =
+            motors[RB_ID].motor_position;
+
+        rtU.RBActualSpeed =
+            motors[RB_ID].motor_speed;
+
+        rtU.RBCurrent =
+            motors[RB_ID].motor_current;
+
+        rtU.RBTemperature =
+            motors[RB_ID].motor_temperature;
+
+        rtU.RBStatus =
+            motors[RB_ID].status_code;
+
+        rtU.RBCanId =
+            motors[RB_ID].motor_id;
+
+        /*
+         * RUN CONTROLLER
+         */
+        control_drive_manual_step();
+
+        /*
+         * SEND OUTPUTS TO MOTORS
+         */
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            93,
+            10000);
+
+            /**
+             * 
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            LF_ID,
+            (int32_t)rtY.controlLF);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            LM_ID,
+            (int32_t)rtY.controlLM);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            LB_ID,
+            (int32_t)rtY.controlLB);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            RF_ID,
+            (int32_t)rtY.controlRF);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            RM_ID,
+            (int32_t)rtY.controlRM);
+
+        cubemars_ak_set_speed(
+            &hfdcan1,
+            RB_ID,
+            (int32_t)rtY.controlRB);
+             */
+        
+          LOGI("AK1",
+        "pos=%.1f deg speed=%d",
+        motors[1].motor_position / 10.0f,
+        motors[1].motor_speed);
+
+                /*
+        * STEPPER CONTROL
+        */
+
+        // LEFT FRONT
+        rotate_stepper(
+            &stepperLF,
+            (uint8_t)fabs(rtY.stepperLFSteps),
+            (uint32_t)fabs(rtY.stepperLFFrequency)
+        );
+
+        // LEFT BACK
+        rotate_stepper(
+            &stepperLB,
+            (uint8_t)fabs(rtY.stepperLBSteps),
+            (uint32_t)fabs(rtY.stepperLBFrequency)
+        );
+
+        // RIGHT FRONT
+        rotate_stepper(
+            &stepperRF,
+            (uint8_t)fabs(rtY.stepperRFSteps),
+            (uint32_t)fabs(rtY.stepperRFFrequency)
+        );
+
+        // RIGHT BACK
+        rotate_stepper(
+            &stepperRB,
+            (uint8_t)fabs(rtY.stepperRBSteps),
+            (uint32_t)fabs(rtY.stepperRBFrequency)
+        );
+        osDelay(1);
     }
 }
 
