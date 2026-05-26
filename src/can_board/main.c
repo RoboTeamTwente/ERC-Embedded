@@ -64,19 +64,20 @@ static cubemars_ak_information motor_info = {0};
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
                                uint32_t RxFifo0ITs) {
-  // if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0) {
-  //   return;
-  // }
+  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0) {
+    return;
+  }
 
-  // FDCAN_RxHeaderTypeDef rx_header = {0};
-  // uint8_t rx_data[8] = {0};
+  FDCAN_RxHeaderTypeDef rx_header = {0};
+  uint8_t rx_data[8] = {0};
 
-  // if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) !=
-  // HAL_OK) {
-  // LOGE("CAN", "RX read failed, err=0x%08lx",
-  // HAL_FDCAN_GetError(hfdcan)); return;
-  // }
-  // cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
+  if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) !=
+  HAL_OK) {
+  LOGE("CAN", "RX read failed, err=0x%08lx",
+  HAL_FDCAN_GetError(hfdcan)); return;
+  }
+  cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
+  printf("TEMPRATURE: %d", motor_info.motor_temperature);
 }
 static void CAN_LogStatus(FDCAN_HandleTypeDef *hfdcan) {
   FDCAN_ProtocolStatusTypeDef protocol_status;
