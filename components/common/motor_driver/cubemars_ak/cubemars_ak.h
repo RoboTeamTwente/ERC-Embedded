@@ -2,9 +2,11 @@
 #define CUBEMARS_AK
 
 #include "cubemars_ak_definitions.h"
+#include "ethernet.h"
 #include "fdcan.h"
 #include "result.h"
 #include "stdint.h"
+#include "stm32h7xx_hal_fdcan.h"
 
 #define CUBEMARS_AK_INFORMATION_PARAM_MASK      \
     (CUBEMARS_AK_PARAM_INPUT_CURRENT_MASK |     \
@@ -15,6 +17,7 @@
      CUBEMARS_AK_PARAM_INPUT_VOLTAGE_MASK |     \
      CUBEMARS_AK_PARAM_STATUS_CODE_MASK)
 
+#define CUBEMARS_AK_MAX_NUMBER_OF_MOTORS (10)
 /**
  * @brief Servo-mode CAN command identifiers for CubeMars AK motor drivers.
  *
@@ -101,11 +104,21 @@ typedef struct {
     uint8_t motor_id;
 } cubemars_ak_information;
 
+typedef struct {
+    FDCAN_RxHeaderTypeDef header;
+    uint8_t data[8];
+} cubemars_ak_can_frame;
+
+result_t cubemars_ak_feedback_task_init(QueueHandle_t queue,
+                                        UBaseType_t queue_length,
+                                        UBaseType_t priority);
+
 /**
  * @brief Parse a CubeMars AK servo-mode CAN feedback frame.
  *
- * Decodes the standard 8-byte servo-mode feedback payload from a CubeMars AK
- * motor driver and stores the result in a cubemars_ak_information structure.
+ * Decodes the standard 8-byte servo-mode feedback payload from a CubeMars
+ * AK motor driver and stores the result in a cubemars_ak_information
+ * structure.
  *
  * Expected CAN frame format:
  * - Extended CAN ID
@@ -142,12 +155,15 @@ typedef struct {
  *
  * @return RESULT_OK if the feedback frame was parsed successfully.
  * @return RESULT_ERR_INVALID_ARG if rx_header, data, or out is NULL.
- * @return RESULT_ERR_BAD_FORMAT if the frame is not a valid CubeMars AK servo
- *         feedback frame.
+ * @return RESULT_ERR_BAD_FORMAT if the frame is not a valid CubeMars AK
+ * servo feedback frame.
  */
 result_t cubemars_ak_parse_can_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
                                         const uint8_t data[8],
                                         cubemars_ak_information* out);
+
+result_t cubemars_ak_process_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
+                                      const uint8_t data[8]);
 
 /**
  * @brief Build the extended CAN identifier for a CubeMars AK servo command.
