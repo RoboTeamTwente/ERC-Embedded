@@ -50,7 +50,8 @@ extern COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
 extern struct netif gnetif;
 extern ETH_HandleTypeDef heth;
-void uart_setup() {
+void uart_setup()
+{
 
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity
    */
@@ -59,7 +60,8 @@ void uart_setup() {
   BspCOMInit.StopBits = COM_STOPBITS_1;
   BspCOMInit.Parity = COM_PARITY_NONE;
   BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
-  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
+  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
+  {
     Error_Handler();
   }
   MX_USART3_Init(&huart_com, &BspCOMInit);
@@ -71,19 +73,24 @@ const osThreadAttr_t mainTask_attributes = {
     .priority = tskIDLE_PRIORITY + 2U,
 };
 
-void ethernet_linkstatus_callback(void *arg) {
+void ethernet_linkstatus_callback(void *arg)
+{
   struct netif *netif = (struct netif *)arg;
   uint8_t ip[4] = NETWORK_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
-  if (netif_is_up(netif)) {
+  if (netif_is_up(netif))
+  {
     LOGI(TAG, "Physical ethernet link is up");
     ETH_add_arp(ip, mac, 5);
-  } else {
+  }
+  else
+  {
     LOGE(TAG, "Physical ethernet link is down");
   }
 }
 
-int main(void) {
+int main(void)
+{
 
   MPU_Config_wrapper();
 
@@ -103,15 +110,15 @@ int main(void) {
   uart_setup();
   LOG_init(&huart_com);
 
- //MY LAPTOP
-uint8_t my_mac[6] = {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00};
-uint8_t my_ip[4] = {192, 168, 0, 111};
-uint8_t netmask[4] = NETMASK;
-uint8_t gateway[4] = GATEWAY;
+  // MY LAPTOP
+  uint8_t my_mac[6] = {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00};
+  uint8_t my_ip[4] = {192, 168, 0, 111};
+  uint8_t netmask[4] = NETMASK;
+  uint8_t gateway[4] = GATEWAY;
 
-//OTHER LAPTOP
-uint8_t ip[4] = {192, 168, 0, 50};
-uint8_t mac[6] = NETWORK_MAC;
+  // OTHER LAPTOP
+  uint8_t ip[4] = {192, 168, 0, 50};
+  uint8_t mac[6] = NETWORK_MAC;
 
   ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
@@ -121,13 +128,16 @@ uint8_t mac[6] = NETWORK_MAC;
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osKernelStart();
-  while (1) {
+  while (1)
+  {
   }
 }
 static int incomming_counter = 0;
 static int outgoing_counter = 0;
-static result_t HandleType1Packet(void *buffer) {
-  if (buffer == NULL) {
+static result_t HandleType1Packet(void *buffer)
+{
+  if (buffer == NULL)
+  {
     return RESULT_ERR_INVALID_ARG;
   }
 
@@ -160,7 +170,8 @@ static packet_handler_config_t handler_configs[] = {
 
 extern int receive_counter;
 extern int rx_packet_counter;
-void MainTask(void *argument) {
+void MainTask(void *argument)
+{
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
   uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
@@ -183,27 +194,36 @@ void MainTask(void *argument) {
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
 
-  ArmBoardControlSignals arm_pckt = {0.0f,0.0f,0.0f,0.0f,10U,100U,1,20U,200U,0};
-  uint8_t* msg_encoded = NULL;
+  ArmBoardControlSignals ctrl_signals_msg = {0.0f, 0.0f, 0.0f, 0.0f, 300U, 10U, true, 200U, 12U, false};
+
+  PBEnvelope ctrl_signals_env = PBEnvelope_init_zero;
+  ctrl_signals_env.which_payload = PBEnvelope_arm_ctrl_tag;
+  ctrl_signals_env.payload.arm_ctrl = ctrl_signals_msg;
+
+  uint8_t *msg_encoded = NULL;
   size_t msg_size = 0;
-  result_t arm_pckt_result = pb_message_encode(&arm_pckt, ArmBoardControlSignals_fields, &msg_encoded, &msg_size);
-  if (arm_pckt_result != RESULT_OK) {
-    LOGE(TAG, "%s", arm_pckt_result);
-  }
 
-  while (outgoing_counter < 1000) {
-    result_t err = ETH_udp_send(ip, 8, msg_encoded, msg_size, 1);
-    if (err != RESULT_OK) {
-      outgoing_counter -= 1;
+  result_t progress_result = pb_message_encode(&ctrl_signals_env, PBEnvelope_fields, &msg_encoded, &msg_size);
+
+  if (progress_result == RESULT_OK)
+  {
+    while (outgoing_counter < 1000)
+    {
+      result_t err = ETH_udp_send(ip, 8, msg_encoded, msg_size, 1);
+      if (err != RESULT_OK)
+      {
+        outgoing_counter -= 1;
+      }
+      osDelay(10000);
+      outgoing_counter += 1;
+      // LOGI(TAG, "Total messages send: %d", outgoing_counter);
+      // LOGI(TAG, "Total messages handled: %d", incomming_counter);
+      // LOGI(TAG, "Total messages received: %d", receive_counter);
     }
-    osDelay(10000);
-    outgoing_counter += 1;
-    // LOGI(TAG, "Total messages send: %d", outgoing_counter);
-    // LOGI(TAG, "Total messages handled: %d", incomming_counter);
-    // LOGI(TAG, "Total messages received: %d", receive_counter);
   }
 
-  while (1) {
+  while (1)
+  {
     __asm__ __volatile__("nop");
     LOGI(TAG, "Total messages send: %d", outgoing_counter);
     LOGI(TAG, "Total messages handled: %d", incomming_counter);
