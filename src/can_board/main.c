@@ -86,39 +86,7 @@ static void CAN_LogStatus(FDCAN_HandleTypeDef* hfdcan) {
              error_counters.TxErrorCnt, error_counters.RxErrorCnt,
              error_counters.RxErrorPassive);
     }
-
-=======
-    FDCAN_RxHeaderTypeDef rx_header = {0};
-    uint8_t rx_data[8] = {0};
-
-    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) !=
-        HAL_OK) {
-        LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
-        return;
-    }
-    cubemars_ak_process_feedback(&rx_header, rx_data);
 }
-static void CAN_LogStatus(FDCAN_HandleTypeDef* hfdcan) {
-    FDCAN_ProtocolStatusTypeDef protocol_status;
-    FDCAN_ErrorCountersTypeDef error_counters;
-
-    if (HAL_FDCAN_GetProtocolStatus(hfdcan, &protocol_status) == HAL_OK) {
-        LOGI("CAN",
-             "LastErrorCode=%lu DataLastErrorCode=%lu Activity=%lu BusOff=%lu",
-             protocol_status.LastErrorCode, protocol_status.DataLastErrorCode,
-             protocol_status.Activity, protocol_status.BusOff);
-    }
-
-    if (HAL_FDCAN_GetErrorCounters(hfdcan, &error_counters) == HAL_OK) {
-        LOGI("CAN", "TxErrorCnt=%lu RxErrorCnt=%lu RxErrorPassive=%lu",
-             error_counters.TxErrorCnt, error_counters.RxErrorCnt,
-             error_counters.RxErrorPassive);
-    }
-
->>>>>>> master
-    LOGI("CAN", "HAL error=0x%08lx", HAL_FDCAN_GetError(hfdcan));
-}
-
 static void CAN_PrintRxState(void) {
     if (HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0) >= 0) {
         LOGI("CAN", "RX FIFO0 fill=%lu HALerr=0x%08lx",
