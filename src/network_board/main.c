@@ -214,7 +214,7 @@ void MainTask(void *argument)
       {
         outgoing_counter -= 1;
       }
-      osDelay(10000);
+      osDelay(1000);
       outgoing_counter += 1;
       // LOGI(TAG, "Total messages send: %d", outgoing_counter);
       // LOGI(TAG, "Total messages handled: %d", incomming_counter);

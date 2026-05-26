@@ -191,10 +191,10 @@ int main(void)
   //     //HANDLE
   // }
 
-  // stepper1_task_handle = osThreadNew(stepper1_task, NULL,
-  // &stepper1_task_attr); if (stepper1_task_handle == NULL) {
-  //     //HANDLE
-  // }
+  stepper1_task_handle = osThreadNew(stepper1_task, NULL,&stepper1_task_attr); 
+  if (stepper1_task_handle == NULL) {
+      //HANDLE
+  }
 
   // stepper2_task_handle = osThreadNew(stepper2_task, NULL,
   // &stepper2_task_attr); if (stepper2_task_handle == NULL) {
@@ -213,12 +213,13 @@ int main(void)
 static void stepper1_task(void *argument)
 {
   uint32_t buf;
-  xQueueReceive(stepper1_queue_handle, &buf, portMAX_DELAY);
-
-  while (1)
-  {
-    do_pwm_dma(&stepper1, 10, 100);
-    osDelay(1000);
+  if (stepper1_queue_handle != 0) {
+    while (1)
+      {
+        xQueueReceive(stepper1_queue_handle, &buf, ( TickType_t ) 5);
+        do_pwm_dma(&stepper1, 10, 100);
+        osDelay(1000);
+      }
   }
 }
 
@@ -309,7 +310,7 @@ static result_t Callback_ArmBoardControlSignals(void *buffer){
     pckt->stepper_top_freq;
     pckt->stepper_top_dir;
 
-    xQueueSend(stepper2_queue_handle, &steps2, portMAX_DELAY);
+    // xQueueSend(stepper2_queue_handle, &steps2, portMAX_DELAY);
 
     return RESULT_OK;
 }
