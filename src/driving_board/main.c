@@ -341,20 +341,6 @@ void init_board() {
   int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
   ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
   
-  osThreadNew(MainTask, NULL, &mainTask_attributes);
-  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
-  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
-  osThreadNew(DriveTask, NULL, &driveTask_attributes);
-  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
-
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
 
   CAN_ConfigRx_AllStandard();
   if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
@@ -380,6 +366,22 @@ void init_board() {
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
    
+       
+  osThreadNew(MainTask, NULL, &mainTask_attributes);
+  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
+  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
+  osThreadNew(DriveTask, NULL, &driveTask_attributes);
+  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
+
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
+
   osKernelStart();
 
 
@@ -525,8 +527,8 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
 void PwmTask(void *argument)
 {
-    uint32_t last_tick = osKernelGetTickCount();
-    uint32_t wake_time = last_tick;
+    
+   
     const uint32_t period = 1;
     rtU.x=1;
     rtU.y=2;
@@ -536,31 +538,23 @@ void PwmTask(void *argument)
     osDelay(100);
 
     cl3e_start_position_move(&hfdcan1, 127, 0x0007);
-    osDelay(100);
+    osDelay(1000);
 
     cl3e_start_position_move(&hfdcan1, 127, 0x000F);
-    osDelay(100);
+    osDelay(1000);
 
     //CL3E_Test();//I ll delete it later it blocks the task bc of delays
     for(;;)
     {
-      uint32_t now = osKernelGetTickCount();
+
 
       
       cl3e_set_target_position(&hfdcan1, 127, 10000);
 
         cl3e_start_position_move(&hfdcan1, 127, 0x001F);
 
-      //CL3E_DriveFromControl(&htim1, 1, GPIOA, 3, rtY.controlLF);
-      rtU.deltaTime = (now - last_tick) * 0.001f;
-      last_tick = now;
-      
-      //control_drive_manual_step();
-      control_arm_manual_step();
-
-      wake_time += period;// schedule next exact tick
       osDelay(100);
-      osDelayUntil(wake_time);
+      
     }
 }
 
