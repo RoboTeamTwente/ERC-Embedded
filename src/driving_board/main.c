@@ -98,32 +98,32 @@ void MainTaskListener(void *argument);
 
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
-    .stack_size = 1024 * 4,
+    .stack_size = 1024 * 8,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t pwmTask_attributes = {
     .name = "pwmTask",
-    .stack_size = 256 * 4,
+    .stack_size = 1024 * 8,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t drivingEncoderTask_attributes = {
     .name = "encoderTask",
-    .stack_size = 256 * 4,
+    .stack_size = 1024 * 8,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 
 const osThreadAttr_t driveTask_attributes = {
     .name = "driveTask",
-    .stack_size = 1024 * 2,
+    .stack_size = 1024 * 8,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t mainTaskListener_attributes = {
     .name = "mainTaskListener",
-    .stack_size = 1024 * 2,
+    .stack_size = 1024 * 8,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
@@ -166,8 +166,12 @@ static result_t HandleTypeManualDrivePacket(void *buffer) {
   BasestationManualDrive *packet = (BasestationManualDrive *)buffer;
   incomming_counter += 1;
   
-  rtU.controllerSpeed = packet->forward_backward;
-  rtU.controllerSteering = packet->turn;
+
+  int speed = 0;
+  if (packet->forward_backward > 100000) {
+    speed = 10000;
+  }
+  cubemars_ak_set_speed(&hfdcan1, 93, speed);
 
   LOGI(TAG,"Envelope of type forward_backward to go info has value: %f\n", packet->forward_backward);
   LOGI(TAG,"Envelope of type turn to go info has value: %f\n", packet->turn);
@@ -340,12 +344,6 @@ void init_board() {
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
        
-  osThreadNew(MainTask, NULL, &mainTask_attributes);
-  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
-  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
-  osThreadNew(DriveTask, NULL, &driveTask_attributes);
-  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
-
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
@@ -355,6 +353,13 @@ void init_board() {
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+
+  osThreadNew(MainTask, NULL, &mainTask_attributes);
+  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
+  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
+  osThreadNew(DriveTask, NULL, &driveTask_attributes);
+  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
+
 
   //HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
 
@@ -387,7 +392,7 @@ void MainTaskListener(void *argument) {
  */
 void MainTask(void *argument) {//send messages calculates actual values from reallife hall sensors(encoders)
 
-  packet_handler_config_t handler_configs[] = {motor_msg_handler, manual_drive_handler, manual_brake_handler};
+  packet_handler_config_t handler_configs[] = {manual_drive_handler};
 
   int SendQueueSize = 80;
   static StaticQueue_t xStaticQueue1;
@@ -406,7 +411,7 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
   uint8_t ip[4] = SAMPLE_BOARD_IP;
   uint8_t mac[6] = SAMPEL_BOARD_MAC;
 
-  PacketDispatcherInit(handler_configs, 3);
+  PacketDispatcherInit(handler_configs, 1);
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
@@ -452,9 +457,6 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
     DrivingBoardMotorPeriodicProgress progress =
         DrivingBoardMotorPeriodicProgress_init_zero;
-
-    progress.distance_left =
-        10.0f - outgoing_counter;
 
     PBEnvelope progress_envelope =
         PBEnvelope_init_zero;
