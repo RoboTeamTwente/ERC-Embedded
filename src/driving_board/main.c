@@ -286,7 +286,7 @@ void init_board() {
   SCB_EnableICache();
 
   /* Enable D-Cache---------------------------------------------------------*/
-  SCB_EnableDCache();
+  //SCB_EnableDCache();
 
   HAL_Init();
   SystemClock_Config();
@@ -518,15 +518,23 @@ void PwmTask(void *argument)
     uint32_t wake_time = last_tick;
     const uint32_t period = 1;
 
-    //CL3E_Test();//I ll delete it later it blocks the task bc of delays
+    init_stepper(&stepperLF, 50, &htim1);
+    init_stepper(&stepperLB, 50, &htim3);
+    init_stepper(&stepperRF, 50, &htim4);
+    init_stepper(&stepperRB, 50, &htim5);
+
+   
     for(;;)
     {
       uint32_t now = osKernelGetTickCount();
-      CL3E_DriveFromControl(&htim1, 1, GPIOA, 3, rtY.controlLF);
+
+
+
+
       rtU.deltaTime = (now - last_tick) * 0.001f;
       last_tick = now;
       
-      //control_drive_manual_step();
+      control_drive_manual_step();
 
       wake_time += period;// schedule next exact tick
       osDelayUntil(wake_time);
@@ -537,20 +545,15 @@ void DrivingEncoderTask(void *argument){
 
   for(;;)
   {
-    cl3e_request_position(&hfdcan1, 1);
-    cl3e_request_position(&hfdcan1, 2);
+    
     osDelay(1000);
 
-    LOGI("CL3E: motor 0", "pos=%ld", g_cl3e_info[0].actual_position);
   }
 }
 void DriveTask(void *argument)
 {
     osDelay(3000);
-    init_stepper(&stepperLF, 50, &htim1);
-    init_stepper(&stepperLB, 50, &htim3);
-    init_stepper(&stepperRF, 50, &htim4);
-    init_stepper(&stepperRB, 50, &htim5);
+
 
     for (;;)
     {
