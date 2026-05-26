@@ -366,7 +366,7 @@ void init_board() {
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
    
-       
+
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
   osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
@@ -535,7 +535,7 @@ void PwmTask(void *argument)
     rtU.z=1;
     cl3e_set_mode(&hfdcan1, 127, 1);
     cl3e_start_position_move(&hfdcan1, 127, 0x0006);
-    osDelay(100);
+    osDelay(1000);
 
     cl3e_start_position_move(&hfdcan1, 127, 0x0007);
     osDelay(1000);
@@ -550,10 +550,10 @@ void PwmTask(void *argument)
 
       
       cl3e_set_target_position(&hfdcan1, 127, 10000);
-
+osDelay(1000);
         cl3e_start_position_move(&hfdcan1, 127, 0x001F);
 
-      osDelay(100);
+      osDelay(1000);
       
     }
 }
