@@ -268,9 +268,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
 
 
 
-
-
-
 void init_board() {
 
   MPU_Config_wrapper();
@@ -509,11 +506,12 @@ void PwmTask(void *argument)
     for(;;)
     {
           osDelay(1000);
+          LOGI(TAG, "motor info: AAAAAAAAAA: %d", motor_info.motor_temperature);
         /**
          * uint32_t now = osKernelGetTickCount();
 
 
-
+        
 
       rtU.deltaTime = (now - last_tick) * 0.001f;
       last_tick = now;
@@ -546,10 +544,10 @@ void DriveTask(void *argument)
     {
         LOGI("TEST", "sending");
 
-       // cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+        cubemars_ak_set_speed(&hfdcan1, 93, 10000);
         osDelay(1000);
 
-       // cubemars_ak_set_speed(&hfdcan1, 93, 0);
+        cubemars_ak_set_speed(&hfdcan1, 93, 0);
         osDelay(1000);
         //uint32_t now = osKernelGetTickCount();
 
