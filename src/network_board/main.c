@@ -194,7 +194,7 @@ void MainTask(void *argument)
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
 
-  ArmBoardControlSignals ctrl_signals_msg = {0.0f, 0.0f, 0.0f, 0.0f, 300U, 10U, true, 200U, 12U, false};
+  ArmBoardControlSignals ctrl_signals_msg = ArmBoardControlSignals_init_default;
 
   PBEnvelope ctrl_signals_env = PBEnvelope_init_zero;
   ctrl_signals_env.which_payload = PBEnvelope_arm_ctrl_tag;
