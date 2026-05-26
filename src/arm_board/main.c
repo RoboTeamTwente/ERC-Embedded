@@ -77,8 +77,10 @@ static result_t Callback_ArmBoardMovementFeedback(void *buffer);
 /*Ethernet constants*/
 
 //MY LAPTOP
-uint8_t my_mac[6] = {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00};
-uint8_t my_ip[4] = {192, 168, 0, 111};
+uint8_t my_mac[6] = {0x6c, 0x24, 0x08, 0xd2, 0xfa, 0x50};
+uint8_t my_ip[4] = {192, 168, 0, 5};
+// uint8_t my_mac[6] = {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00};
+// uint8_t my_ip[4] = {192, 168, 0, 111};
 uint8_t netmask[4] = NETMASK;
 uint8_t gateway[4] = GATEWAY;
 
@@ -206,6 +208,9 @@ int main(void) {
 
 static void stepper1_task(void *argument) {
 
+    uint32_t buf;
+    xQueueReceive(stepper1_queue_handle, &buf, portMAX_DELAY);
+
     while(1) {
         do_pwm_dma(&stepper1, 10, 100);
         osDelay(1000);
@@ -258,57 +263,6 @@ void HandlePacket(receive_frame_t *receive_frame) {
     LOGI(TAG, "Wayoo, message received");
 }
 
-extern int receiving_counter;
-int outgoing_counter = 0;
-void test_ethernet(void* argument) {
-
-    //Setup using sending side params
-    ETH_init(NULL, my_ip, netmask, gateway, my_mac);
-
-    /*Making queues*/
-    int SendQueueSize = 80;
-
-    static StaticQueue_t xStaticQueue1;
-    uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-    QueueHandle_t udp_receiver_queue1 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea1, &xStaticQueue1);
-
-    static StaticQueue_t xStaticQueue2;
-    uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-    QueueHandle_t udp_receiver_queue2 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea2, &xStaticQueue2);
-    
-    QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
-
-    /*Init and pass packet dispatcher*/
-
-    //These are found in handler_stuff.h
-    static packet_handler_config_t handlers[] = {
-        Callback_ArmBoardControlSignals
-    };
-
-    PacketDispatcherInit(handlers, 1);
-    ETH_udp_init(2, queues, HandlePacket);
-
-    /*Config + add ARP receiving side*/
-    ETH_add_arp(ip, mac, 5);
-
-    /*Sending a message*/
-    uint8_t packet1_payload[4] = {14,06,20,04};
-
-    /*Test sending*/
-    while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
-        ETH_udp_send(ip, 8, packet1_payload, 4, 1);
-        outgoing_counter += 1;
-        LOGI(TAG, "%d", outgoing_counter);
-        osDelay(5000);
-    }
-
-    while(1){
-    }
-}
-
-
-/* HANDLER FUNCTIONS */
-
 /* Config for 1 pbmessage: ArmBoardControlSignals */
 static result_t Callback_ArmBoardControlSignals(void *buffer) {
     LOGI(TAG, "PACKET RECEIVED");
@@ -331,15 +285,72 @@ static result_t Callback_ArmBoardControlSignals(void *buffer) {
     pckt->control_jaw; 
 
     //bottom stepper
-    pckt->stepper_bottom_rev;
+    uint32_t steps1 = pckt->stepper_bottom_rev;
     pckt->stepper_bottom_freq; 
     pckt->stepper_bottom_dir; 
 
+    xQueueSend(stepper1_queue_handle, &steps1, portMAX_DELAY);
+
     //top stepper
-    pckt->stepper_top_rev;
+    uint32_t steps2 = pckt->stepper_top_rev;
     pckt->stepper_top_freq; 
     pckt->stepper_top_dir; 
+
+    xQueueSend(stepper2_queue_handle, &steps2, portMAX_DELAY);
+
     return RESULT_OK;
 }
 
 PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals, PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
+
+extern int receiving_counter;
+int outgoing_counter = 0;
+void test_ethernet(void* argument) {
+
+    //Setup using sending side params
+    ETH_init(NULL, my_ip, netmask, gateway, my_mac);
+
+    /*Making queues*/
+    int SendQueueSize = 80;
+
+    static StaticQueue_t xStaticQueue1;
+    uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+    QueueHandle_t udp_receiver_queue1 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea1, &xStaticQueue1);
+
+    static StaticQueue_t xStaticQueue2;
+    uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+    QueueHandle_t udp_receiver_queue2 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea2, &xStaticQueue2);
+    
+    QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
+
+    /*Init and pass packet dispatcher*/
+
+    // These are found in handler_stuff.h
+    static packet_handler_config_t handlers[] = {
+        Callback_ArmBoardControlSignals
+    };
+
+    PacketDispatcherInit(handlers, 1);
+    ETH_udp_init(2, queues, DispatchPacket);
+
+    /*Config + add ARP receiving side*/
+    ETH_add_arp(ip, mac, 5);
+
+    /*Sending a message*/
+    // uint8_t packet1_payload[4] = {14,06,20,04};
+
+    // /*Test sending*/
+    // while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
+    //     ETH_udp_send(ip, 8, packet1_payload, 4, 1);
+    //     outgoing_counter += 1;
+    //     LOGI(TAG, "%d", outgoing_counter);
+    //     osDelay(5000);
+    // }
+
+    while(1){
+        LOGI(TAG, "test eth ended");
+        osDelay(5000);
+    }
+}
+
+

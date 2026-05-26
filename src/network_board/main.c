@@ -101,10 +101,17 @@ int main(void) {
 
   uart_setup();
   LOG_init(&huart_com);
-  uint8_t mac[6] = TEST_BOARD_MAC;
-  uint8_t ip[4] = TEST_BOARD_IP;
-  uint8_t netmask[4] = NETMASK;
-  uint8_t gateway[4] = GATEWAY;
+
+ //MY LAPTOP
+uint8_t my_mac[6] = {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00};
+uint8_t my_ip[4] = {192, 168, 0, 111};
+uint8_t netmask[4] = NETMASK;
+uint8_t gateway[4] = GATEWAY;
+
+//OTHER LAPTOP
+uint8_t ip[4] = {192, 168, 0, 50};
+uint8_t mac[6] = NETWORK_MAC;
+
   ETH_init(ethernet_linkstatus_callback, ip, netmask, gateway, mac);
   int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
   int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
@@ -174,13 +181,20 @@ void MainTask(void *argument) {
 
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
+
+  uint8_t *msg_encoded = NULL;
+  size_t msg_size = 0;
+
+  ArmBoardControlSignals arm_pckt = {0.0f,0.0f,0.0f,0.0f,10U,100U,1,20U,200U,0};
+  result_t arm_pckt_result = pb_message_encode(arm_pckt, ArmBoardControlSignals_fields, &msg_encoded, msg_size);
+
   result_t err;
   while (outgoing_counter < 1000) {
     err = ETH_udp_send(ip, 1500, packet1_payload, 46, 1);
     if (err != RESULT_OK) {
       outgoing_counter -= 1;
     }
-    osDelay(1);
+    osDelay(10000);
     outgoing_counter += 1;
     // LOGI(TAG, "Total messages send: %d", outgoing_counter);
     // LOGI(TAG, "Total messages handled: %d", incomming_counter);
