@@ -1,6 +1,10 @@
 #include "cubemars_ak.h"
 
+#include "FreeRTOS.h"
+#include "cmsis_os.h"
 #include "logging.h"
+#include "portmacro.h"
+#include "queue.h"
 #include "result.h"
 #include "stm32h7xx_hal_fdcan.h"
 
@@ -21,6 +25,8 @@ static FDCAN_TxHeaderTypeDef tx_header = {
 static uint8_t cubemars_ak_known_ids[CUBEMARS_AK_MAX_NUMBER_OF_MOTORS];
 static cubemars_ak_information
     cubemars_ak_known_info[CUBEMARS_AK_MAX_NUMBER_OF_MOTORS];
+
+static uint8_t cubemars_ak_queue_initialized = 0;
 
 result_t cubemars_ak_process_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
                                       const uint8_t data[8]) {
@@ -49,6 +55,7 @@ result_t cubemars_ak_process_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
             cubemars_ak_known_ids[i] == 0)) {
         i++;
     }
+
     if (i == CUBEMARS_AK_MAX_NUMBER_OF_MOTORS) {
         return RESULT_ERR_NO_MEM;
     }
@@ -60,6 +67,41 @@ result_t cubemars_ak_process_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
     out->motor_temperature =
         (int8_t)data[6] / CUBEMARS_AK_CAN_TEMPERATURE_SCALE;
     out->status_code = (cubemars_ak_error_code)data[7];
+    return RESULT_OK;
+}
+
+void cubemars_ak_feedback_task(void* argument) {
+    cubemars_ak_can_frame frame;
+    QueueHandle_t queue = *(QueueHandle_t*)argument;
+    while (1) {
+        if (xQueueReceive(queue, &frame, portMAX_DELAY) == pdTRUE) {
+            (void)cubemars_ak_process_feedback(&frame.header, frame.data);
+        }
+    }
+}
+
+result_t cubemars_ak_feedback_task_init(QueueHandle_t queue,
+                                        UBaseType_t queue_length,
+                                        UBaseType_t priority) {
+    if (queue_length == 0u) {
+        return RESULT_ERR_INVALID_ARG;
+    }
+
+    queue = xQueueCreate(queue_length, sizeof(cubemars_ak_can_frame));
+    if (queue == NULL) {
+        return RESULT_ERR_NO_MEM;
+    }
+
+    BaseType_t status = xTaskCreate(cubemars_ak_feedback_task, "AK Feedback",
+                                    256u, (void*)&queue, priority, NULL);
+
+    if (status != pdPASS) {
+        vQueueDelete(queue);
+        queue = NULL;
+        return RESULT_ERR_NO_MEM;
+    }
+    cubemars_ak_queue_initialized = 1;
+
     return RESULT_OK;
 }
 
