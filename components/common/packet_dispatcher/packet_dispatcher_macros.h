@@ -9,7 +9,7 @@
     static uint8_t                                                             \
         name##_queue_buffer[PACKET_HANDLER_DEFAULT_QUEUE_LENGTH                \
             * sizeof(((PBEnvelope*)0)->payload.payload_member)];                                            \
-    static packet_handler_config_t name = {                                    \
+    static const packet_handler_config_t name = {                                    \
         .handler = (handler_fn),                                               \
         .task_name = #name,                                                    \
         .packet_type = (packet_tag),                                           \

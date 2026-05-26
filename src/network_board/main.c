@@ -36,6 +36,7 @@
 #include "test/networking/constants/ip_mac_constants_test.h"
 #include "tim.h"
 #include <stdint.h>
+#include "pb_message.h"
 #define TAG "MAIN"
 
 extern void MX_FREERTOS_Init(void);
@@ -182,15 +183,16 @@ void MainTask(void *argument) {
   ETH_udp_init(2, queues, DispatchPacket);
   ETH_add_arp(ip, mac, 5);
 
-  uint8_t *msg_encoded = NULL;
-  size_t msg_size = 0;
-
   ArmBoardControlSignals arm_pckt = {0.0f,0.0f,0.0f,0.0f,10U,100U,1,20U,200U,0};
-  result_t arm_pckt_result = pb_message_encode(arm_pckt, ArmBoardControlSignals_fields, &msg_encoded, msg_size);
+  uint8_t* msg_encoded = NULL;
+  size_t msg_size = 0;
+  result_t arm_pckt_result = pb_message_encode(&arm_pckt, ArmBoardControlSignals_fields, &msg_encoded, &msg_size);
+  if (arm_pckt_result != RESULT_OK) {
+    LOGE(TAG, "%s", arm_pckt_result);
+  }
 
-  result_t err;
   while (outgoing_counter < 1000) {
-    err = ETH_udp_send(ip, 1500, packet1_payload, 46, 1);
+    result_t err = ETH_udp_send(ip, 8, msg_encoded, msg_size, 1);
     if (err != RESULT_OK) {
       outgoing_counter -= 1;
     }

@@ -76,6 +76,9 @@ void DispatchPacket(receive_frame_t* incoming_packet) {
         LOGE(TAG, "Dispatcher could not decode incoming packet");
         return;
     }
+
+    int thing = DecodingEnvelopeCurrent.which_payload;
+
     for (int i = 0; i < PacketHandlerCount; i++) {
         if (PacketHandlers[i].packet_type !=
             DecodingEnvelopeCurrent.which_payload) {

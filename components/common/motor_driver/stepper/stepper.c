@@ -40,15 +40,6 @@ void set_pin(int pinname, char what);
 result_t init_stepper(stepper_t* stepper, uint8_t duty_cycle, TIM_HandleTypeDef* htim) {
     stepper->duty_cycle = duty_cycle;
     stepper->htim = htim;
-    // stepper->current_angle = 0;
-    // stepper->frequency_hz = 1U;
-
-    // uint32_t ARR_ticks = calc_ARR_ticks(stepper->frequency_hz);
-    // __HAL_TIM_SET_AUTORELOAD(htim, ARR_ticks - 1U); 
-
-    // //!TODO: arr ticks -1 but ccr ticks not...
-    // uint32_t CCR_ticks = calc_CCR_ticks(ARR_ticks, duty_cycle);
-    // __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, CCR_ticks);
 
     HAL_TIM_PWM_Stop(htim, TIM_CHANNEL_1);
 
