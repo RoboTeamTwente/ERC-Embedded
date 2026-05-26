@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'control_drive_manual'.
  *
- * Model version                  : 1.13
+ * Model version                  : 1.19
  * Simulink Coder version         : 25.2 (R2025b) 28-Jul-2025
- * C/C++ source code generated on : Mon May 18 12:32:25 2026
+ * C/C++ source code generated on : Tue May 26 12:06:21 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: STMicroelectronics->ST10/Super10
@@ -61,9 +61,9 @@ void control_drive_manual_step(void)
   real_T rtb_deltaL;
   real_T rtb_deltaR;
   real_T rtb_wheel_speed_LF;
-  real_T rtb_wheel_speed_LF_tmp;
   real_T rtb_wheel_speed_LM;
   real_T rtb_wheel_speed_LM_tmp;
+  real_T rtb_wheel_speed_RF;
   real_T rtb_wheel_speed_RM;
 
   /* MATLAB Function: '<S1>/MATLAB Function' incorporates:
@@ -71,10 +71,10 @@ void control_drive_manual_step(void)
    *  Constant: '<S1>/smallest turn radius'
    *  Inport: '<Root>/controllerSteering'
    */
-  if (rtU.controllerSteering != 0.0) {
+  if (fabs(rtU.controllerSteering) < 20.0) {
     rtb_R = 0.0;
   } else {
-    rtb_R = 3.0 / (rtU.controllerSteering / 2.147483647E+9);
+    rtb_R = 1.0 / (rtU.controllerSteering / 2.147483647E+9);
   }
 
   /* End of MATLAB Function: '<S1>/MATLAB Function' */
@@ -108,17 +108,17 @@ void control_drive_manual_step(void)
   if (rtb_R == 0.0) {
     rtb_wheel_speed_LF = rtDW.UnitDelay2_DSTATE / 0.1;
     rtb_wheel_speed_LM = rtb_wheel_speed_LF;
-    rtb_R = rtb_wheel_speed_LF;
+    rtb_wheel_speed_RF = rtb_wheel_speed_LF;
     rtb_wheel_speed_RM = rtb_wheel_speed_LF;
   } else {
-    rtb_wheel_speed_LF_tmp = rtDW.UnitDelay2_DSTATE / 0.1;
+    rtb_wheel_speed_RF = rtDW.UnitDelay2_DSTATE / 0.1;
     rtb_wheel_speed_LF = sqrt(rtb_wheel_speed_LM * rtb_wheel_speed_LM +
-      0.081224999999999992) * rtb_wheel_speed_LF_tmp / rtb_R;
+      0.081224999999999992) * rtb_wheel_speed_RF / rtb_R;
     rtb_wheel_speed_LM_tmp = rtb_R * 0.1;
     rtb_wheel_speed_LM = rtDW.UnitDelay2_DSTATE * rtb_wheel_speed_LM /
       rtb_wheel_speed_LM_tmp;
-    rtb_R = sqrt(rtb_wheel_speed_RM * rtb_wheel_speed_RM + 0.081224999999999992)
-      * rtb_wheel_speed_LF_tmp / rtb_R;
+    rtb_wheel_speed_RF = sqrt(rtb_wheel_speed_RM * rtb_wheel_speed_RM +
+      0.081224999999999992) * rtb_wheel_speed_RF / rtb_R;
     rtb_wheel_speed_RM = rtDW.UnitDelay2_DSTATE * rtb_wheel_speed_RM /
       rtb_wheel_speed_LM_tmp;
   }
@@ -152,7 +152,7 @@ void control_drive_manual_step(void)
    *  Gain: '<S1>/pole pairs5'
    *  Gain: '<S1>/rad//s to rpm3'
    */
-  rtb_wheel_speed_LM = 9.5492965855137211 * rtb_R * 10.0 * 21.0;
+  rtb_wheel_speed_LM = 9.5492965855137211 * rtb_wheel_speed_RF * 10.0 * 21.0;
 
   /* Outport: '<Root>/controlRF' incorporates:
    *  Gain: '<S1>/pole pairs3'
@@ -203,13 +203,16 @@ void control_drive_manual_step(void)
    */
   rtY.stepperRBSteps = rt_roundd_snf(57.295779513082323 * -rtb_deltaR / 1.8);
 
+  /* Outport: '<Root>/test' */
+  rtY.test = rtb_R;
+
   /* Product: '<S1>/Product' incorporates:
    *  Constant: '<S1>/integer maximum'
    *  Constant: '<S1>/max speed'
    *  Inport: '<Root>/controllerSpeed'
    *  Product: '<S1>/Divide'
    */
-  rtb_deltaL = rtU.controllerSpeed / 2.147483647E+9 * 0.7;
+  rtb_R = rtU.controllerSpeed / 2.147483647E+9 * 0.7;
 
   /* MATLAB Function: '<S1>/setting the desired speed of the shassis' incorporates:
    *  Constant: '<S1>/Constant10'
@@ -217,31 +220,31 @@ void control_drive_manual_step(void)
    *  Inport: '<Root>/deltaTime'
    *  UnitDelay: '<S1>/Unit Delay2'
    */
-  rtb_deltaR = rtDW.UnitDelay2_DSTATE;
+  rtb_deltaL = rtDW.UnitDelay2_DSTATE;
   if (rtDW.UnitDelay2_DSTATE >= 0.0) {
-    if (rtDW.UnitDelay2_DSTATE < rtb_deltaL) {
-      rtb_deltaR = 0.05 * rtU.deltaTime + rtDW.UnitDelay2_DSTATE;
+    if (rtDW.UnitDelay2_DSTATE < rtb_R) {
+      rtb_deltaL = 0.05 * rtU.deltaTime + rtDW.UnitDelay2_DSTATE;
     }
 
-    if (rtb_deltaR > rtb_deltaL) {
-      rtb_deltaR -= 0.1 * rtU.deltaTime;
+    if (rtb_deltaL > rtb_R) {
+      rtb_deltaL -= 0.1 * rtU.deltaTime;
     }
   }
 
-  if (rtb_deltaR <= 0.0) {
-    if (rtb_deltaR > rtb_deltaL) {
-      rtb_deltaR -= 0.05 * rtU.deltaTime;
+  if (rtb_deltaL <= 0.0) {
+    if (rtb_deltaL > rtb_R) {
+      rtb_deltaL -= 0.05 * rtU.deltaTime;
     }
 
-    if (rtb_deltaR < rtb_deltaL) {
-      rtb_deltaR += 0.1 * rtU.deltaTime;
+    if (rtb_deltaL < rtb_R) {
+      rtb_deltaL += 0.1 * rtU.deltaTime;
     }
   }
 
   /* Update for UnitDelay: '<S1>/Unit Delay2' incorporates:
    *  MATLAB Function: '<S1>/setting the desired speed of the shassis'
    */
-  rtDW.UnitDelay2_DSTATE = rtb_deltaR;
+  rtDW.UnitDelay2_DSTATE = rtb_deltaL;
 }
 
 /* Model initialize function */
@@ -250,22 +253,22 @@ void control_drive_manual_initialize(void)
   /* ConstCode for Outport: '<Root>/stepperLFFrequency' incorporates:
    *  Constant: '<S1>/Constant'
    */
-  rtY.stepperLFFrequency = 100.0;
+  rtY.stepperLFFrequency = 50.0;
 
   /* ConstCode for Outport: '<Root>/stepperLBFrequency' incorporates:
    *  Constant: '<S1>/Constant'
    */
-  rtY.stepperLBFrequency = 100.0;
+  rtY.stepperLBFrequency = 50.0;
 
   /* ConstCode for Outport: '<Root>/stepperRFFrequency' incorporates:
    *  Constant: '<S1>/Constant'
    */
-  rtY.stepperRFFrequency = 100.0;
+  rtY.stepperRFFrequency = 50.0;
 
   /* ConstCode for Outport: '<Root>/stepperRBFrequency' incorporates:
    *  Constant: '<S1>/Constant'
    */
-  rtY.stepperRBFrequency = 100.0;
+  rtY.stepperRBFrequency = 50.0;
 }
 
 /*

@@ -28,6 +28,7 @@
 #include "logging.h"
 #include "pb_message.h"
 #include "rtwtypes.h"
+#include "stepper.h"
 #include "string.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -39,10 +40,11 @@
 
 
 
+
 #include "calculator.h"
 #include <math.h>
 
-#define LF_ID 1//placeholder should definitely change
+#define LF_ID 93//placeholder should definitely change
 #define LM_ID 2
 #define LB_ID 3
 
@@ -72,6 +74,7 @@ void MX_GPIO_Init(void);
 void MX_TIM1_Init(void);
 void MX_TIM3_Init(void);
 void MX_TIM4_Init(void);
+void MX_TIM5_Init(void);
 extern struct netif gnetif;
 extern ETH_HandleTypeDef heth;
 
@@ -80,6 +83,7 @@ UART_HandleTypeDef huart_com;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim5;
 
 //uint16_t dac_value;
 
@@ -179,7 +183,7 @@ static result_t HandleTypeManualBrakePacket(void *buffer) {
   BasestationManualBrake *packet = (BasestationManualBrake *)buffer;
   incomming_counter += 1;
   
-  rtU.break_l = packet->brake;
+  rtU.break_d = packet->brake;
   LOGI(TAG,"Envelope of type brake info has value: %f\n", packet->brake);
   LOGI(TAG, "ManualBrakePacket This is packet: %d\n", incomming_counter);
   return RESULT_OK;
@@ -306,6 +310,7 @@ void init_board() {
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_TIM5_Init();
   MX_FDCAN1_Init();
   MX_USART2_UART_Init();
   control_drive_manual_initialize();
@@ -359,7 +364,10 @@ void init_board() {
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
+    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+
+  //HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
 
   osKernelStart();
 
@@ -539,12 +547,10 @@ void DrivingEncoderTask(void *argument){
 void DriveTask(void *argument)
 {
     osDelay(3000);
-    init_stepper(stepperLF, 50, &htim1)
+    init_stepper(&stepperLF, 50, &htim1);
     init_stepper(&stepperLB, 50, &htim3);
     init_stepper(&stepperRF, 50, &htim4);
     init_stepper(&stepperRB, 50, &htim5);
-
-    uint32_t last_tick = osKernelGetTickCount();
 
     for (;;)
     {
@@ -555,223 +561,116 @@ void DriveTask(void *argument)
 
         cubemars_ak_set_speed(&hfdcan1, 93, 0);
         osDelay(1000);
-        uint32_t now = osKernelGetTickCount();
+        //uint32_t now = osKernelGetTickCount();
 
-        rtU.deltaTime =
-            (now - last_tick) * 0.001f;
 
-        last_tick = now;
+       //control_drive_manual_step();
+       /*
+        * LEFT FRONT
+        */
+       rtU.LFActualPos =rtU.RFActualPos;
 
-        control_drive_manual_step();
-        /*
-         * LEFT FRONT
-         */
-        rtU.LFActualPos =
-            motors[LF_ID].motor_position;
+          
 
-        rtU.LFActualSpeed =
-            motors[LF_ID].motor_speed;
 
-        rtU.LFCurrent =
-            motors[LF_ID].motor_current;
 
-        rtU.LFTemperature =
-            motors[LF_ID].motor_temperature;
+       /*
+        * RUN CONTROLLER
+        */
+      
 
-        rtU.LFStatus =
-            motors[LF_ID].status_code;
 
-        rtU.LFCanId =
-            motors[LF_ID].motor_id;
-
-        /*
-         * LEFT MIDDLE
-         */
-        rtU.LMActualPos =
-            motors[LM_ID].motor_position;
-
-        rtU.LMActualSpeed =
-            motors[LM_ID].motor_speed;
-
-        rtU.LMCurrent =
-            motors[LM_ID].motor_current;
-
-        rtU.LMTemperature =
-            motors[LM_ID].motor_temperature;
-
-        rtU.LMStatus =
-            motors[LM_ID].status_code;
-
-        rtU.LMCanId =
-            motors[LM_ID].motor_id;
-
-        /*
-         * LEFT BACK
-         */
-        rtU.LBActualPos =
-            motors[LB_ID].motor_position;
-
-        rtU.LBActualSpeed =
-            motors[LB_ID].motor_speed;
-
-        rtU.LBCurrent =
-            motors[LB_ID].motor_current;
-
-        rtU.LBTemperature =
-            motors[LB_ID].motor_temperature;
-
-        rtU.LBStatus =
-            motors[LB_ID].status_code;
-
-        rtU.LBCanId =
-            motors[LB_ID].motor_id;
-
-        /*
-         * RIGHT FRONT
-         */
-        rtU.RFActualPos =
-            motors[RF_ID].motor_position;
-
-        rtU.RFActualSpeed =
-            motors[RF_ID].motor_speed;
-
-        rtU.RFCurrent =
-            motors[RF_ID].motor_current;
-
-        rtU.RFTemperature =
-            motors[RF_ID].motor_temperature;
-
-        rtU.RFStatus =
-            motors[RF_ID].status_code;
-
-        rtU.RFCanId =
-            motors[RF_ID].motor_id;
-
-        /*
-         * RIGHT MIDDLE
-         */
-        rtU.RMActualPos =
-            motors[RM_ID].motor_position;
-
-        rtU.RMActualSpeed =
-            motors[RM_ID].motor_speed;
-
-        rtU.RMCurrent =
-            motors[RM_ID].motor_current;
-
-        rtU.RMTemperature =
-            motors[RM_ID].motor_temperature;
-
-        rtU.RMStatus =
-            motors[RM_ID].status_code;
-
-        rtU.RMCanId =
-            motors[RM_ID].motor_id;
-
-        /*
-         * RIGHT BACK
-         */
-        rtU.RBActualPos =
-            motors[RB_ID].motor_position;
-
-        rtU.RBActualSpeed =
-            motors[RB_ID].motor_speed;
-
-        rtU.RBCurrent =
-            motors[RB_ID].motor_current;
-
-        rtU.RBTemperature =
-            motors[RB_ID].motor_temperature;
-
-        rtU.RBStatus =
-            motors[RB_ID].status_code;
-
-        rtU.RBCanId =
-            motors[RB_ID].motor_id;
-
-        /*
-         * RUN CONTROLLER
-         */
-        control_drive_manual_step();
-
-        /*
-         * SEND OUTPUTS TO MOTORS
-         */
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            93,
-            10000);
-
-            /**
-             * 
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            LF_ID,
-            (int32_t)rtY.controlLF);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            LM_ID,
-            (int32_t)rtY.controlLM);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            LB_ID,
-            (int32_t)rtY.controlLB);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            RF_ID,
-            (int32_t)rtY.controlRF);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            RM_ID,
-            (int32_t)rtY.controlRM);
-
-        cubemars_ak_set_speed(
-            &hfdcan1,
-            RB_ID,
-            (int32_t)rtY.controlRB);
-             */
-        
-          LOGI("AK1",
-        "pos=%.1f deg speed=%d",
-        motors[1].motor_position / 10.0f,
-        motors[1].motor_speed);
-
-                /*
-        * STEPPER CONTROL
+       /*
+        * SEND OUTPUTS TO MOTORS
         */
 
-        // LEFT FRONT
-        rotate_stepper(
-            &stepperLF,
-            (uint8_t)fabs(rtY.stepperLFSteps),
-            (uint32_t)fabs(rtY.stepperLFFrequency)
-        );
 
-        // LEFT BACK
-        rotate_stepper(
-            &stepperLB,
-            (uint8_t)fabs(rtY.stepperLBSteps),
-            (uint32_t)fabs(rtY.stepperLBFrequency)
-        );
 
-        // RIGHT FRONT
-        rotate_stepper(
-            &stepperRF,
-            (uint8_t)fabs(rtY.stepperRFSteps),
-            (uint32_t)fabs(rtY.stepperRFFrequency)
-        );
 
-        // RIGHT BACK
-        rotate_stepper(
-            &stepperRB,
-            (uint8_t)fabs(rtY.stepperRBSteps),
-            (uint32_t)fabs(rtY.stepperRBFrequency)
-        );
-        osDelay(1);
+           /**
+            *
+       cubemars_ak_set_speed(
+           &hfdcan1,
+           LF_ID,
+           (int32_t)rtY.controlLF);
+
+
+       cubemars_ak_set_speed(
+           &hfdcan1,
+           LM_ID,
+           (int32_t)rtY.controlLM);
+
+
+       cubemars_ak_set_speed(
+           &hfdcan1,
+           LB_ID,
+           (int32_t)rtY.controlLB);
+
+
+       cubemars_ak_set_speed(
+           &hfdcan1,
+           RF_ID,
+           (int32_t)rtY.controlRF);
+
+
+       cubemars_ak_set_speed(
+           &hfdcan1,
+           RM_ID,
+           (int32_t)rtY.controlRM);
+
+
+       cubemars_ak_set_speed(
+           &hfdcan1,
+           RB_ID,
+           (int32_t)rtY.controlRB);
+            */
+      
+         LOGI("AK1",
+       "pos=%.1f deg speed=%d",
+       motors[1].motor_position / 10.0f,
+       motors[1].motor_speed);
+
+
+               /*
+       * STEPPER CONTROL
+       */
+
+/**
+ * // LEFT FRONT
+       rotate_stepper(
+           &stepperLF,
+           (uint8_t)fabs(rtY.stepperLFSteps),
+           (uint32_t)fabs(rtY.stepperLFFrequency)
+       );
+
+
+       // LEFT BACK
+       rotate_stepper(
+           &stepperLB,
+           (uint8_t)fabs(rtY.stepperLBSteps),
+           (uint32_t)fabs(rtY.stepperLBFrequency)
+       );
+
+
+       // RIGHT FRONT
+       rotate_stepper(
+           &stepperRF,
+           (uint8_t)fabs(rtY.stepperRFSteps),
+           (uint32_t)fabs(rtY.stepperRFFrequency)
+       );
+
+
+       // RIGHT BACK
+       rotate_stepper(
+           &stepperRB,
+           (uint8_t)fabs(rtY.stepperRBSteps),
+           (uint32_t)fabs(rtY.stepperRBFrequency)
+       );
+ */
+       
+
+
+        osDelay(10);
     }
 }
 

@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'control_drive_manual'.
  *
- * Model version                  : 1.13
+ * Model version                  : 1.19
  * Simulink Coder version         : 25.2 (R2025b) 28-Jul-2025
- * C/C++ source code generated on : Mon May 18 12:32:25 2026
+ * C/C++ source code generated on : Tue May 26 12:06:21 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: STMicroelectronics->ST10/Super10
@@ -49,7 +49,7 @@ typedef struct {
   real_T controllerSteering;           /* '<Root>/controllerSteering' */
   real_T controllerSpeed;              /* '<Root>/controllerSpeed' */
   real_T deltaTime;                    /* '<Root>/deltaTime' */
-  real_T break_l;                      /* '<Root>/break' */
+  real_T break_d;                      /* '<Root>/break' */
   real_T LFActualSpeed;                /* '<Root>/LFActualSpeed' */
   real_T LMActualSpeed;                /* '<Root>/LMActualSpeed' */
   real_T LBActualSpeed;                /* '<Root>/LBActualSpeed' */
@@ -104,6 +104,7 @@ typedef struct {
   real_T stepperRFFrequency;           /* '<Root>/stepperRFFrequency' */
   real_T stepperRBSteps;               /* '<Root>/stepperRBSteps' */
   real_T stepperRBFrequency;           /* '<Root>/stepperRBFrequency' */
+  real_T test;                         /* '<Root>/test' */
 } ExtY;
 
 /* Real-time Model Data Structure */
