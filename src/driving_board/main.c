@@ -499,30 +499,26 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
 void PwmTask(void *argument)
 {
-   // uint32_t last_tick = osKernelGetTickCount();
-    //uint32_t wake_time = last_tick;
+   uint32_t last_tick = osKernelGetTickCount();
+    uint32_t wake_time = last_tick;
     const uint32_t period = 1;
 
 
    
     for(;;)
     {
-          osDelay(1000);
-          LOGI(TAG, "motor info: AAAAAAAAAA: %d", motor_info.motor_temperature);
-        /**
-         * uint32_t now = osKernelGetTickCount();
-
-
+          
         
+      uint32_t now = osKernelGetTickCount();
 
       rtU.deltaTime = (now - last_tick) * 0.001f;
       last_tick = now;
       
-      //control_drive_manual_step();
+      control_drive_manual_step();
 
       wake_time += period;// schedule next exact tick
       osDelayUntil(wake_time);
-         */
+         
       
     }
 }
