@@ -79,6 +79,7 @@ board_build.stm32cube.custom_config_header = yes
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
     +<components/common/motor_driver/**>
+    -<components/common/motor_driver/*/driving_board>
     +<components/common/*/stm/*.c>
     +<components/common/networking/**>
     +<components/common/*/${this.__env__}/**/*.c>
@@ -97,6 +98,7 @@ build_flags=
     +<components/common/*>
     +<components/common/networking/**>
     +<components/common/motor_driver/**>
+    -<components/common/motor_driver/*/driving_board>
     +<components/common/*/inc>
     +<components/common/*/arm_board/**>
     +<components/common/*/stm/**/*.c>
