@@ -26,10 +26,6 @@
 
 #define TAG "STEPPER"
 
-/* Class variables */
-int64_t pulse_ctr = 0;
-int64_t amt_steps = 100;
-
 void User_TIMPeriodElapsedCallback(TIM_HandleTypeDef* htim);
 static uint32_t calc_ARR_ticks(uint32_t frequency_hz);
 static uint32_t calc_CCR_ticks(uint32_t ARR_ticks, uint8_t duty_cycle);

@@ -22,9 +22,12 @@
 //Controls code
 #include "control_arm_manual.h"
 
+//Driving motors
+#include "stepper.h"
+#include "cl3e.h"
+
 #include "cubemx_main.h"
 #include "gpio.h"
-#include "stepper.h"
 #include "tim.h"
 
 // common libraries
@@ -63,6 +66,7 @@ extern void MX_DMA_Init(void);
 /*Handles*/
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart_com;
 
 void my_BSP_COM_Init() {
@@ -138,6 +142,9 @@ static void vStepperTask1(void* argument);
 static void vStepperTask2(void* argument);
 static void vArmInTask(void* argument);
 
+extern void control_arm_manual_initialize(void);
+extern void control_arm_manual_step(void);
+
 int main(void) {
   LOGI(TAG, "-----------------main-----------------");
 
@@ -161,6 +168,9 @@ int main(void) {
 
   // Log init
   LOG_init(&huart_com);
+
+  //arm control init
+  control_arm_manual_initialize();
 
   // Init scheduler
   osKernelInitialize();
@@ -274,7 +284,7 @@ static void vStepperTask2(void* argument) {
 
 static void vArmInTask(void* argument) {
   while(1) {
-      osDelay(10 * 1000); //every 10 seconds
+      osDelay(100 * 1000); //every 100 seconds
 
       //Steppers
 
@@ -314,11 +324,11 @@ static void vArmInTask(void* argument) {
         LOGE(TAG, "Could not send into queue2 (probably full)");
       }
 
+      // BLDC base
+      real_T control_thing = rtY.controlBase;
 
-      // BLDC
-
-      
-
+      pin_t dir_pin = {GPIOD, GPIO_PIN_13};
+      CL3E_DriveFromControl(&htim4, TIM_CHANNEL_1, dir_pin.GPIOx, dir_pin.GPIO_PIN_no, rtY.controlBase);
     }
 }
 
@@ -361,6 +371,9 @@ void HandlePacket(receive_frame_t* receive_frame) {
   LOGI(TAG, "Wayoo, message received");
 }
 
+
+/* HANDLE PB1 */
+
 /* Config for 1 pbmessage: ArmBoardControlSignals */
 static result_t Callback_ArmBoardControlSignals(void* buffer) {
 
@@ -382,8 +395,93 @@ static result_t Callback_ArmBoardControlSignals(void* buffer) {
   return RESULT_OK;
 }
 
-// PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals,
-// PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
+/*Init and pass packet dispatcher*/
+static uint8_t Handle_ArmBoardControlSignals_queue_buffer
+    [PACKET_HANDLER_DEFAULT_QUEUE_LENGTH *
+     sizeof(((PBEnvelope*)0)->payload.arm_ctrl)];
+
+// These are found in handler_stuff.h
+static packet_handler_config_t handlers[] = {{
+    .handler = (Callback_ArmBoardControlSignals),
+    .task_name = "Handle_ArmBoardControlSignals",
+    .packet_type = (PBEnvelope_arm_ctrl_tag),
+    .task_priority = PACKET_HANDLER_DEFAULT_PRIORITY,
+    .task_stack_depth = PACKET_HANDLER_DEFAULT_STACK_DEPTH,
+    .item_size = sizeof(((PBEnvelope*)0)->payload.arm_ctrl),
+    .queue_length = PACKET_HANDLER_DEFAULT_QUEUE_LENGTH,
+    .queue_buffer = Handle_ArmBoardControlSignals_queue_buffer,
+    .queue_struct = {0},
+    .queue = NULL,
+}};
+
+
+/* HANDLE PB 2 */
+//static x 0.795
+//static y 0.0
+//static z 0.322
+//gripperang 5.0
+
+static real_T x = 0.795;
+static real_T y = 0.0;
+static real_T z = 0.322;
+static real_T gripperang = 5.0;
+
+/* Config for 2 pbmessage: ArmBoardControlSignals */
+static result_t Callback_BasestationManualArmMovement(void* buffer) {
+
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
+
+  BasestationManualArmMovement* pckt = (BasestationManualArmMovement*) buffer;
+
+  pckt->delta_x;
+  pckt->delta_y;
+  pckt->delta_z;
+  pckt->delta_final_gripper_angle;
+  pckt->rotate;
+  pckt->speed;
+
+//SOMETHING ABOUT RADIANS
+//WATCH OUT
+
+  rtU.x = x;                            /* '<Root>/x' */
+  rtU.y = y;                            /* '<Root>/y' */
+  rtU.z = z;                            /* '<Root>/z' */
+  rtU.gripperAng = gripperang;                   /* '<Root>/gripperAng' */
+  rtU.jawDesiredPosition;           /* '<Root>/jawDesiredPosition' */
+  rtU.gripperRotationDesiredPosition;
+                                   /* '<Root>/gripperRotationDesiredPosition' */
+  rtU.jawActualPosition;            /* '<Root>/jawActualPosition' */
+  rtU.gripperRotationActualPosition;
+                                    /* '<Root>/gripperRotationActualPosition' */
+  rtU.gripperPitchActualPosition;   /* '<Root>/gripperPitchActualPosition' */
+  rtU.baseActualPosition;           /* '<Root>/baseActualPosition' */
+  rtU.stepperLeftActualPosition;    /* '<Root>/stepperLeftActualPosition' */
+  rtU.stepperRightActualPosition;   /* '<Root>/stepperRightActualPosition' */
+  rtU.deltaTime;                    /* '<Root>/deltaTime' */
+  rtU.gripperPitchOldPosition;      /* '<Root>/gripperPitchOldPosition' */
+  rtU.baseOldPosition;              /* '<Root>/baseOldPosition' */
+  rtU.stepperLeftOldPosition;       /* '<Root>/stepperLeftOldPosition' */
+  rtU.stepperRightOldPosition;      /* '<Root>/stepperRightOldPosition' */
+  rtU.timePerMovement;              /* '<Root>/timePerMovement' */
+
+
+  control_arm_manual();
+  
+  rtY;
+
+  //handle
+
+  BaseType_t xStatus;
+  xStatus = xQueueSendToBack(xQueueStepper1, &steps1, 0); //!TODO: wiat how many seconds?
+
+  if (xStatus != pdPASS) {
+    LOGE(TAG, "Could not send into queue (probably full)");
+  }
+
+  return RESULT_OK;
+}
 
 /*Init and pass packet dispatcher*/
 static uint8_t Handle_ArmBoardControlSignals_queue_buffer
@@ -403,6 +501,7 @@ static packet_handler_config_t handlers[] = {{
     .queue_struct = {0},
     .queue = NULL,
 }};
+
 
 extern int receiving_counter;
 int outgoing_counter = 0;
