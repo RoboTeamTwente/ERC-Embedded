@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "cubemx_main.h"
+#include "ethernet_udp.h"
 #include "gpio.h"
 #include "stepper.h"
 #include "tim.h"
@@ -58,15 +59,13 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart_com;
 
-void my_BSP_COM_Init()
-{
+void my_BSP_COM_Init() {
   BspCOMInit.BaudRate = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
   BspCOMInit.StopBits = COM_STOPBITS_1;
   BspCOMInit.Parity = COM_PARITY_NONE;
   BspCOMInit.HwFlowCtl = COM_HWCONTROL_NONE;
-  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
-  {
+  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
     Error_Handler();
   }
   MX_USART3_Init(&huart_com, &BspCOMInit);
@@ -95,7 +94,7 @@ osThreadId_t task_2Handle;
 const osThreadAttr_t task2_attributes = {
     .name = "task2",
     .stack_size = 1024 * 10, // Make sure this is enough
-    .priority = tskIDLE_PRIORITY,
+    .priority = tskIDLE_PRIORITY + 1U,
 };
 static void test_ethernet(void *argument);
 
@@ -133,9 +132,15 @@ const int item_size = sizeof(uint32_t);
 
 QueueHandle_t stepper1_queue_handle;
 QueueHandle_t stepper2_queue_handle;
+static StaticQueue_t stepper2_queue;
+static StaticQueue_t stepper1_queue;
 
-int main(void)
-{
+TaskHandle_t stepper1_notifier = NULL;
+#define STACK_SIZE 200
+StaticTask_t xTaskBuffer;
+StackType_t xStack[STACK_SIZE];
+
+int main(void) {
 
   LOGI(TAG, "-----------------main-----------------");
 
@@ -167,21 +172,33 @@ int main(void)
   osKernelInitialize();
 
   /*Create queues*/
-  static StaticQueue_t stepper1_queue;
   uint8_t stepper1_queue_buffer[queue_size * item_size];
-  QueueHandle_t stepper1_queue_handle = xQueueCreateStatic(
+  stepper1_queue_handle = xQueueCreateStatic(
       queue_size, item_size, stepper1_queue_buffer, &stepper1_queue);
 
-  static StaticQueue_t stepper2_queue;
   uint8_t stepper2_queue_buffer[queue_size * item_size];
-  QueueHandle_t stepper2_queue_handle = xQueueCreateStatic(
+  stepper2_queue_handle = xQueueCreateStatic(
       queue_size, item_size, stepper2_queue_buffer, &stepper2_queue);
 
+  stepper1_notifier = xTaskCreateStatic(
+
+      stepper1_task, /* Function that implements the task. */
+
+      "stepper1 task", /* Text name for the task. */
+
+      STACK_SIZE, /* Number of indexes in the xStack array. */
+
+      (void *)1, /* Parameter passed into the task. */
+
+      tskIDLE_PRIORITY + 1U, /* Priority at which the task is created. */
+
+      xStack, /* Array to use as the task's stack. */
+
+      &xTaskBuffer); /* Variable to hold the task's data structure. */
   /* Create the thread(s) */
 
   testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
-  if (testethernetTaskHandle == NULL)
-  {
+  if (testethernetTaskHandle == NULL) {
     // HANDLE
   }
 
@@ -191,9 +208,10 @@ int main(void)
   //     //HANDLE
   // }
 
-  stepper1_task_handle = osThreadNew(stepper1_task, NULL,&stepper1_task_attr); 
+  // stepper1_task_handle = osThreadNew(stepper1_task,
+  // NULL,&stepper1_task_attr);
   if (stepper1_task_handle == NULL) {
-      //HANDLE
+    // HANDLE
   }
 
   // stepper2_task_handle = osThreadNew(stepper2_task, NULL,
@@ -205,62 +223,47 @@ int main(void)
   osKernelStart();
   // We should never get here as control is now taken by the scheduler
 
-  while (1)
-  {
+  while (1) {
   }
 }
 
-static void stepper1_task(void *argument)
-{
+static void stepper1_task(void *argument) {
   uint32_t buf;
-  if (stepper1_queue_handle != 0) {
-    while (1)
-      {
-        xQueueReceive(stepper1_queue_handle, &buf, ( TickType_t ) 5);
-        do_pwm_dma(&stepper1, 10, 100);
-        osDelay(1000);
-      }
+  for (;;) {
+    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    xQueueReceive(stepper1_queue_handle, &buf, (TickType_t)5);
+    do_pwm_dma(&stepper1, 10, 100);
+    osDelay(1000);
   }
 }
 
-static void stepper2_task(void *argument)
-{
+static void stepper2_task(void *argument) {
 
-  while (1)
-  {
+  while (1) {
     do_pwm_dma(&stepper2, 12, 100); // 10 steps, freq = 10 kHz
     osDelay(1000);
   }
 }
 
-static void pwm_scope_task(void *argument)
-{
+static void pwm_scope_task(void *argument) {
 
   stepper_t step;
   init_stepper(&step, 50, &htim2);
 
   static const uint32_t scope_pulse_counts[] = {
-      10U,
-      20U,
-      50U,
-      100U,
-      200U,
-      400U,
-      800U,
-      1600U,
-      3200U,
-      6400U,
+      10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
   };
 
   const size_t count =
       sizeof(scope_pulse_counts) / sizeof(scope_pulse_counts[0]);
 
-  while (1){
-    for (size_t p = 0; p < count; p++){
+  while (1) {
+    for (size_t p = 0; p < count; p++) {
       uint32_t pulse_count = scope_pulse_counts[p];
 
-      LOGI(TAG, "--- New pulse count: %lu pulses ---",(unsigned long)pulse_count);
-      
+      LOGI(TAG, "--- New pulse count: %lu pulses ---",
+           (unsigned long)pulse_count);
+
       for (int i = 0; i < 10; i++) {
         LOGI(TAG, "Burst %d/10 — %lu pulses", i + 1,
              (unsigned long)pulse_count);
@@ -276,69 +279,70 @@ static void pwm_scope_task(void *argument)
 }
 
 /* Callback function that handles a specific packet*/
-void HandlePacket(receive_frame_t *receive_frame){
+void HandlePacket(receive_frame_t *receive_frame) {
   LOGI(TAG, "Wayoo, message received");
 }
 
 /* Config for 1 pbmessage: ArmBoardControlSignals */
-static result_t Callback_ArmBoardControlSignals(void *buffer){
+static result_t Callback_ArmBoardControlSignals(void *buffer) {
   LOGI(TAG, "PACKET RECEIVED");
 
-    if (buffer == NULL){
-      return RESULT_ERR_INVALID_ARG;
-    }
+  if (buffer == NULL) {
+    return RESULT_ERR_INVALID_ARG;
+  }
 
-    ArmBoardControlSignals *pckt = (ArmBoardControlSignals *)buffer;
-    // base bldc
-    pckt->control_base;
+  ArmBoardControlSignals *pckt = (ArmBoardControlSignals *)buffer;
+  // base bldc
+  pckt->control_base;
 
-    // gripper bldc
-    pckt->control_gripper_pitch;
+  // gripper bldc
+  pckt->control_gripper_pitch;
 
-    // gripper bldc
-    pckt->control_gripper_rotation;
+  // gripper bldc
+  pckt->control_gripper_rotation;
 
-    // bottom stepper
-    uint32_t steps1 = pckt->stepper_bottom_rev;
-    pckt->stepper_bottom_freq;
-    pckt->stepper_bottom_dir;
+  // bottom stepper
+  uint32_t steps1 = pckt->stepper_bottom_rev;
+  pckt->stepper_bottom_freq;
+  pckt->stepper_bottom_dir;
 
-    xQueueSend(stepper1_queue_handle, &steps1, portMAX_DELAY);
+  xQueueSend(stepper1_queue_handle, &steps1, portMAX_DELAY);
 
-    // top stepper
-    uint32_t steps2 = pckt->stepper_top_rev;
-    pckt->stepper_top_freq;
-    pckt->stepper_top_dir;
+  // top stepper
+  uint32_t steps2 = pckt->stepper_top_rev;
+  pckt->stepper_top_freq;
+  pckt->stepper_top_dir;
 
-    // xQueueSend(stepper2_queue_handle, &steps2, portMAX_DELAY);
+  // xQueueSend(stepper2_queue_handle, &steps2, portMAX_DELAY);
 
-    return RESULT_OK;
+  return RESULT_OK;
 }
 
-// PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals, PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
+// PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals,
+// PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
 
-  /*Init and pass packet dispatcher*/
-static uint8_t                                                             
-        Handle_ArmBoardControlSignals_queue_buffer[PACKET_HANDLER_DEFAULT_QUEUE_LENGTH                
-            * sizeof(((PBEnvelope*)0)->payload.arm_ctrl)];
-              
-    // These are found in handler_stuff.h
-  static packet_handler_config_t handlers[] = {{                                    
-        .handler = (Callback_ArmBoardControlSignals),                                               
-        .task_name = "Handle_ArmBoardControlSignals",                                                    
-        .packet_type = (PBEnvelope_arm_ctrl_tag),                                           
-        .task_priority = PACKET_HANDLER_DEFAULT_PRIORITY,                      
-        .task_stack_depth = PACKET_HANDLER_DEFAULT_STACK_DEPTH,                
-        .item_size = sizeof(((PBEnvelope*)0)->payload.arm_ctrl),                                      
-        .queue_length = PACKET_HANDLER_DEFAULT_QUEUE_LENGTH,                   
-        .queue_buffer = Handle_ArmBoardControlSignals_queue_buffer,                                   
-        .queue_struct = {0},                                                   
-        .queue = NULL,                                                         
-    }};
+/*Init and pass packet dispatcher*/
+static uint8_t Handle_ArmBoardControlSignals_queue_buffer
+    [PACKET_HANDLER_DEFAULT_QUEUE_LENGTH *
+     sizeof(((PBEnvelope *)0)->payload.arm_ctrl)];
+
+// These are found in handler_stuff.h
+static packet_handler_config_t handlers[] = {{
+    .handler = (Callback_ArmBoardControlSignals),
+    .task_name = "Handle_ArmBoardControlSignals",
+    .packet_type = (PBEnvelope_arm_ctrl_tag),
+    .task_priority = PACKET_HANDLER_DEFAULT_PRIORITY,
+    .task_stack_depth = PACKET_HANDLER_DEFAULT_STACK_DEPTH,
+    .item_size = sizeof(((PBEnvelope *)0)->payload.arm_ctrl),
+    .queue_length = PACKET_HANDLER_DEFAULT_QUEUE_LENGTH,
+    .queue_buffer = Handle_ArmBoardControlSignals_queue_buffer,
+    .queue_struct = {0},
+    .queue = NULL,
+}};
 
 extern int receiving_counter;
 int outgoing_counter = 0;
-void test_ethernet(void *argument){
+void test_ethernet(void *argument) {
 
   // Setup using sending side params
   ETH_init(NULL, my_ip, netmask, gateway, my_mac);
@@ -348,14 +352,18 @@ void test_ethernet(void *argument){
 
   static StaticQueue_t xStaticQueue1;
   uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue1 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea1, &xStaticQueue1);
+  QueueHandle_t udp_receiver_queue1 =
+      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea1, &xStaticQueue1);
 
   static StaticQueue_t xStaticQueue2;
   uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue2 = xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE, ucQueueStorageArea2, &xStaticQueue2);
+  QueueHandle_t udp_receiver_queue2 =
+      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea2, &xStaticQueue2);
 
   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
-    
+
   PacketDispatcherInit(handlers, 1);
   ETH_udp_init(2, queues, DispatchPacket);
 
@@ -366,15 +374,15 @@ void test_ethernet(void *argument){
   // uint8_t packet1_payload[4] = {14,06,20,04};
 
   // /*Test sending*/
-  // while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will be full!
+  // while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will
+  // be full!
   //     ETH_udp_send(ip, 8, packet1_payload, 4, 1);
   //     outgoing_counter += 1;
   //     LOGI(TAG, "%d", outgoing_counter);
   //     osDelay(5000);
   // }
 
-  while (1)
-  {
+  while (1) {
     LOGI(TAG, "...ethernet still receiving");
     osDelay(10000);
   }

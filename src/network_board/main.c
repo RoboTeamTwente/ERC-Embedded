@@ -70,7 +70,7 @@ void uart_setup()
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
     .stack_size = 1024 * 8,
-    .priority = tskIDLE_PRIORITY + 2U,
+    .priority = tskIDLE_PRIORITY + 1U,
 };
 
 void ethernet_linkstatus_callback(void *arg)
