@@ -123,7 +123,7 @@ void udp_send_task(void *pvParameters) {
 
   for (;;) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    LOGI(TAG, "UDP message being send %d", counter);
+    LOGI(TAG, "UDP message being sent %d", counter);
     counter += 1;
     send_frame_t frame;
     result_t r = bucketed_pqueue_pop(&udp_send_bqueue, &frame);

@@ -58,6 +58,10 @@ void MPU_Config_wrapper(void) {
     MPU_Config();
 }
 
+void MPU_Config_wrapper(void) {
+MPU_Config();
+}
+
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
