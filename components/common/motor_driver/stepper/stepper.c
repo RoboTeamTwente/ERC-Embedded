@@ -134,7 +134,7 @@ static uint32_t calc_ARR_ticks(uint32_t frequency_hz) {
         ARR_ticks = 2U;
     }
 
-    // ARR is upper bounded by 65 535, freq of 16Hz
+    // ARR is upper bounded by 65 535, freq is lower bouded by 16Hz
     if (ARR_ticks > 65535) {
         ARR_ticks = 65535;
     }

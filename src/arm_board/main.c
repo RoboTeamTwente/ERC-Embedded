@@ -233,23 +233,23 @@ int main(void) {
   }
 }
 
-static void stepper1_task(void *argument) {
-  uint32_t buf;
-  while (1) {
-    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    xQueueReceive(stepper1_queue_handle, &buf, (TickType_t)5);
-    do_pwm_dma(&stepper1, 10, 100);
-    osDelay(1000);
-  }
-}
+// static void stepper1_task(void *argument) {
+//   uint32_t buf;
+//   while (1) {
+//     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+//     xQueueReceive(stepper1_queue_handle, &buf, (TickType_t)5);
+//     do_pwm_dma(&stepper1, 10, 100);
+//     osDelay(1000);
+//   }
+// }
 
-static void stepper2_task(void *argument) {
+// static void stepper2_task(void *argument) {
 
-  while (1) {
-    do_pwm_dma(&stepper2, 12, 100); // 10 steps, freq = 10 kHz
-    osDelay(1000);
-  }
-}
+//   while (1) {
+//     do_pwm_dma(&stepper2, 12, 100); // 10 steps, freq = 10 kHz
+//     osDelay(1000);
+//   }
+// }
 
 static void pwm_scope_task(void *argument) {
 
@@ -276,7 +276,7 @@ static void pwm_scope_task(void *argument) {
         LOGI(TAG, "Burst %d/10 — %lu pulses", i + 1,
              (unsigned long)pulse_count);
 
-        rotate_stepper(&step, (int)pulse_count, (step.frequency_hz));
+        rotate_stepper(&step, (int)pulse_count, 30);
         osDelay(10);
       }
       LOGI(TAG, "Done with %lu pulses, switching...",
@@ -286,112 +286,112 @@ static void pwm_scope_task(void *argument) {
   }
 }
 
-/* Callback function that handles a specific packet*/
-void HandlePacket(receive_frame_t *receive_frame) {
-  LOGI(TAG, "Wayoo, message received");
-}
+// /* Callback function that handles a specific packet*/
+// void HandlePacket(receive_frame_t *receive_frame) {
+//   LOGI(TAG, "Wayoo, message received");
+// }
 
-/* Config for 1 pbmessage: ArmBoardControlSignals */
-static result_t Callback_ArmBoardControlSignals(void *buffer) {
-  LOGI(TAG, "PACKET RECEIVED");
+// /* Config for 1 pbmessage: ArmBoardControlSignals */
+// static result_t Callback_ArmBoardControlSignals(void *buffer) {
+//   LOGI(TAG, "PACKET RECEIVED");
 
-  if (buffer == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
+//   if (buffer == NULL) {
+//     return RESULT_ERR_INVALID_ARG;
+//   }
 
-  ArmBoardControlSignals *pckt = (ArmBoardControlSignals *)buffer;
-  // base bldc
-  pckt->control_base;
+//   ArmBoardControlSignals *pckt = (ArmBoardControlSignals *)buffer;
+//   // base bldc
+//   pckt->control_base;
 
-  // gripper bldc
-  pckt->control_gripper_pitch;
+//   // gripper bldc
+//   pckt->control_gripper_pitch;
 
-  // gripper bldc
-  pckt->control_gripper_rotation;
+//   // gripper bldc
+//   pckt->control_gripper_rotation;
 
-  // bottom stepper
-  uint32_t steps1 = pckt->stepper_bottom_rev;
-  pckt->stepper_bottom_freq;
-  pckt->stepper_bottom_dir;
+//   // bottom stepper
+//   uint32_t steps1 = pckt->stepper_bottom_rev;
+//   pckt->stepper_bottom_freq;
+//   pckt->stepper_bottom_dir;
 
-  xQueueSend(stepper1_queue_handle, &steps1, portMAX_DELAY);
+//   xQueueSend(stepper1_queue_handle, &steps1, portMAX_DELAY);
 
-  // top stepper
-  uint32_t steps2 = pckt->stepper_top_rev;
-  pckt->stepper_top_freq;
-  pckt->stepper_top_dir;
+//   // top stepper
+//   uint32_t steps2 = pckt->stepper_top_rev;
+//   pckt->stepper_top_freq;
+//   pckt->stepper_top_dir;
 
-  // xQueueSend(stepper2_queue_handle, &steps2, portMAX_DELAY);
+//   // xQueueSend(stepper2_queue_handle, &steps2, portMAX_DELAY);
 
-  return RESULT_OK;
-}
+//   return RESULT_OK;
+// }
 
-// PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals,
-// PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
+// // PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals,
+// // PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
 
-/*Init and pass packet dispatcher*/
-static uint8_t Handle_ArmBoardControlSignals_queue_buffer
-    [PACKET_HANDLER_DEFAULT_QUEUE_LENGTH *
-     sizeof(((PBEnvelope *)0)->payload.arm_ctrl)];
+// /*Init and pass packet dispatcher*/
+// static uint8_t Handle_ArmBoardControlSignals_queue_buffer
+//     [PACKET_HANDLER_DEFAULT_QUEUE_LENGTH *
+//      sizeof(((PBEnvelope *)0)->payload.arm_ctrl)];
 
-// These are found in handler_stuff.h
-static packet_handler_config_t handlers[] = {{
-    .handler = (Callback_ArmBoardControlSignals),
-    .task_name = "Handle_ArmBoardControlSignals",
-    .packet_type = (PBEnvelope_arm_ctrl_tag),
-    .task_priority = PACKET_HANDLER_DEFAULT_PRIORITY,
-    .task_stack_depth = PACKET_HANDLER_DEFAULT_STACK_DEPTH,
-    .item_size = sizeof(((PBEnvelope *)0)->payload.arm_ctrl),
-    .queue_length = PACKET_HANDLER_DEFAULT_QUEUE_LENGTH,
-    .queue_buffer = Handle_ArmBoardControlSignals_queue_buffer,
-    .queue_struct = {0},
-    .queue = NULL,
-}};
+// // These are found in handler_stuff.h
+// static packet_handler_config_t handlers[] = {{
+//     .handler = (Callback_ArmBoardControlSignals),
+//     .task_name = "Handle_ArmBoardControlSignals",
+//     .packet_type = (PBEnvelope_arm_ctrl_tag),
+//     .task_priority = PACKET_HANDLER_DEFAULT_PRIORITY,
+//     .task_stack_depth = PACKET_HANDLER_DEFAULT_STACK_DEPTH,
+//     .item_size = sizeof(((PBEnvelope *)0)->payload.arm_ctrl),
+//     .queue_length = PACKET_HANDLER_DEFAULT_QUEUE_LENGTH,
+//     .queue_buffer = Handle_ArmBoardControlSignals_queue_buffer,
+//     .queue_struct = {0},
+//     .queue = NULL,
+// }};
 
-extern int receiving_counter;
-int outgoing_counter = 0;
-void test_ethernet(void *argument) {
+// extern int receiving_counter;
+// int outgoing_counter = 0;
+// void test_ethernet(void *argument) {
 
-  // Setup using sending side params
-  ETH_init(NULL, my_ip, netmask, gateway, my_mac);
+//   // Setup using sending side params
+//   ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
-  /*Making queues*/
-  int SendQueueSize = 80;
+//   /*Making queues*/
+//   int SendQueueSize = 80;
 
-  static StaticQueue_t xStaticQueue1;
-  uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue1 =
-      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
-                         ucQueueStorageArea1, &xStaticQueue1);
+//   static StaticQueue_t xStaticQueue1;
+//   uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+//   QueueHandle_t udp_receiver_queue1 =
+//       xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+//                          ucQueueStorageArea1, &xStaticQueue1);
 
-  static StaticQueue_t xStaticQueue2;
-  uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue2 =
-      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
-                         ucQueueStorageArea2, &xStaticQueue2);
+//   static StaticQueue_t xStaticQueue2;
+//   uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+//   QueueHandle_t udp_receiver_queue2 =
+//       xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+//                          ucQueueStorageArea2, &xStaticQueue2);
 
-  QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
+//   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
-  PacketDispatcherInit(handlers, 1);
-  ETH_udp_init(2, queues, DispatchPacket);
+//   PacketDispatcherInit(handlers, 1);
+//   ETH_udp_init(2, queues, DispatchPacket);
 
-  /*Config + add ARP receiving side*/
-  ETH_add_arp(ip, mac, 5);
+//   /*Config + add ARP receiving side*/
+//   ETH_add_arp(ip, mac, 5);
 
-  /*Sending a message*/
-  // uint8_t packet1_payload[4] = {14,06,20,04};
+//   /*Sending a message*/
+//   // uint8_t packet1_payload[4] = {14,06,20,04};
 
-  // /*Test sending*/
-  // while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will
-  // be full!
-  //     ETH_udp_send(ip, 8, packet1_payload, 4, 1);
-  //     outgoing_counter += 1;
-  //     LOGI(TAG, "%d", outgoing_counter);
-  //     osDelay(5000);
-  // }
+//   // /*Test sending*/
+//   // while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will
+//   // be full!
+//   //     ETH_udp_send(ip, 8, packet1_payload, 4, 1);
+//   //     outgoing_counter += 1;
+//   //     LOGI(TAG, "%d", outgoing_counter);
+//   //     osDelay(5000);
+//   // }
 
-  while (1) {
-    LOGI(TAG, "...ethernet still receiving");
-    osDelay(10000);
-  }
-}
+//   while (1) {
+//     LOGI(TAG, "...ethernet still receiving");
+//     osDelay(10000);
+//   }
+// }
