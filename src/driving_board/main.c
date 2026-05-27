@@ -643,14 +643,14 @@ void PwmTask(void *argument)
         LOGI(TAG, "Burst %d/10 — %lu pulses", i + 1,
              (unsigned long)pulse_count);
 
-        rotate_stepper(&stepperLF, (int)pulse_count, 30);
+        rotate_stepper(&stepperRB, 120, 30);
         osDelay(10);
-      }
+
       LOGI(TAG, "Done with %lu pulses, switching...",
            (unsigned long)pulse_count);
-      osDelay(4000);
+      
     }
-  }
+  }}
 
       //uint32_t now = osKernelGetTickCount();
 
@@ -741,8 +741,8 @@ void DriveTask(void *argument)
          
 
 
-        cubemars_ak_set_speed(&hfdcan2, 93, rtY.controlLM);
-        cubemars_ak_set_speed(&hfdcan1, 93, -rtY.controlRM);
+        //cubemars_ak_set_speed(&hfdcan2, 93, rtY.controlLM);
+        //cubemars_ak_set_speed(&hfdcan1, 93, -rtY.controlRM);
     
 
 
