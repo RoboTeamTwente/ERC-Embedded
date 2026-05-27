@@ -78,7 +78,9 @@ board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
+    +<components/common/motor_driver/**>
     +<components/common/*/stm/*.c>
+    +<components/common/networking/**>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/${this.__env__}/**>
     -<components/${this.__env__}/firmware/Drivers/*>
@@ -91,6 +93,8 @@ build_flags=
     -<components/arm_board/firmware/Drivers/**>
     +<components/arm_board/firmware/Drivers/BSP/**>
     +<components/common/*>
+    +<components/common/networking/**>
+    +<components/common/motor_driver/**>
     +<components/common/*/inc>
     +<components/common/*/arm_board/**>
     +<components/common/*/stm/**/*.c>

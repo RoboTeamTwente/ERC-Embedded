@@ -20,6 +20,7 @@
 #include "cubemx_main.h"
 #include "cmsis_os.h"
 #include "dma.h"
+#include "fdcan.h"
 #include "lwip.h"
 #include "tim.h"
 #include "gpio.h"
@@ -96,19 +97,18 @@ while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 /** Initializes the RCC Oscillators according to the specified parameters
 * in the RCC_OscInitTypeDef structure.
 */
-RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
-RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+RCC_OscInitStruct.HSEState = RCC_HSE_ON;
 RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-RCC_OscInitStruct.PLL.PLLM = 4;
-RCC_OscInitStruct.PLL.PLLN = 10;
-RCC_OscInitStruct.PLL.PLLP = 2;
+RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+RCC_OscInitStruct.PLL.PLLM = 1;
+RCC_OscInitStruct.PLL.PLLN = 36;
+RCC_OscInitStruct.PLL.PLLP = 4;
 RCC_OscInitStruct.PLL.PLLQ = 4;
 RCC_OscInitStruct.PLL.PLLR = 2;
 RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
-RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOMEDIUM;
-RCC_OscInitStruct.PLL.PLLFRACN = 4096;
+RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
+RCC_OscInitStruct.PLL.PLLFRACN = 0;
 if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
 {
 Error_Handler();
@@ -151,7 +151,7 @@ HAL_MPU_Disable();
 MPU_InitStruct.Enable = MPU_REGION_ENABLE;
 MPU_InitStruct.Number = MPU_REGION_NUMBER0;
 MPU_InitStruct.BaseAddress = 0x30000000;
-MPU_InitStruct.Size = MPU_REGION_SIZE_32B;
+MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
 MPU_InitStruct.SubRegionDisable = 0x0;
 MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
 MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;

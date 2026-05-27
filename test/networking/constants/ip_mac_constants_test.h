@@ -1,7 +1,7 @@
 #ifndef IP_MAC_CONSTANTS_TEST
 #define IP_MAC_CONSTANTS_TEST
 
-#define BOARD 1
+#define BOARD 2
 
 #if BOARD == 1
 #define TEST_SEND_IP {192, 168, 0, 111}
