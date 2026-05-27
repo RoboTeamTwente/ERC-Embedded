@@ -468,10 +468,34 @@ static result_t Callback_BasestationManualArmMovement(void* buffer) {
 
 
   control_arm_manual();
+
+  rtY.pointReached;              /* '<Root>/pointReached' */
+  rtY.error;                        /* '<Root>/error' */
+  rtY.controlJaw;                   /* '<Root>/controlJaw' */
+  rtY.controlWristRotation;         /* '<Root>/controlWristRotation' */
+  rtY.controlGripperPitch;          /* '<Root>/controlGripperPitch' */
+  rtY.controlBase;                  /* '<Root>/controlBase' */
+  rtY.stepperLeftSteps;             /* '<Root>/stepperLeftSteps' */
+  rtY.stepperLeftFrequency;         /* '<Root>/stepperLeftFrequency' */
+  rtY.stepperRightSteps;            /* '<Root>/stepperRightSteps' */
+  rtY.stepperRightFrequency;        /* '<Root>/stepperRightFrequency' */
   
-  rtY;
+
 
   //handle
+
+  /*
+  * SO WHAT I WANT YALL TO DO HERE, IS TO USE the same structure as vArmInTask
+  * MEANING, i want you to take the left and right stepper rtYs
+  * SEPARATE them, and make them into protobufs to put them into the queues as in vArmInTask!!!!!!1
+  * Then stepper1task & stepper2task should receive and take over
+  * 
+  * We then also need to do this (queue) for the base and use the CL3E library intstead of stepper lib
+  * Then we will be done
+  * 
+  * (ALSO YOU STILL NEED TO REGISTER THIS CALLBACK, see example with other callback)
+  */
+
 
   BaseType_t xStatus;
   xStatus = xQueueSendToBack(xQueueStepper1, &steps1, 0); //!TODO: wiat how many seconds?
