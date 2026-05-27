@@ -330,6 +330,7 @@ void init_board() {
   SystemClock_Config();
   MX_GPIO_Init();
   osKernelInitialize();
+  MX_DMA_Init();
   
   //MX_DAC1_Init();
   //HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
@@ -352,7 +353,7 @@ void init_board() {
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
   MX_USART2_UART_Init();
-  MX_DMA_Init();
+  
   control_drive_manual_initialize();
 
   //ethernet
@@ -623,11 +624,7 @@ void PwmTask(void *argument)
   //const uint32_t period = 1;
 
 
-   
-    for(;;)
-    {
-          
-        
+
   static const uint32_t scope_pulse_counts[] = {
       10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
   };
@@ -646,12 +643,12 @@ void PwmTask(void *argument)
         LOGI(TAG, "Burst %d/10 — %lu pulses", i + 1,
              (unsigned long)pulse_count);
 
-        rotate_stepper(&stepperLF, 50, 100);
+        rotate_stepper(&stepperLF, (int)pulse_count, 30);
         osDelay(10);
       }
       LOGI(TAG, "Done with %lu pulses, switching...",
            (unsigned long)pulse_count);
-      osDelay(4);
+      osDelay(4000);
     }
   }
 
@@ -708,9 +705,9 @@ osDelay(10);
       //wake_time += period;// schedule next exact tick
       //osDelayUntil(wake_time);
          
-      osDelay(1);
+
     }
-}
+
 
 void DrivingEncoderTask(void *argument){
 
