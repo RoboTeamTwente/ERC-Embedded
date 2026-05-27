@@ -24,6 +24,11 @@
     Pulse width should always be greater than 2.5 microsecs!!
 */
 
+// Placeholder pins
+#define PLS_PIN 2  // Pulse signal
+#define DIR_PIN 3  // Direction signal
+#define ENA_PIN 4  // Enable signal
+
 #define TAG "STEPPER"
 
 /* Class variables */
@@ -35,11 +40,27 @@ static uint32_t calc_ARR_ticks(uint32_t frequency_hz);
 static uint32_t calc_CCR_ticks(uint32_t ARR_ticks, uint8_t duty_cycle);
 void set_pin(int pinname, char what);
 
+<<<<<<<< HEAD:components/common/motor_driver/stepper/stepper.c
 result_t init_stepper(stepper_t* stepper, uint8_t duty_cycle, TIM_HandleTypeDef* htim, pin_t dir_pin, pin_t ena_pin) {
     stepper->duty_cycle = duty_cycle;
     stepper->htim = htim;
     stepper->dir_pin = dir_pin;
     stepper->ena_pin = ena_pin;
+========
+result_t init_stepper(stepper_t* stepper, uint8_t duty_cycle,
+                      TIM_HandleTypeDef* htim) {
+    stepper->duty_cycle = duty_cycle;
+    stepper->htim = htim;
+    // stepper->current_angle = 0;
+    // stepper->frequency_hz = 1U;
+
+    // uint32_t ARR_ticks = calc_ARR_ticks(stepper->frequency_hz);
+    // __HAL_TIM_SET_AUTORELOAD(htim, ARR_ticks - 1U);
+
+    // //!TODO: arr ticks -1 but ccr ticks not...
+    // uint32_t CCR_ticks = calc_CCR_ticks(ARR_ticks, duty_cycle);
+    // __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, CCR_ticks);
+>>>>>>>> ca3234cd336ae0413d46a3b0a626ce117107337f:components/common/stepper/driving_board/stepper.c
 
     HAL_TIM_PWM_Stop(htim, TIM_CHANNEL_1);
 
@@ -90,12 +111,26 @@ void do_pwm_dma(stepper_t* stepper, int amt_steps, uint32_t freq) {
 void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute,
                     uint32_t freq) {
     /* Calculate shortest the relative angle */
+<<<<<<<< HEAD:components/common/motor_driver/stepper/stepper.c
     //!NOTE: the "angles" are in amounts of steps and they are absolute
     int32_t relative_angle = amt_steps_absolute - stepper->current_angle; //relative clockwise turn
     bool dir_pin_val = (relative_angle >= 0) ? GPIO_PIN_SET : GPIO_PIN_RESET; //set pin to 1 for clockwise, 0 for counterclockwise
 
     pin_t dir = stepper->dir_pin;
     HAL_GPIO_WritePin(dir.GPIOx, dir.GPIO_PIN_no, dir_pin_val); //set pin to 1 for clockwise, 0 for counterclockwise
+========
+    //! NOTE: the "angles" are in amounts of steps and they are absolute
+    uint32_t CW_angle =
+        amt_steps_absolute - stepper->current_angle;  // relative clockwise turn
+    uint32_t CCW_angle =
+        STEPS_PER_REV - CW_angle;  // relative counterclockwise turn
+    uint32_t amt_steps_relative =
+        (CW_angle < CCW_angle) ? CW_angle : CCW_angle;  // pick the shortest
+
+    // set pin to 1 for clockwise, 0 for counterclockwise
+    bool pin_val = (CW_angle < CCW_angle) ? 1 : 0;
+    set_pin(DIR_PIN, pin_val);
+>>>>>>>> ca3234cd336ae0413d46a3b0a626ce117107337f:components/common/stepper/driving_board/stepper.c
 
     pin_t ena = stepper->ena_pin;
     HAL_GPIO_WritePin(ena.GPIOx, ena.GPIO_PIN_no, GPIO_PIN_SET); //enable stepper

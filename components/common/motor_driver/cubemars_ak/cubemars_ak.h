@@ -15,6 +15,7 @@
      CUBEMARS_AK_PARAM_INPUT_VOLTAGE_MASK |     \
      CUBEMARS_AK_PARAM_STATUS_CODE_MASK)
 
+#define CUBEMARS_AK_MAX_NUMBER_OF_MOTORS (10)
 /**
  * @brief Servo-mode CAN command identifiers for CubeMars AK motor drivers.
  *
@@ -148,6 +149,9 @@ typedef struct {
 result_t cubemars_ak_parse_can_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
                                         const uint8_t data[8],
                                         cubemars_ak_information* out);
+
+result_t cubemars_ak_process_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
+                                      const uint8_t data[8]);
 
 /**
  * @brief Build the extended CAN identifier for a CubeMars AK servo command.
