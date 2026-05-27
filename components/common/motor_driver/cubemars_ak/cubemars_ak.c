@@ -1,5 +1,7 @@
 #include "cubemars_ak.h"
 
+#include <string.h>
+
 #include "logging.h"
 #include "result.h"
 
@@ -80,6 +82,9 @@ result_t cubemars_ak_parse_can_feedback(const FDCAN_RxHeaderTypeDef* rx_header,
     out->motor_temperature =
         (int8_t)data[6] / CUBEMARS_AK_CAN_TEMPERATURE_SCALE;
     out->status_code = (cubemars_ak_error_code)data[7];
+    LOGI(TAG, "Feedback; ID: %d, A: %d, Pos: %d, Speed: %d, Temp: %d",
+         out->motor_id, out->motor_current, out->motor_position,
+         out->motor_speed, out->motor_temperature);
 
     return RESULT_OK;
 }
