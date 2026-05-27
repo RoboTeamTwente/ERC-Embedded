@@ -290,6 +290,7 @@ static void vArmInTask(void* argument) {
 
       rtY.stepperLeftFrequency;
       rtY.stepperLeftSteps;
+
       rtY.stepperRightFrequency;
       rtY.stepperRightSteps;
 
@@ -445,6 +446,7 @@ static result_t Callback_BasestationManualArmMovement(void* buffer) {
 //SOMETHING ABOUT RADIANS
 //WATCH OUT
 
+  //input values (talk to rowan)
   rtU.x = x;                            /* '<Root>/x' */
   rtU.y = y;                            /* '<Root>/y' */
   rtU.z = z;                            /* '<Root>/z' */
@@ -469,20 +471,24 @@ static result_t Callback_BasestationManualArmMovement(void* buffer) {
 
   control_arm_manual();
 
+  //return values
   rtY.pointReached;              /* '<Root>/pointReached' */
   rtY.error;                        /* '<Root>/error' */
   rtY.controlJaw;                   /* '<Root>/controlJaw' */
   rtY.controlWristRotation;         /* '<Root>/controlWristRotation' */
   rtY.controlGripperPitch;          /* '<Root>/controlGripperPitch' */
+
   rtY.controlBase;                  /* '<Root>/controlBase' */
+
   rtY.stepperLeftSteps;             /* '<Root>/stepperLeftSteps' */
   rtY.stepperLeftFrequency;         /* '<Root>/stepperLeftFrequency' */
+
   rtY.stepperRightSteps;            /* '<Root>/stepperRightSteps' */
   rtY.stepperRightFrequency;        /* '<Root>/stepperRightFrequency' */
   
 
 
-  //handle
+  //!TODO: handle
 
   /*
   * SO WHAT I WANT YALL TO DO HERE, IS TO USE the same structure as vArmInTask
@@ -490,7 +496,7 @@ static result_t Callback_BasestationManualArmMovement(void* buffer) {
   * SEPARATE them, and make them into protobufs to put them into the queues as in vArmInTask!!!!!!1
   * Then stepper1task & stepper2task should receive and take over
   * 
-  * We then also need to do this (queue) for the base and use the CL3E library intstead of stepper lib
+  * We then also need to do this (NO PROTOBUF NEEDED, JUST queue) for the base and use the CL3E library intstead of stepper lib
   * Then we will be done
   * 
   * (ALSO YOU STILL NEED TO REGISTER THIS CALLBACK, see example with other callback)
