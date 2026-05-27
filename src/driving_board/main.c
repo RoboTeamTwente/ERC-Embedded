@@ -269,8 +269,52 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
 }
 
 
+static void CAN2_ConfigRx_AllStandard(void) {
+    FDCAN_FilterTypeDef filter = {0};
 
+    filter.IdType = FDCAN_STANDARD_ID;
+    filter.FilterIndex = 0;
+    filter.FilterType = FDCAN_FILTER_MASK;
+    filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
 
+    // Accept everything: (ID & 0x000) == (0x000 & 0x000)
+    filter.FilterID1 = 0x000;
+    filter.FilterID2 = 0x000;
+
+    if (HAL_FDCAN_ConfigFilter(&hfdcan2, &filter) != HAL_OK) {
+        LOGE("CAN", "Filter config failed, err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan2));
+        Error_Handler();
+    }
+
+    if (HAL_FDCAN_ConfigGlobalFilter(
+            &hfdcan2, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+            FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
+        LOGE("CAN", "Global filter failed, err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan2));
+        Error_Handler();
+    }
+}
+
+static void CAN_LogStatus(FDCAN_HandleTypeDef* hfdcan) {
+    FDCAN_ProtocolStatusTypeDef protocol_status;
+    FDCAN_ErrorCountersTypeDef error_counters;
+
+    if (HAL_FDCAN_GetProtocolStatus(hfdcan, &protocol_status) == HAL_OK) {
+        LOGI("CAN",
+             "LastErrorCode=%lu DataLastErrorCode=%lu Activity=%lu BusOff=%lu",
+             protocol_status.LastErrorCode, protocol_status.DataLastErrorCode,
+             protocol_status.Activity, protocol_status.BusOff);
+    }
+
+    if (HAL_FDCAN_GetErrorCounters(hfdcan, &error_counters) == HAL_OK) {
+        LOGI("CAN", "TxErrorCnt=%lu RxErrorCnt=%lu RxErrorPassive=%lu",
+             error_counters.TxErrorCnt, error_counters.RxErrorCnt,
+             error_counters.RxErrorPassive);
+    }
+
+    LOGI("CAN", "HAL error=0x%08lx", HAL_FDCAN_GetError(hfdcan));
+}
 
 void init_board() {
 
@@ -305,6 +349,7 @@ void init_board() {
   MX_TIM4_Init();
   MX_TIM5_Init();
   MX_FDCAN1_Init();
+  MX_FDCAN2_Init();
   MX_USART2_UART_Init();
   control_drive_manual_initialize();
 
@@ -343,14 +388,36 @@ void init_board() {
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
-       
+  CAN2_ConfigRx_AllStandard();
+    if (HAL_FDCAN_ConfigInterruptLines(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
+                                       FDCAN_INTERRUPT_LINE0) != HAL_OK) {
+        LOGE("CAN", "Interrupt line config failed err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan2));
+        Error_Handler();
+    }
+
+    if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
+                                       0) != HAL_OK) {
+        LOGE("CAN", "Activate RX notification failed err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan2));
+        Error_Handler();
+    }
+    if (HAL_FDCAN_Start(&hfdcan2) != HAL_OK) {
+        LOGE(TAG, "FDCAN start failed, err=0x%08lx",
+             HAL_FDCAN_GetError(&hfdcan2));
+        for (;;);
+    }
+
+    LOGI("CAN", "FDCAN2: Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu",
+         hfdcan2.Init.Mode, hfdcan2.Init.NominalPrescaler,
+         hfdcan2.Init.NominalTimeSeg1, hfdcan2.Init.NominalTimeSeg2,
+         hfdcan2.Init.NominalSyncJumpWidth);
+         
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+
 
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
 
@@ -542,10 +609,14 @@ void DriveTask(void *argument)
     {
         LOGI("TEST", "sending");
 
-        cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+        cubemars_ak_set_speed(&hfdcan2, 93, 10000);
+        cubemars_ak_set_speed(&hfdcan1, 93, -10000);
+        CAN_LogStatus(&hfdcan2);
         osDelay(1000);
-
-        cubemars_ak_set_speed(&hfdcan1, 93, 0);
+        //
+        cubemars_ak_set_speed(&hfdcan2, 93, 0);
+        cubemars_ak_set_speed(&hfdcan1, 93, -0000);
+        CAN_LogStatus(&hfdcan2);
         osDelay(1000);
         //uint32_t now = osKernelGetTickCount();
 
