@@ -741,8 +741,8 @@ void DriveTask(void *argument)
          
 
 
-        cubemars_ak_set_speed(&hfdcan2, 93, rtY.controlLM);
-        cubemars_ak_set_speed(&hfdcan1, 93, -rtY.controlRM);
+        //cubemars_ak_set_speed(&hfdcan2, 93, rtY.controlLM);
+        //cubemars_ak_set_speed(&hfdcan1, 93, -rtY.controlRM);
     
 
 
