@@ -116,6 +116,8 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
     +<components/common/*/stm/**/*.c>
+    +<components/common/motor_driver/**>
+    +<components/common/stepper/driving_board/**>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
@@ -126,6 +128,8 @@ build_flags=
     +<components/common/*/inc> 
     +<components/common/*>
     +<components/common/*/stm/**>
+    +<components/common/motor_driver/**>
+    +<components/common/stepper/driving_board/**>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
@@ -165,7 +169,8 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
     +<components/common/*/stm/*.c>
-    +<components/common/motor_driver/**>
+    +<components/common/motor_driver/*/*.c>
+    +<components/common/motor_driver/*/can_board/*.c>
     +<components/can_board/**>
     -<components/can_board/firmware/Drivers/**>
     +<components/can_board/firmware/Drivers/BSP/**>
@@ -178,6 +183,8 @@ build_flags=
     +<components/can_board/**>
     +<components/common/*>
     +<components/common/motor_driver/**>
+    +<components/common/motor_driver/*/*>
+    +<components/common/motor_driver/*/can_board/*>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp

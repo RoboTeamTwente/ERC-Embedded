@@ -410,40 +410,40 @@ void vEthernetTask(void* argument) {
   // Setup using sending side params
   ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
-  /*Making queues*/
-  int SendQueueSize = 80;
+//   /*Making queues*/
+//   int SendQueueSize = 80;
 
-  static StaticQueue_t xStaticQueue1;
-  uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue1 =
-      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
-                         ucQueueStorageArea1, &xStaticQueue1);
+//   static StaticQueue_t xStaticQueue1;
+//   uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+//   QueueHandle_t udp_receiver_queue1 =
+//       xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+//                          ucQueueStorageArea1, &xStaticQueue1);
 
-  static StaticQueue_t xStaticQueue2;
-  uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue2 =
-      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
-                         ucQueueStorageArea2, &xStaticQueue2);
+//   static StaticQueue_t xStaticQueue2;
+//   uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+//   QueueHandle_t udp_receiver_queue2 =
+//       xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+//                          ucQueueStorageArea2, &xStaticQueue2);
 
-  QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
+//   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
 
   // PacketDispatcherInit(handlers, 1);
   ETH_udp_init(2, queues, HandlePacket);
 
-  /*Config + add ARP receiving side*/
-  ETH_add_arp(ip, mac, 5);
+//   /*Config + add ARP receiving side*/
+//   ETH_add_arp(ip, mac, 5);
 
-  /*Sending a message*/
-  // uint8_t packet1_payload[4] = {14,06,20,04};
+//   /*Sending a message*/
+//   // uint8_t packet1_payload[4] = {14,06,20,04};
 
-  // /*Test sending*/
-  // while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will
-  // be full!
-  //     ETH_udp_send(ip, 8, packet1_payload, 4, 1);
-  //     outgoing_counter += 1;
-  //     LOGI(TAG, "%d", outgoing_counter);
-  //     osDelay(5000);
-  // }
+//   // /*Test sending*/
+//   // while (outgoing_counter < 100) { //NOTE: after 80 packages the queue will
+//   // be full!
+//   //     ETH_udp_send(ip, 8, packet1_payload, 4, 1);
+//   //     outgoing_counter += 1;
+//   //     LOGI(TAG, "%d", outgoing_counter);
+//   //     osDelay(5000);
+//   // }
 
   while (1) {
     LOGI(TAG, "...ethernet still receiving");

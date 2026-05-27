@@ -58,6 +58,7 @@ int a = 1;
 /* External variables --------------------------------------------------------*/
 extern ETH_HandleTypeDef heth;
 extern FDCAN_HandleTypeDef hfdcan1;
+extern FDCAN_HandleTypeDef hfdcan2;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
 
@@ -106,7 +107,7 @@ void MemManage_Handler(void)
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
 
   /* USER CODE END MemoryManagement_IRQn 0 */
-  while (a==1)
+  while (1)
   {
     /* USER CODE BEGIN W1_MemoryManagement_IRQn 0 */
     /* USER CODE END W1_MemoryManagement_IRQn 0 */
@@ -178,6 +179,20 @@ void FDCAN1_IT0_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles FDCAN2 interrupt 0.
+  */
+void FDCAN2_IT0_IRQHandler(void)
+{
+  /* USER CODE BEGIN FDCAN2_IT0_IRQn 0 */
+
+  /* USER CODE END FDCAN2_IT0_IRQn 0 */
+  HAL_FDCAN_IRQHandler(&hfdcan2);
+  /* USER CODE BEGIN FDCAN2_IT0_IRQn 1 */
+
+  /* USER CODE END FDCAN2_IT0_IRQn 1 */
+}
+
+/**
   * @brief This function handles FDCAN1 interrupt 1.
   */
 void FDCAN1_IT1_IRQHandler(void)
@@ -189,6 +204,20 @@ void FDCAN1_IT1_IRQHandler(void)
   /* USER CODE BEGIN FDCAN1_IT1_IRQn 1 */
 
   /* USER CODE END FDCAN1_IT1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles FDCAN2 interrupt 1.
+  */
+void FDCAN2_IT1_IRQHandler(void)
+{
+  /* USER CODE BEGIN FDCAN2_IT1_IRQn 0 */
+
+  /* USER CODE END FDCAN2_IT1_IRQn 0 */
+  HAL_FDCAN_IRQHandler(&hfdcan2);
+  /* USER CODE BEGIN FDCAN2_IT1_IRQn 1 */
+
+  /* USER CODE END FDCAN2_IT1_IRQn 1 */
 }
 
 /**

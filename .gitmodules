@@ -1,7 +1,3 @@
-[submodule "ERC-Protobufs"]
-    path = ERC-Protobufs
-    url = git@github.com:RoboTeamTwente/ERC-Protobufs.git
-
 [submodule "erc-control-steering"]
     path = erc-control-steering
     url = https://github.com/RoboTeamTwente/erc-control-steering.git
