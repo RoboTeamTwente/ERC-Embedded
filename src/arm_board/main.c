@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "cubemx_main.h"
-#include "ethernet_udp.h"
 #include "gpio.h"
 #include "stepper.h"
 #include "tim.h"
@@ -40,6 +39,7 @@
 #include "components/common/networking/inc/ethernet.h" //long path since LWIP also has ethernet.h
 #include "ip_mac_constants.h"
 #include "networking_constants.h"
+#include "ethernet_udp.h"
 
 // packetdispatcher
 #include "packet_dispatcher.h"
@@ -136,7 +136,7 @@ static StaticQueue_t stepper2_queue;
 static StaticQueue_t stepper1_queue;
 
 TaskHandle_t stepper1_notifier = NULL;
-#define STACK_SIZE 200
+#define STACK_SIZE 1024 * 8
 StaticTask_t xTaskBuffer;
 StackType_t xStack[STACK_SIZE];
 
@@ -165,8 +165,12 @@ int main(void) {
   // Log init
   LOG_init(&huart_com);
 
-  init_stepper(&stepper1, 50, &htim2);
-  init_stepper(&stepper2, 50, &htim3);
+  pin_t pin1 = {GPIOA, GPIO_PIN_4};
+  pin_t pin2 = {GPIOC, GPIO_PIN_0};
+  init_stepper(&stepper1, 50, &htim2, pin1, pin2);
+  pin_t pin3 = {GPIOA, GPIO_PIN_5};
+  pin_t pin4 = {GPIOB, GPIO_PIN_6};
+  init_stepper(&stepper2, 50, &htim3, pin3, pin4);
 
   // Init scheduler
   osKernelInitialize();
@@ -180,39 +184,39 @@ int main(void) {
   stepper2_queue_handle = xQueueCreateStatic(
       queue_size, item_size, stepper2_queue_buffer, &stepper2_queue);
 
-  stepper1_notifier = xTaskCreateStatic(
+  // stepper1_notifier = xTaskCreateStatic(
 
-      stepper1_task, /* Function that implements the task. */
+  //     stepper1_task, /* Function that implements the task. */
 
-      "stepper1 task", /* Text name for the task. */
+  //     "stepper1 task", /* Text name for the task. */
 
-      STACK_SIZE, /* Number of indexes in the xStack array. */
+  //     STACK_SIZE, /* Number of indexes in the xStack array. */
 
-      (void *)1, /* Parameter passed into the task. */
+  //     (void *)1, /* Parameter passed into the task. */
 
-      tskIDLE_PRIORITY + 1U, /* Priority at which the task is created. */
+  //     tskIDLE_PRIORITY + 1U, /* Priority at which the task is created. */
 
-      xStack, /* Array to use as the task's stack. */
+  //     xStack, /* Array to use as the task's stack. */
 
-      &xTaskBuffer); /* Variable to hold the task's data structure. */
-  /* Create the thread(s) */
+  //     &xTaskBuffer); /* Variable to hold the task's data structure. */
+  // /* Create the thread(s) */
 
   testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
   if (testethernetTaskHandle == NULL) {
     // HANDLE
   }
 
-  // pwmScopeTaskHandle =
-  // osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes); if
-  // (pwmScopeTaskHandle == NULL) {
-  //     //HANDLE
-  // }
+  pwmScopeTaskHandle =
+  osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes); if
+  (pwmScopeTaskHandle == NULL) {
+      //HANDLE
+  }
 
   // stepper1_task_handle = osThreadNew(stepper1_task,
   // NULL,&stepper1_task_attr);
-  if (stepper1_task_handle == NULL) {
-    // HANDLE
-  }
+  // if (stepper1_task_handle == NULL) {
+  //   // HANDLE
+  // }
 
   // stepper2_task_handle = osThreadNew(stepper2_task, NULL,
   // &stepper2_task_attr); if (stepper2_task_handle == NULL) {
@@ -229,7 +233,7 @@ int main(void) {
 
 static void stepper1_task(void *argument) {
   uint32_t buf;
-  for (;;) {
+  while (1) {
     (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     xQueueReceive(stepper1_queue_handle, &buf, (TickType_t)5);
     do_pwm_dma(&stepper1, 10, 100);
@@ -248,7 +252,9 @@ static void stepper2_task(void *argument) {
 static void pwm_scope_task(void *argument) {
 
   stepper_t step;
-  init_stepper(&step, 50, &htim2);
+  pin_t pin1 = {GPIOA, GPIO_PIN_4};
+  pin_t pin2 = {GPIOC, GPIO_PIN_0};
+  init_stepper(&step, 50, &htim2, pin1, pin2);
 
   static const uint32_t scope_pulse_counts[] = {
       10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
@@ -268,7 +274,7 @@ static void pwm_scope_task(void *argument) {
         LOGI(TAG, "Burst %d/10 — %lu pulses", i + 1,
              (unsigned long)pulse_count);
 
-        do_pwm_dma(&step, (int)pulse_count, (step.frequency_hz));
+        rotate_stepper(&step, (int)pulse_count, (step.frequency_hz));
         osDelay(10);
       }
       LOGI(TAG, "Done with %lu pulses, switching...",
