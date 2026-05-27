@@ -105,7 +105,7 @@ const osThreadAttr_t mainTask_attributes = {
 
 const osThreadAttr_t pwmTask_attributes = {
     .name = "pwmTask",
-    .stack_size = 1024 * 10,
+    .stack_size = 1024 * 8,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
@@ -646,12 +646,12 @@ void PwmTask(void *argument)
         LOGI(TAG, "Burst %d/10 — %lu pulses", i + 1,
              (unsigned long)pulse_count);
 
-        rotate_stepper(&stepperLF, (int)pulse_count, (stepperLF.frequency_hz));
+        rotate_stepper(&stepperLF, 50, 100);
         osDelay(10);
       }
       LOGI(TAG, "Done with %lu pulses, switching...",
            (unsigned long)pulse_count);
-      osDelay(4000U);
+      osDelay(4);
     }
   }
 
