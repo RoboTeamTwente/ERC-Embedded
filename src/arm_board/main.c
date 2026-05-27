@@ -200,11 +200,13 @@ int main(void) {
 
   //     &xTaskBuffer); /* Variable to hold the task's data structure. */
   // /* Create the thread(s) */
-
-  testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
+/**
+ * testethernetTaskHandle = osThreadNew(test_ethernet, NULL, &task2_attributes);
   if (testethernetTaskHandle == NULL) {
     // HANDLE
   }
+ */
+  
 
   pwmScopeTaskHandle =
   osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes); if

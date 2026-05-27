@@ -67,6 +67,7 @@ extern void MX_FREERTOS_Init(void);
 //void cubemx_main(void);
 void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
+extern void MX_DMA_Init(void);
 void Error_Handler(void);
 void MPU_Config(void);
 
@@ -104,7 +105,7 @@ const osThreadAttr_t mainTask_attributes = {
 
 const osThreadAttr_t pwmTask_attributes = {
     .name = "pwmTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 10,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
@@ -319,13 +320,13 @@ static void CAN_LogStatus(FDCAN_HandleTypeDef* hfdcan) {
 void init_board() {
 
   MPU_Config_wrapper();
-
+  HAL_Init();
   SCB_EnableICache();
 
   /* Enable D-Cache---------------------------------------------------------*/
   //SCB_EnableDCache();
 
-  HAL_Init();
+  
   SystemClock_Config();
   MX_GPIO_Init();
   osKernelInitialize();
@@ -351,6 +352,7 @@ void init_board() {
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
   MX_USART2_UART_Init();
+  MX_DMA_Init();
   control_drive_manual_initialize();
 
   //ethernet
@@ -412,14 +414,7 @@ void init_board() {
          hfdcan2.Init.Mode, hfdcan2.Init.NominalPrescaler,
          hfdcan2.Init.NominalTimeSeg1, hfdcan2.Init.NominalTimeSeg2,
          hfdcan2.Init.NominalSyncJumpWidth);
-         
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-
-
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+        
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
@@ -508,7 +503,8 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
             &diag_size);
 
     if (diag_result == RESULT_OK){
-        ETH_udp_send(
+        
+      ETH_udp_send(
             ip,
             8,
             diag_encoded,
@@ -566,9 +562,65 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
 void PwmTask(void *argument)
 {
-   uint32_t last_tick = osKernelGetTickCount();
-    uint32_t wake_time = last_tick;
-    const uint32_t period = 1;
+  pin_t pin1 = {GPIOE, GPIO_PIN_0};
+  pin_t pin2 = {GPIOE, GPIO_PIN_1};
+  init_stepper(&stepperRF, 50, &htim1, pin1, pin2);
+  pin_t pin3 = {GPIOE, GPIO_PIN_2};
+  pin_t pin4 = {GPIOE, GPIO_PIN_3};
+  init_stepper(&stepperLF, 50, &htim3, pin3, pin4);
+  pin_t pin5 = {GPIOE, GPIO_PIN_4};
+  pin_t pin6 = {GPIOE, GPIO_PIN_5};
+  init_stepper(&stepperLB, 50, &htim4, pin5, pin6);
+  pin_t pin7 = {GPIOE, GPIO_PIN_6};
+  pin_t pin8 = {GPIOB, GPIO_PIN_9};
+  init_stepper(&stepperRB, 50, &htim5, pin7, pin8);
+
+
+  rtU.controllerSteering = 0.15;                       // Mock: Slight turn to the right (-1.0 to 1.0)
+  rtU.controllerSpeed    = 0.50;                       // Mock: Half speed forward (-1.0 to 1.0)
+  rtU.break_d            = 0.0;                        // Mock: Brake disengaged (0.0 or 1.0)
+
+
+  // Left Front (LF)
+  rtU.LFActualSpeed      = 2.1;                        // rad/s or m/s
+  rtU.LFActualPos        = 1024.0;                     // Encoder counts or degrees
+  rtU.LFCurrent          = 1.2;                        // Amperes
+  rtU.LFTemperature      = 35.5;                       // Degrees Celsius
+
+  // Left Middle (LM)
+  rtU.LMActualSpeed      = 2.1;
+  rtU.LMActualPos        = 1024.0;
+  rtU.LMCurrent          = 1.1;
+  rtU.LMTemperature      = 34.8;
+
+  // Left Back (LB)
+  rtU.LBActualSpeed      = 2.0;
+  rtU.LBActualPos        = 1022.0;
+  rtU.LBCurrent          = 1.3;
+  rtU.LBTemperature      = 36.1;
+
+  // --- 3. Right Side Wheels Actual Feedback ---
+  // Right Front (RF)
+  rtU.RFActualSpeed      = 2.3;                        // Slightly faster due to the steering angle
+  rtU.RFActualPos        = 1040.0;
+  rtU.RFCurrent          = 1.4;
+  rtU.RFTemperature      = 37.0;
+
+  // Right Middle (RM)
+  rtU.RMActualSpeed      = 2.2;
+  rtU.RMActualPos        = 1035.0;
+  rtU.RMCurrent          = 1.2;
+  rtU.RMTemperature      = 35.9;
+
+  // Right Back (RB)
+  rtU.RBActualSpeed      = 2.2;
+  rtU.RBActualPos        = 1035.0;
+  rtU.RBCurrent          = 1.3;
+  rtU.RBTemperature      = 36.4;
+
+  //uint32_t last_tick = osKernelGetTickCount();
+  //uint32_t wake_time = last_tick;
+  //const uint32_t period = 1;
 
 
    
@@ -576,17 +628,87 @@ void PwmTask(void *argument)
     {
           
         
-      uint32_t now = osKernelGetTickCount();
+  static const uint32_t scope_pulse_counts[] = {
+      10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
+  };
 
-      rtU.deltaTime = (now - last_tick) * 0.001f;
-      last_tick = now;
+  const size_t count =
+      sizeof(scope_pulse_counts) / sizeof(scope_pulse_counts[0]);
+
+  while (1) {
+    for (size_t p = 0; p < count; p++) {
+      uint32_t pulse_count = scope_pulse_counts[p];
+
+      LOGI(TAG, "--- New pulse count: %lu pulses ---",
+           (unsigned long)pulse_count);
+
+      for (int i = 0; i < 10; i++) {
+        LOGI(TAG, "Burst %d/10 — %lu pulses", i + 1,
+             (unsigned long)pulse_count);
+
+        rotate_stepper(&stepperLF, (int)pulse_count, (stepperLF.frequency_hz));
+        osDelay(10);
+      }
+      LOGI(TAG, "Done with %lu pulses, switching...",
+           (unsigned long)pulse_count);
+      osDelay(4000U);
+    }
+  }
+
+      //uint32_t now = osKernelGetTickCount();
+
+      //rtU.deltaTime = (now - last_tick) * 0.001f;
+      //last_tick = now;
+      /**
+       * control_drive_manual_step();
+     
+     
+      rotate_stepper(
+           &stepperLF,
+           200,
+           100
+       );
+ osDelay(100);
+       */
       
-      control_drive_manual_step();
+/**
+ *  LOGI(TAG, "BBBBBBBBBBBBBBBBBBBBSTEPSSSSSSSSS:");
+       osDelay(10);
 
-      wake_time += period;// schedule next exact tick
-      osDelayUntil(wake_time);
+       // LEFT BACK
+       rotate_stepper(
+           &stepperLB,
+           (int)200U,
+           (int)20000
+       );
+       osDelay(10);
+LOGI(TAG, "BBBBBBBBBBBBBBBBBBBBSTEPSSSSSSSSS:");
+osDelay(10);
+       // RIGHT FRONT
+       rotate_stepper(
+           &stepperRF,
+           (int)200U,
+           (int)20000
+       );
+       osDelay(10);
+LOGI(TAG, "BBBBBBBBBBBBBBBBBBBBSTEPSSSSSSSSS:");
+osDelay(10);
+       // RIGHT BACK
+       rotate_stepper(
+           &stepperRB,
+           (int)200U,
+           (int)20000
+       );
+ 
+       osDelay(10);
+       LOGI(TAG, "BBBBBBBBBBBBBBBBBBBBSTEPSSSSSSSSS:");
+
+ */
+     
+      //wake_time += period;// schedule next exact tick
+      //osDelayUntil(wake_time);
          
-      
+      osDelay(1);
     }
 }
 
@@ -594,7 +716,7 @@ void DrivingEncoderTask(void *argument){
 
   for(;;)
   {
-    
+ 
     osDelay(1000);
 
   }
@@ -609,6 +731,7 @@ void DriveTask(void *argument)
     {
         LOGI("TEST", "sending");
 
+        
         cubemars_ak_set_speed(&hfdcan2, 93, 10000);
         cubemars_ak_set_speed(&hfdcan1, 93, -10000);
         CAN_LogStatus(&hfdcan2);
@@ -618,23 +741,12 @@ void DriveTask(void *argument)
         cubemars_ak_set_speed(&hfdcan1, 93, -0000);
         CAN_LogStatus(&hfdcan2);
         osDelay(1000);
-        //uint32_t now = osKernelGetTickCount();
+         
 
 
-       //control_drive_manual_step();
-       /*
-        * LEFT FRONT
-        */
-       //rtU.LFActualPos =rtU.RFActualPos;
-
-          
-
-
-
-       /*
-        * RUN CONTROLLER
-        */
-      
+        cubemars_ak_set_speed(&hfdcan2, 93, rtY.controlLM);
+        cubemars_ak_set_speed(&hfdcan1, 93, -rtY.controlRM);
+    
 
 
        /*
@@ -643,85 +755,9 @@ void DriveTask(void *argument)
 
 
 
+  // LEFT FRONT
 
-           /**
-            *
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           LF_ID,
-           (int32_t)rtY.controlLF);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           LM_ID,
-           (int32_t)rtY.controlLM);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           LB_ID,
-           (int32_t)rtY.controlLB);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           RF_ID,
-           (int32_t)rtY.controlRF);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           RM_ID,
-           (int32_t)rtY.controlRM);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           RB_ID,
-           (int32_t)rtY.controlRB);
-            */
       
-
-
-
-               /*
-       * STEPPER CONTROL
-       */
-
-/**
- * // LEFT FRONT
-       rotate_stepper(
-           &stepperLF,
-           (uint8_t)fabs(rtY.stepperLFSteps),
-           (uint32_t)fabs(rtY.stepperLFFrequency)
-       );
-
-
-       // LEFT BACK
-       rotate_stepper(
-           &stepperLB,
-           (uint8_t)fabs(rtY.stepperLBSteps),
-           (uint32_t)fabs(rtY.stepperLBFrequency)
-       );
-
-
-       // RIGHT FRONT
-       rotate_stepper(
-           &stepperRF,
-           (uint8_t)fabs(rtY.stepperRFSteps),
-           (uint32_t)fabs(rtY.stepperRFFrequency)
-       );
-
-
-       // RIGHT BACK
-       rotate_stepper(
-           &stepperRB,
-           (uint8_t)fabs(rtY.stepperRBSteps),
-           (uint32_t)fabs(rtY.stepperRBFrequency)
-       );
- */
-       
 
 
         osDelay(10);
