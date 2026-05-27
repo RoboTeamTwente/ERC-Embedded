@@ -72,9 +72,9 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
   uint8_t rx_data[8] = {0};
 
   if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) !=
-  HAL_OK) {
-  LOGE("CAN", "RX read failed, err=0x%08lx",
-  HAL_FDCAN_GetError(hfdcan)); return;
+      HAL_OK) {
+    LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
+    return;
   }
   cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
   printf("TEMPRATURE: %d", motor_info.motor_temperature);
@@ -158,7 +158,7 @@ void MainTaskSender() {
     // cubemars_ak_set_speed(&hfdcan1, 93, 00);
     // HAL_Delay(500);
 
-    // cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+    cubemars_ak_set_speed(&hfdcan1, 93, 10000);
     osDelay(1000);
 
     // cubemars_ak_set_speed(&hfdcan1, 93, 0);
@@ -383,9 +383,9 @@ int main() {
   LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
-  // osThreadNew(MainTaskSender, NULL, &mainTaskSender_attributes);
+  osThreadNew(MainTaskSender, NULL, &mainTaskSender_attributes);
   // osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
-  osThreadNew(ethernet_task, NULL, &ethernet_task_attributes);
+  // osThreadNew(ethernet_task, NULL, &ethernet_task_attributes);
   // MainTaskListener();
   //  MainTask(NULL);
   osKernelStart();
