@@ -131,9 +131,11 @@ StaticTask_t xTaskBuffer;
 StackType_t xStack[STACK_SIZE];
 
 QueueHandle_t xQueueStepper1;
+QueueHandle_t xQueueStepper2;
 
 static void vEthernetTask(void* argument);
 static void vStepperTask1(void* argument);
+static void vStepperTask2(void* argument);
 static void vArmInTask(void* argument);
 
 int main(void) {
@@ -160,14 +162,6 @@ int main(void) {
   // Log init
   LOG_init(&huart_com);
 
-  //INit steppers
-  pin_t pin1 = {GPIOA, GPIO_PIN_4};
-  pin_t pin2 = {GPIOC, GPIO_PIN_0};
-  init_stepper(&stepper1, 50, &htim2, pin1, pin2);
-  pin_t pin3 = {GPIOA, GPIO_PIN_5};
-  pin_t pin4 = {GPIOB, GPIO_PIN_6};
-  init_stepper(&stepper2, 50, &htim3, pin3, pin4);
-
   // Init scheduler
   osKernelInitialize();
 
@@ -184,6 +178,7 @@ int main(void) {
   // }
 
   xQueueStepper1 = xQueueCreate(5, sizeof(Arm_StepperSignals_size));
+  xQueueStepper2 = xQueueCreate(5, sizeof(Arm_StepperSignals_size));
 
   if (xQueueStepper1 == NULL) {
     // HANDLE
@@ -193,8 +188,9 @@ int main(void) {
   //Sending task
   xTaskCreate(vArmInTask, "Sender1", 1024*8, NULL, tskIDLE_PRIORITY, NULL);
 
-  //Receiving task, prio is one above sending task so it should always empty the queue when msgs are there
-  xTaskCreate(vStepperTask1, "Receiver", 1024*8, NULL, tskIDLE_PRIORITY + 1U, NULL);
+  //Receiving tasks, prio is one above sending task so it should always empty the queue when msgs are there
+  xTaskCreate(vStepperTask1, "Receiver1", 1024*8, NULL, tskIDLE_PRIORITY + 1U, NULL);
+  xTaskCreate(vStepperTask2, "Receiver2", 1024*8, NULL, tskIDLE_PRIORITY + 1U, NULL);
 
   // Start scheduler
   osKernelStart();
@@ -205,6 +201,11 @@ int main(void) {
 }
 
 static void vStepperTask1(void* argument) {
+  //INit stepper
+  pin_t pin1 = {GPIOA, GPIO_PIN_4};
+  pin_t pin2 = {GPIOC, GPIO_PIN_0};
+  init_stepper(&stepper1, 50, &htim2, pin1, pin2);
+
   /* Declare the variable that will hold the values received from the
      queue. */
   void* buffer;
@@ -229,35 +230,95 @@ static void vStepperTask1(void* argument) {
       LOGI(TAG, "freq: %u", decoded_ss->stepper_freq);
       LOGI(TAG, "steps: %u", decoded_ss->stepper_steps);
 
+      rotate_stepper(&stepper1, decoded_ss->stepper_steps, decoded_ss->stepper_freq);
+
+    }
+  }
+}
+
+static void vStepperTask2(void* argument) {
+  //Init stepper
+  pin_t pin3 = {GPIOA, GPIO_PIN_5};
+  pin_t pin4 = {GPIOB, GPIO_PIN_6};
+  init_stepper(&stepper2, 50, &htim3, pin3, pin4);
+
+  /* Declare the variable that will hold the values received from the
+     queue. */
+  void* buffer;
+  BaseType_t xStatus;
+  const TickType_t xTicksToWait = pdMS_TO_TICKS(10); //Queue checks receiving every 10 ms
+
+  /* This task is also defined within an infinite loop. */
+  while(1) {
+    if (uxQueueMessagesWaiting(xQueueStepper1) != 0) {
+      LOGE(TAG, "Queue is not empty!\r\n");
+    }
+
+    xStatus = xQueueReceive(xQueueStepper2, &buffer, xTicksToWait);
+
+    if (xStatus == pdPASS) {
+      LOGI(TAG, "Received = %u", buffer);
+
+      Arm_StepperSignals* decoded_ss = Arm_StepperSignals_DEFAULT;
+      size_t size = Arm_StepperSignals_size;
+      result_t res = pb_message_decode(buffer, Arm_StepperSignals_size, Arm_StepperSignals_fields, Arm_StepperSignals_size, &decoded_ss);
+
+      LOGI(TAG, "freq: %u", decoded_ss->stepper_freq);
+      LOGI(TAG, "steps: %u", decoded_ss->stepper_steps);
+
+      rotate_stepper(&stepper2, decoded_ss->stepper_steps, decoded_ss->stepper_freq);
+
     }
   }
 }
 
 static void vArmInTask(void* argument) {
   while(1) {
-      osDelay(1000); //every second
+      osDelay(10 * 1000); //every 10 seconds
 
-      uint32_t freq = rtY.stepperLeftFrequency;
-      uint32_t steps = rtY.stepperLeftSteps;
+      //Steppers
 
-      //!NOTE: placeholder values!!!
-      Arm_StepperSignals ss = {(uint32_t) 30,(uint32_t) 300};
-
-      uint8_t *msg_encoded = NULL;
-      size_t msg_size = 0;
-      result_t progress_result = pb_message_encode(&ss,Arm_StepperSignals_fields,&msg_encoded,&msg_size);
-
-      int32_t steps1 = 50;
-
-      BaseType_t xStatus;
-      xStatus = xQueueSendToBack(xQueueStepper1, &msg_encoded, 0); //!TODO: wiat how many seconds?
-
-      if (xStatus != pdPASS) {
-        LOGE(TAG, "Could not send into queue (probably full)");
-      }
-
+      rtY.stepperLeftFrequency;
+      rtY.stepperLeftSteps;
       rtY.stepperRightFrequency;
       rtY.stepperRightSteps;
+
+      /* Encode messages */
+
+      //!NOTE: placeholder values!!!
+      Arm_StepperSignals ss_left = {(uint32_t) 30,(uint32_t) 300};
+      Arm_StepperSignals ss_right = {(uint32_t) 60,(uint32_t) 600};
+
+      uint8_t *msg_encoded1 = NULL;
+      size_t msg_size1 = 0;
+      pb_message_encode(&ss_left,Arm_StepperSignals_fields,&msg_encoded1,&msg_size1);
+      //!TODO: error handling
+
+      uint8_t *msg_encoded2 = NULL;
+      size_t msg_size2 = 0;
+      pb_message_encode(&ss_right,Arm_StepperSignals_fields,&msg_encoded2,&msg_size2);
+      //!TODO: error handling
+
+
+      BaseType_t xStatus1;
+      xStatus1 = xQueueSendToBack(xQueueStepper1, &msg_encoded1, 0); //!TODO: wait how many seconds?
+
+      if (xStatus1 != pdPASS) {
+        LOGE(TAG, "Could not send into queue1 (probably full)");
+      }
+
+      BaseType_t xStatus2;
+      xStatus2 = xQueueSendToBack(xQueueStepper2, &msg_encoded2, 0); //!TODO: wait how many seconds?
+
+      if (xStatus2 != pdPASS) {
+        LOGE(TAG, "Could not send into queue2 (probably full)");
+      }
+
+
+      // BLDC
+
+      
+
     }
 }
 
