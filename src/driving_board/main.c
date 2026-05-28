@@ -419,7 +419,7 @@ void init_board() {
         
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
-  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
+  //osThreadNew(PwmTask, NULL, &pwmTask_attributes);
   osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
   osThreadNew(DriveTask, NULL, &driveTask_attributes);
   osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
@@ -699,17 +699,34 @@ void DriveTask(void *argument)
     for (;;)
     {
         LOGI("TEST", "sending");
+        for (int speed = 0; speed<5000; speed=+100){
+            
+        cubemars_ak_set_speed(&hfdcan2, 93, -speed);
+        cubemars_ak_set_speed(&hfdcan1, 93, speed);
+        osDelay(20);
+        }
+        osDelay(1000);
 
-        
-        cubemars_ak_set_speed(&hfdcan2, 93, 10000);
-        cubemars_ak_set_speed(&hfdcan1, 93, -10000);
-        CAN_LogStatus(&hfdcan2);
+        for (int speed = 5000; speed>0; speed=-100){
+            
+        cubemars_ak_set_speed(&hfdcan2, 93, -speed);
+        cubemars_ak_set_speed(&hfdcan1, 93, speed);
+        osDelay(20);
+        }
+        osDelay(10000);
+
+
+/**
+ *     CAN_LogStatus(&hfdcan2);
         osDelay(1000);
         //
         cubemars_ak_set_speed(&hfdcan2, 93, 0);
         cubemars_ak_set_speed(&hfdcan1, 93, -0000);
         CAN_LogStatus(&hfdcan2);
         osDelay(1000);
+ */
+        
+    
          
 
 
