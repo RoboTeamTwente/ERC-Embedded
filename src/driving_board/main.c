@@ -269,8 +269,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
   //cl3e_parse_can_message(&rx_header, rx_data);
 }
 
-
-static void CAN2_ConfigRx_AllStandard(void) {
+/**
+ * static void CAN2_ConfigRx_AllStandard(void) {
     FDCAN_FilterTypeDef filter = {0};
 
     filter.IdType = FDCAN_STANDARD_ID;
@@ -296,6 +296,8 @@ static void CAN2_ConfigRx_AllStandard(void) {
         Error_Handler();
     }
 }
+ */
+
 
 static void CAN_LogStatus(FDCAN_HandleTypeDef* hfdcan) {
     FDCAN_ProtocolStatusTypeDef protocol_status;
@@ -351,7 +353,7 @@ void init_board() {
   MX_TIM4_Init();
   MX_TIM5_Init();
   MX_FDCAN1_Init();
-  MX_FDCAN2_Init();
+  //MX_FDCAN2_Init();
   MX_USART2_UART_Init();
   
   control_drive_manual_initialize();
@@ -391,8 +393,8 @@ void init_board() {
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
-
-  CAN2_ConfigRx_AllStandard();
+/**
+ * CAN2_ConfigRx_AllStandard();
     if (HAL_FDCAN_ConfigInterruptLines(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
                                        FDCAN_INTERRUPT_LINE0) != HAL_OK) {
         LOGE("CAN", "Interrupt line config failed err=0x%08lx",
@@ -416,6 +418,8 @@ void init_board() {
          hfdcan2.Init.Mode, hfdcan2.Init.NominalPrescaler,
          hfdcan2.Init.NominalTimeSeg1, hfdcan2.Init.NominalTimeSeg2,
          hfdcan2.Init.NominalSyncJumpWidth);
+ */
+  
         
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
@@ -701,7 +705,7 @@ void DriveTask(void *argument)
         LOGI("TEST", "sending");
         for (int speed = 0; speed<5000; speed=+100){
             
-        cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
+        //cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
         cubemars_ak_set_speed(&hfdcan1, 93, speed*16);
         osDelay(20);
         }
@@ -709,7 +713,7 @@ void DriveTask(void *argument)
 
         for (int speed = 5000; speed>0; speed=-100){
             
-        cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
+        //cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
         cubemars_ak_set_speed(&hfdcan1, 93, speed*16);
         osDelay(20);
         }
