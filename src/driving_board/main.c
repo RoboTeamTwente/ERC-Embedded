@@ -417,11 +417,11 @@ void init_board() {
          hfdcan2.Init.NominalSyncJumpWidth);
         
 
-  osThreadNew(MainTask, NULL, &mainTask_attributes);
+  //osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
-  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
-  osThreadNew(DriveTask, NULL, &driveTask_attributes);
-  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
+  //osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
+  //osThreadNew(DriveTask, NULL, &driveTask_attributes);
+  //osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
 
 
   //HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
@@ -577,7 +577,7 @@ void PwmTask(void *argument)
   init_stepper(&stepperRB, 50, &htim5, pin7, pin8);
 
 
-  rtU.controllerSteering = 0.15;                       // Mock: Slight turn to the right (-1.0 to 1.0)
+  rtU.controllerSteering = 2000000000;                       // Mock: Slight turn to the right (-1.0 to 1.0)
   rtU.controllerSpeed    = 0.50;                       // Mock: Half speed forward (-1.0 to 1.0)
   rtU.break_d            = 0.0;                        // Mock: Brake disengaged (0.0 or 1.0)
 
@@ -619,13 +619,14 @@ void PwmTask(void *argument)
   rtU.RBCurrent          = 1.3;
   rtU.RBTemperature      = 36.4;
 
+  LOGI(TAG,"FREQ:%f" ,rtY.stepperLFFrequency);
+  LOGI(TAG,"STEP:%f" ,rtY.stepperLFSteps);
   //uint32_t last_tick = osKernelGetTickCount();
   //uint32_t wake_time = last_tick;
   //const uint32_t period = 1;
 
 
-
-  static const uint32_t scope_pulse_counts[] = {
+    static const uint32_t scope_pulse_counts[] = {
       10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
   };
 
@@ -644,67 +645,35 @@ void PwmTask(void *argument)
              (unsigned long)pulse_count);
 
         rotate_stepper(&stepperLF, (int)pulse_count, 30);
+        rotate_stepper(&stepperRB, (int)pulse_count, 30);
+        rotate_stepper(&stepperRF, (int)pulse_count, 30);
+        rotate_stepper(&stepperLB, (int)pulse_count, 30);
         osDelay(10);
       }
-      LOGI(TAG, "Done with %lu pulses, switching...",
-           (unsigned long)pulse_count);
-      osDelay(4000);
     }
   }
+  /**
+   *  while (1) {
 
-      //uint32_t now = osKernelGetTickCount();
 
-      //rtU.deltaTime = (now - last_tick) * 0.001f;
-      //last_tick = now;
-      /**
-       * control_drive_manual_step();
-     
-     
-      rotate_stepper(
-           &stepperLF,
-           200,
-           100
-       );
- osDelay(100);
-       */
-      
-/**
- *  LOGI(TAG, "BBBBBBBBBBBBBBBBBBBBSTEPSSSSSSSSS:");
-       osDelay(10);
+    control_drive_manual_step();
 
-       // LEFT BACK
-       rotate_stepper(
-           &stepperLB,
-           (int)200U,
-           (int)20000
-       );
-       osDelay(10);
-LOGI(TAG, "BBBBBBBBBBBBBBBBBBBBSTEPSSSSSSSSS:");
-osDelay(10);
-       // RIGHT FRONT
-       rotate_stepper(
-           &stepperRF,
-           (int)200U,
-           (int)20000
-       );
-       osDelay(10);
-LOGI(TAG, "BBBBBBBBBBBBBBBBBBBBSTEPSSSSSSSSS:");
-osDelay(10);
-       // RIGHT BACK
-       rotate_stepper(
-           &stepperRB,
-           (int)200U,
-           (int)20000
-       );
+      rotate_stepper(&stepperLF, 50, rtY.stepperLFFrequency);
+      rotate_stepper(&stepperRB, 50, 50);
  
-       osDelay(10);
-       LOGI(TAG, "BBBBBBBBBBBBBBBBBBBBSTEPSSSSSSSSS:");
+      uint32_t now = osKernelGetTickCount();
 
- */
+      rtU.deltaTime = (now - last_tick) * 0.001f;
+      last_tick = now;
      
-      //wake_time += period;// schedule next exact tick
-      //osDelayUntil(wake_time);
-         
+      wake_time += period;// schedule next exact tick
+      osDelayUntil(wake_time);
+     
+
+      }   
+   */
+
+ 
 
     }
 
