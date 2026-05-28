@@ -544,12 +544,11 @@ void PwmTask(void *argument)
 
   //LOGI(TAG,"FREQ:%f" ,rtY.stepperLFFrequency);
   //LOGI(TAG,"STEP:%f" ,rtY.stepperLFSteps);
-  uint32_t last_tick = osKernelGetTickCount();
-  uint32_t wake_time = last_tick;
-  const uint32_t period = 1;
+  //uint32_t last_tick = osKernelGetTickCount();
+  //uint32_t wake_time = last_tick;
+  //const uint32_t period = 1;
 
-  /**
-   * 
+ 
     static const uint32_t scope_pulse_counts[] = {
       10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
   };
@@ -573,14 +572,13 @@ void PwmTask(void *argument)
         rotate_stepper(&stepperRB, (int)pulse_count, 30);
         rotate_stepper(&stepperRF, (int)pulse_count, 30);
         rotate_stepper(&stepperLB, (int)pulse_count, 30);
-        osDelay(10);
+        osDelay(1000);
       }
     }
   }
-   */
-
-  
-     while (1) {
+}
+/**
+ *      while (1) {
 
 
       control_drive_manual_step();
@@ -603,6 +601,9 @@ void PwmTask(void *argument)
  
 
     }
+ */
+  
+
 
 void DrivingEncoderTask(void *argument){
 
