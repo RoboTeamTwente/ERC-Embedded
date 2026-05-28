@@ -67,6 +67,7 @@ extern void MX_FREERTOS_Init(void);
 //void cubemx_main(void);
 void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
+extern void MX_DMA_Init(void);
 void Error_Handler(void);
 void MPU_Config(void);
 
@@ -98,32 +99,32 @@ void MainTaskListener(void *argument);
 
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t pwmTask_attributes = {
     .name = "pwmTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t drivingEncoderTask_attributes = {
     .name = "encoderTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 
 const osThreadAttr_t driveTask_attributes = {
     .name = "driveTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t mainTaskListener_attributes = {
     .name = "mainTaskListener",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
@@ -247,7 +248,6 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
 }
 
 static cubemars_ak_information motor_info = {0};
-static volatile cubemars_ak_information motors[256] = {0};//TODO:NOT BEING UPDATED RN CHANGE LATER
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
                                uint32_t RxFifo0ITs) {
@@ -275,16 +275,17 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
 void init_board() {
 
   MPU_Config_wrapper();
-
+  HAL_Init();
   SCB_EnableICache();
 
   /* Enable D-Cache---------------------------------------------------------*/
   //SCB_EnableDCache();
 
-  HAL_Init();
+  
   SystemClock_Config();
   MX_GPIO_Init();
   osKernelInitialize();
+  MX_DMA_Init();
   
   //MX_DAC1_Init();
   //HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
@@ -343,25 +344,12 @@ void init_board() {
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
-       
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
   osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
   osThreadNew(DriveTask, NULL, &driveTask_attributes);
   osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
-
-
-  //HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
 
   osKernelStart();
 
@@ -496,32 +484,125 @@ void MainTask(void *argument) {//send messages calculates actual values from rea
 
   }
 }
-
 void PwmTask(void *argument)
 {
-   uint32_t last_tick = osKernelGetTickCount();
-    uint32_t wake_time = last_tick;
-    const uint32_t period = 1;
+  pin_t pin1 = {GPIOE, GPIO_PIN_0};
+  pin_t pin2 = {GPIOE, GPIO_PIN_1};
+  init_stepper(&stepperRF, 50, &htim1, pin1, pin2);
+  pin_t pin3 = {GPIOE, GPIO_PIN_2};
+  pin_t pin4 = {GPIOE, GPIO_PIN_3};
+  init_stepper(&stepperLF, 50, &htim3, pin3, pin4);
+  pin_t pin5 = {GPIOE, GPIO_PIN_4};
+  pin_t pin6 = {GPIOE, GPIO_PIN_5};
+  init_stepper(&stepperLB, 50, &htim4, pin5, pin6);
+  pin_t pin7 = {GPIOE, GPIO_PIN_6};
+  pin_t pin8 = {GPIOB, GPIO_PIN_9};
+  init_stepper(&stepperRB, 50, &htim5, pin7, pin8);
 
 
-   
-    for(;;)
-    {
-          
-        
+  rtU.controllerSteering = 2000000000;                       // Mock: Slight turn to the right (-1.0 to 1.0)
+  rtU.controllerSpeed    = 0.50;                       // Mock: Half speed forward (-1.0 to 1.0)
+  rtU.break_d            = 0.0;                        // Mock: Brake disengaged (0.0 or 1.0)
+
+
+  // Left Front (LF)
+  rtU.LFActualSpeed      = 2.1;                        // rad/s or m/s
+  rtU.LFActualPos        = 1024.0;                     // Encoder counts or degrees
+  rtU.LFCurrent          = 1.2;                        // Amperes
+  rtU.LFTemperature      = 35.5;                       // Degrees Celsius
+
+  // Left Middle (LM)
+  rtU.LMActualSpeed      = 2.1;
+  rtU.LMActualPos        = 1024.0;
+  rtU.LMCurrent          = 1.1;
+  rtU.LMTemperature      = 34.8;
+
+  // Left Back (LB)
+  rtU.LBActualSpeed      = 2.0;
+  rtU.LBActualPos        = 1022.0;
+  rtU.LBCurrent          = 1.3;
+  rtU.LBTemperature      = 36.1;
+
+  // --- 3. Right Side Wheels Actual Feedback ---
+  // Right Front (RF)
+  rtU.RFActualSpeed      = 2.3;                        // Slightly faster due to the steering angle
+  rtU.RFActualPos        = 1040.0;
+  rtU.RFCurrent          = 1.4;
+  rtU.RFTemperature      = 37.0;
+
+  // Right Middle (RM)
+  rtU.RMActualSpeed      = 2.2;
+  rtU.RMActualPos        = 1035.0;
+  rtU.RMCurrent          = 1.2;
+  rtU.RMTemperature      = 35.9;
+
+  // Right Back (RB)
+  rtU.RBActualSpeed      = 2.2;
+  rtU.RBActualPos        = 1035.0;
+  rtU.RBCurrent          = 1.3;
+  rtU.RBTemperature      = 36.4;
+
+  //LOGI(TAG,"FREQ:%f" ,rtY.stepperLFFrequency);
+  //LOGI(TAG,"STEP:%f" ,rtY.stepperLFSteps);
+  uint32_t last_tick = osKernelGetTickCount();
+  uint32_t wake_time = last_tick;
+  const uint32_t period = 1;
+
+  /**
+   * 
+    static const uint32_t scope_pulse_counts[] = {
+      10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
+  };
+
+  const size_t count =
+      sizeof(scope_pulse_counts) / sizeof(scope_pulse_counts[0]);
+
+  while (1) {
+    
+    for (size_t p = 0; p < count; p++) {
+      uint32_t pulse_count = scope_pulse_counts[p];
+
+      LOGI(TAG, "--- New pulse count: %lu pulses ---",
+           (unsigned long)pulse_count);
+
+      for (int i = 0; i < 10; i++) {
+        LOGI(TAG, "Burst %d/10 — %lu pulses", i + 1,
+             (unsigned long)pulse_count);
+
+        rotate_stepper(&stepperLF, (int)pulse_count, 30);
+        rotate_stepper(&stepperRB, (int)pulse_count, 30);
+        rotate_stepper(&stepperRF, (int)pulse_count, 30);
+        rotate_stepper(&stepperLB, (int)pulse_count, 30);
+        osDelay(10);
+      }
+    }
+  }
+   */
+
+  
+     while (1) {
+
+
+      control_drive_manual_step();
+
+      rotate_stepper(&stepperLF, rtY.stepperLFSteps, rtY.stepperLFFrequency);
+      //rotate_stepper(&stepperRB, 50, 50);
+     
       uint32_t now = osKernelGetTickCount();
 
       rtU.deltaTime = (now - last_tick) * 0.001f;
       last_tick = now;
-      
-      control_drive_manual_step();
-
+     
       wake_time += period;// schedule next exact tick
       osDelayUntil(wake_time);
-         
-      
+     
+
+      }   
+   
+
+ 
+
     }
-}
 
 void DrivingEncoderTask(void *argument){
 
@@ -547,112 +628,7 @@ void DriveTask(void *argument)
 
         cubemars_ak_set_speed(&hfdcan1, 93, 0);
         osDelay(1000);
-        //uint32_t now = osKernelGetTickCount();
-
-
-       //control_drive_manual_step();
-       /*
-        * LEFT FRONT
-        */
-       //rtU.LFActualPos =rtU.RFActualPos;
-
-          
-
-
-
-       /*
-        * RUN CONTROLLER
-        */
       
-
-
-       /*
-        * SEND OUTPUTS TO MOTORS
-        */
-
-
-
-
-           /**
-            *
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           LF_ID,
-           (int32_t)rtY.controlLF);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           LM_ID,
-           (int32_t)rtY.controlLM);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           LB_ID,
-           (int32_t)rtY.controlLB);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           RF_ID,
-           (int32_t)rtY.controlRF);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           RM_ID,
-           (int32_t)rtY.controlRM);
-
-
-       cubemars_ak_set_speed(
-           &hfdcan1,
-           RB_ID,
-           (int32_t)rtY.controlRB);
-            */
-      
-
-
-
-               /*
-       * STEPPER CONTROL
-       */
-
-/**
- * // LEFT FRONT
-       rotate_stepper(
-           &stepperLF,
-           (uint8_t)fabs(rtY.stepperLFSteps),
-           (uint32_t)fabs(rtY.stepperLFFrequency)
-       );
-
-
-       // LEFT BACK
-       rotate_stepper(
-           &stepperLB,
-           (uint8_t)fabs(rtY.stepperLBSteps),
-           (uint32_t)fabs(rtY.stepperLBFrequency)
-       );
-
-
-       // RIGHT FRONT
-       rotate_stepper(
-           &stepperRF,
-           (uint8_t)fabs(rtY.stepperRFSteps),
-           (uint32_t)fabs(rtY.stepperRFFrequency)
-       );
-
-
-       // RIGHT BACK
-       rotate_stepper(
-           &stepperRB,
-           (uint8_t)fabs(rtY.stepperRBSteps),
-           (uint32_t)fabs(rtY.stepperRBFrequency)
-       );
- */
-       
-
-
         osDelay(10);
     }
 }
