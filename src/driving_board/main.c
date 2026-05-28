@@ -701,16 +701,16 @@ void DriveTask(void *argument)
         LOGI("TEST", "sending");
         for (int speed = 0; speed<5000; speed=+100){
             
-        cubemars_ak_set_speed(&hfdcan2, 93, -speed);
-        cubemars_ak_set_speed(&hfdcan1, 93, speed);
+        cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
+        cubemars_ak_set_speed(&hfdcan1, 93, speed*16);
         osDelay(20);
         }
         osDelay(1000);
 
         for (int speed = 5000; speed>0; speed=-100){
             
-        cubemars_ak_set_speed(&hfdcan2, 93, -speed);
-        cubemars_ak_set_speed(&hfdcan1, 93, speed);
+        cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
+        cubemars_ak_set_speed(&hfdcan1, 93, speed*16);
         osDelay(20);
         }
         osDelay(10000);
