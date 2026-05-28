@@ -87,7 +87,7 @@ void do_pwm_dma(stepper_t* stepper, int amt_steps, uint32_t freq) {
     free(data_arr_ptr);
 }
 
-void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute,
+void rotate_stepper(stepper_t* stepper, int32_t amt_steps_absolute,
                     uint32_t freq) {
     /* Calculate shortest the relative angle */
     //!NOTE: the "angles" are in amounts of steps and they are absolute

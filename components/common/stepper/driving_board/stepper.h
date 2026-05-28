@@ -17,7 +17,7 @@ typedef struct {
 
 typedef struct {
     uint8_t duty_cycle; //Value of 1-100%
-    uint8_t current_angle; //Value from 0-199 (in steps)
+    int32_t current_angle; //Value from 0-199 (in steps)
     TIM_HandleTypeDef* htim; //The timer that is used
     uint32_t frequency_hz; //The frequency we want for the stepper (Hertz)
     pin_t dir_pin; //Directoion pin: sets the direction (1 clockwise or 0 counterclockwise)
@@ -28,4 +28,4 @@ result_t init_stepper(stepper_t* stepper, uint8_t duty_cycle, TIM_HandleTypeDef*
 
 void do_pwm_dma(stepper_t* stepper, int amt_steps, uint32_t freq);
 
-void rotate_stepper(stepper_t* stepper, uint8_t amt_steps_absolute, uint32_t freq);
+void rotate_stepper(stepper_t* stepper, int32_t amt_steps_absolute, uint32_t freq);

@@ -248,7 +248,7 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
 }
 
 static cubemars_ak_information motor_info = {0};
-static volatile cubemars_ak_information motors[256] = {0};//TODO:NOT BEING UPDATED RN CHANGE LATER
+//static volatile cubemars_ak_information motors[256] = {0};//TODO:NOT BEING UPDATED RN CHANGE LATER
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
                                uint32_t RxFifo0ITs) {
@@ -417,14 +417,12 @@ void init_board() {
          hfdcan2.Init.NominalSyncJumpWidth);
         
 
-  //osThreadNew(MainTask, NULL, &mainTask_attributes);
+  osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);
-  //osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
-  //osThreadNew(DriveTask, NULL, &driveTask_attributes);
-  //osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
+  osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
+  osThreadNew(DriveTask, NULL, &driveTask_attributes);
+  osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
 
-
-  //HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
 
   osKernelStart();
 
@@ -619,13 +617,14 @@ void PwmTask(void *argument)
   rtU.RBCurrent          = 1.3;
   rtU.RBTemperature      = 36.4;
 
-  LOGI(TAG,"FREQ:%f" ,rtY.stepperLFFrequency);
-  LOGI(TAG,"STEP:%f" ,rtY.stepperLFSteps);
-  //uint32_t last_tick = osKernelGetTickCount();
-  //uint32_t wake_time = last_tick;
-  //const uint32_t period = 1;
+  //LOGI(TAG,"FREQ:%f" ,rtY.stepperLFFrequency);
+  //LOGI(TAG,"STEP:%f" ,rtY.stepperLFSteps);
+  uint32_t last_tick = osKernelGetTickCount();
+  uint32_t wake_time = last_tick;
+  const uint32_t period = 1;
 
-
+  /**
+   * 
     static const uint32_t scope_pulse_counts[] = {
       10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
   };
@@ -634,6 +633,7 @@ void PwmTask(void *argument)
       sizeof(scope_pulse_counts) / sizeof(scope_pulse_counts[0]);
 
   while (1) {
+    
     for (size_t p = 0; p < count; p++) {
       uint32_t pulse_count = scope_pulse_counts[p];
 
@@ -652,15 +652,17 @@ void PwmTask(void *argument)
       }
     }
   }
-  /**
-   *  while (1) {
+   */
+
+  
+     while (1) {
 
 
-    control_drive_manual_step();
+      control_drive_manual_step();
 
-      rotate_stepper(&stepperLF, 50, rtY.stepperLFFrequency);
-      rotate_stepper(&stepperRB, 50, 50);
- 
+      rotate_stepper(&stepperLF, rtY.stepperLFSteps, rtY.stepperLFFrequency);
+      //rotate_stepper(&stepperRB, 50, 50);
+     
       uint32_t now = osKernelGetTickCount();
 
       rtU.deltaTime = (now - last_tick) * 0.001f;
@@ -671,7 +673,7 @@ void PwmTask(void *argument)
      
 
       }   
-   */
+   
 
  
 
