@@ -99,7 +99,7 @@ void MainTaskListener(void *argument);
 
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 10,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
@@ -390,6 +390,7 @@ void init_board() {
   LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
+
 
   CAN2_ConfigRx_AllStandard();
     if (HAL_FDCAN_ConfigInterruptLines(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
