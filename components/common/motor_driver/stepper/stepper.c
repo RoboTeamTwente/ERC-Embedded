@@ -41,6 +41,10 @@ result_t init_stepper(stepper_t *stepper, uint8_t duty_cycle,
 
   HAL_TIM_PWM_Stop(htim, TIM_CHANNEL_1);
 
+  HAL_GPIO_WritePin(ena_pin.GPIOx, ena_pin.GPIO_PIN_no,
+                    GPIO_PIN_RESET); // enable stepper
+  osDelay(300);
+
   LOGI(TAG, "Stepper %u initialized", stepper->htim);
   return RESULT_OK;
 }
@@ -101,15 +105,8 @@ void rotate_stepper(stepper_t *stepper, int32_t amt_steps_absolute,
       dir.GPIOx, dir.GPIO_PIN_no,
       dir_pin_val); // set pin to 1 for clockwise, 0 for counterclockwise
 
-  pin_t ena = stepper->ena_pin;
-  HAL_GPIO_WritePin(ena.GPIOx, ena.GPIO_PIN_no, GPIO_PIN_SET); // enable stepper
-  osDelay(300);
   // DO ACTUAL MOVEMENT
   do_pwm_dma(stepper, abs(relative_angle), freq);
-
-  // TODO: should this be here? and if so where?
-  HAL_GPIO_WritePin(ena.GPIOx, ena.GPIO_PIN_no,
-                    GPIO_PIN_RESET); // disable stepper?
 
   stepper->current_angle = amt_steps_absolute;
 }
