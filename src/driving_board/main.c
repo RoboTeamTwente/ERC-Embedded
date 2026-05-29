@@ -301,7 +301,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
 }
  
 
-
 static void CAN_LogStatus(FDCAN_HandleTypeDef* hfdcan) {
     FDCAN_ProtocolStatusTypeDef protocol_status;
     FDCAN_ErrorCountersTypeDef error_counters;
@@ -727,29 +726,54 @@ rtU.LFActualSpeed = (real_T)motor_info.motor_speed;
         osDelay(100);
 }}
 
+
+
+void forward_slowly_decrease_stop(){
+    for (int speed = 5000; speed>0; speed=-100){
+        
+    cubemars_ak_set_speed(&hfdcan2, 93, -speed*20);
+    cubemars_ak_set_speed(&hfdcan1, 93, speed*20);
+    osDelay(20);
+    }
+    osDelay(1000);
+}
+
+void forward_slowly_increase(){
+
+    for (int speed = 0; speed<5000; speed=+100){
+        
+    cubemars_ak_set_speed(&hfdcan2, 93, -speed*20);
+    cubemars_ak_set_speed(&hfdcan1, 93, speed*20);
+    osDelay(20);
+    }
+    osDelay(1000);
+}
+
+void backward_slowly_increase(){
+
+    for (int speed = 0; speed<5000; speed=+100){
+        
+    cubemars_ak_set_speed(&hfdcan2, 93, speed*20);
+    cubemars_ak_set_speed(&hfdcan1, 93, -speed*20);
+    osDelay(20);
+    }
+    osDelay(1000);
+}
+
 void DriveTask(void *argument)
 {
     int safe_speed = 3000;
 
     for (;;)
     {
-      /**
-       *       for (int x = 0; x<256;x++) {
-              cubemars_ak_set_speed(&hfdcan1, x, 10000);
-              osDelay(10);
-      }
-      cubemars_ak_set_speed(&hfdcan1, 69+92, 10000);
-      osDelay(1000);
-      CAN_LogStatus(&hfdcan1);
-      cubemars_ak_set_speed(&hfdcan1, 69+92, 0);
-      osDelay(1000);
-      cubemars_ak_set_speed(&hfdcan1, 93, 10000);
-      osDelay(1000);
-      cubemars_ak_set_speed(&hfdcan1, 93, 0);
-      osDelay(1000);
-       */
 
-        if(motor_info.motor_temperature < 45){
+      forward_slowly_decrease_stop();
+      //forward_slowly_increase();
+      //backward_slowly_increase();
+
+      
+/**
+ *      if(motor_info.motor_temperature < 45){
         cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlLM);
         cubemars_ak_set_speed(&hfdcan2, 93, -rtY.controlRM);
         osDelay(100);
@@ -761,33 +785,10 @@ void DriveTask(void *argument)
           safe_speed=safe_speed/2;
           osDelay(100);
         }
-
-       //LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlRM);
-       //LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlLM);
+ */
 
         osDelay(1000);
-       
-        
-      /**
-       * LOGI("TEST", "sending");
-        for (int speed = 0; speed<5000; speed=+100){
-            
-        //cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
-        cubemars_ak_set_speed(&hfdcan1, 69, speed*16);
-        osDelay(20);
-        }
-        osDelay(1000);
 
-        for (int speed = 5000; speed>0; speed=-100){
-            
-        //cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
-        cubemars_ak_set_speed(&hfdcan1, 69, speed*16);
-        osDelay(20);
-        }
-        osDelay(10000);
-       */
-
-        osDelay(10);
     }
 }
 
