@@ -177,8 +177,8 @@ static result_t HandleTypeManualDrivePacket(void *buffer) {
 
   rtU.controllerSpeed = (float)packet->forward_backward;
   rtU.controllerSteering = (float)packet->turn;
-  LOGI(TAG,"Envelope of type forward_backward to go info has value: %f\n", packet->forward_backward);
-  LOGI(TAG,"Envelope of type turn to go info has value: %f\n", packet->turn);
+  LOGI(TAG,"Envelope of type forward_backward to go info has value: %ld\n", packet->forward_backward);
+  LOGI(TAG,"Envelope of type turn to go info has value: %ld\n", packet->turn);
   LOGI(TAG, "BasestationManualDrive This is packet: %d\n", incomming_counter);
   return RESULT_OK;
 }
