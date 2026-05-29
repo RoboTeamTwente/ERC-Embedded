@@ -357,7 +357,7 @@ void init_board() {
   MX_TIM8_Init();
   MX_TIM5_Init();
   MX_FDCAN1_Init();
-  //MX_FDCAN2_Init();
+  MX_FDCAN2_Init();
   MX_USART2_UART_Init();
   
   control_drive_manual_initialize();
@@ -397,9 +397,9 @@ void init_board() {
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
-/**
- * CAN2_ConfigRx_AllStandard();
-    if (HAL_FDCAN_ConfigInterruptLines(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
+  CAN2_ConfigRx_AllStandard();
+  
+   if (HAL_FDCAN_ConfigInterruptLines(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
                                        FDCAN_INTERRUPT_LINE0) != HAL_OK) {
         LOGE("CAN", "Interrupt line config failed err=0x%08lx",
              HAL_FDCAN_GetError(&hfdcan2));
@@ -422,12 +422,13 @@ void init_board() {
          hfdcan2.Init.Mode, hfdcan2.Init.NominalPrescaler,
          hfdcan2.Init.NominalTimeSeg1, hfdcan2.Init.NominalTimeSeg2,
          hfdcan2.Init.NominalSyncJumpWidth);
- */
+ 
+   
   
         
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
-  //osThreadNew(PwmTask, NULL, &pwmTask_attributes);
+  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
   osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
   osThreadNew(DriveTask, NULL, &driveTask_attributes);
   osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
@@ -706,7 +707,7 @@ void DriveTask(void *argument)
        */
 
        cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlLM);
-       cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlRM);
+       //cubemars_ak_set_speed(&hfdcan2, 93, -rtY.controlRM);
        osDelay(100);
        CAN_LogStatus(&hfdcan1);
        osDelay(100);
