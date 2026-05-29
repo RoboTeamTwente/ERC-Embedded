@@ -729,8 +729,7 @@ rtU.LFActualSpeed = (real_T)motor_info.motor_speed;
 
 void DriveTask(void *argument)
 {
-    //osDelay(3000);
-
+    int safe_speed = 3000;
 
     for (;;)
     {
@@ -750,13 +749,22 @@ void DriveTask(void *argument)
       osDelay(1000);
        */
 
-       cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlLM);
-       cubemars_ak_set_speed(&hfdcan2, 93, -rtY.controlRM);
-       osDelay(100);
-       CAN_LogStatus(&hfdcan1);
-       osDelay(100);
-       LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlRM);
-       LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlLM);
+        if(motor_info.motor_temperature < 45){
+        cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlLM);
+        cubemars_ak_set_speed(&hfdcan2, 93, -rtY.controlRM);
+        osDelay(100);
+        CAN_LogStatus(&hfdcan1);
+        osDelay(100);
+        }
+        else{
+          cubemars_ak_set_speed(&hfdcan1, 93, safe_speed);
+          safe_speed=safe_speed/2;
+          osDelay(100);
+        }
+
+       //LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlRM);
+       //LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlLM);
+
         osDelay(1000);
        
         
@@ -778,38 +786,6 @@ void DriveTask(void *argument)
         }
         osDelay(10000);
        */
-        
-
-
-/**
- *     CAN_LogStatus(&hfdcan2);
-        osDelay(1000);
-        //
-        cubemars_ak_set_speed(&hfdcan2, 93, 0);
-        cubemars_ak_set_speed(&hfdcan1, 93, -0000);
-        CAN_LogStatus(&hfdcan2);
-        osDelay(1000);
- */
-        
-    
-         
-
-
-        //cubemars_ak_set_speed(&hfdcan2, 93, rtY.controlLM);
-        //cubemars_ak_set_speed(&hfdcan1, 93, -rtY.controlRM);
-    
-
-
-       /*
-        * SEND OUTPUTS TO MOTORS
-        */
-
-
-
-  // LEFT FRONT
-
-      
-
 
         osDelay(10);
     }
