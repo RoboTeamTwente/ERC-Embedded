@@ -593,13 +593,13 @@ void PwmTask(void *argument)
       control_drive_manual_step();
 
       rotate_stepper(&stepperLF, rtY.stepperLFSteps, rtY.stepperLFFrequency);
-      rotate_stepper(&stepperRF, rtY.stepperLFSteps, rtY.stepperLFFrequency);
-      rotate_stepper(&stepperRB, rtY.stepperLFSteps, rtY.stepperLFFrequency);
-      rotate_stepper(&stepperLB, rtY.stepperLFSteps, rtY.stepperLFFrequency);
+      rotate_stepper(&stepperRF, rtY.stepperLFSteps, rtY.stepperRFFrequency);
+      rotate_stepper(&stepperRB, rtY.stepperLFSteps, rtY.stepperRBFrequency);
+      rotate_stepper(&stepperLB, rtY.stepperLFSteps, rtY.stepperLBFrequency);
      
       uint32_t now = osKernelGetTickCount();
-
       rtU.deltaTime = (now - last_tick) * 0.001f;
+
       last_tick = now;
      
       wake_time += period;// schedule next exact tick
