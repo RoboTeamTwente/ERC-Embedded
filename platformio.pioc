@@ -79,7 +79,7 @@ board_build.stm32cube.custom_config_header = yes
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
     +<components/common/motor_driver/**>
-    -<components/common/motor_driver/*/driving_board>
+    -<components/common/motor_driver/cl3e/**>
     +<components/common/*/stm/*.c>
     +<components/common/networking/**>
     +<components/common/*/${this.__env__}/**/*.c>
@@ -87,8 +87,8 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
-    +<erc-control-arm/control_arm_ert_rtw/**>
-    -<erc-control-arm/control_arm_ert_rtw/ert_main.c>
+    +<erc-control-arm/control_arm_manual_ert_rtw/**>
+    -<erc-control-arm/control_arm_manual_ert_rtw/ert_main.c>
 custom_nanopb_protos = +<components/**/*.proto>
 lib_deps = ${extra.common_lib_deps}
 build_flags=
@@ -98,13 +98,13 @@ build_flags=
     +<components/common/*>
     +<components/common/networking/**>
     +<components/common/motor_driver/**>
-    -<components/common/motor_driver/*/driving_board>
+    -<components/common/motor_driver/cl3e/**>
     +<components/common/*/inc>
     +<components/common/*/arm_board/**>
-    +<components/common/*/stm/**/*.c>
-    +<components/common/*.c>
-    +<erc-control-arm/control_arm_ert_rtw/**>
-    -<erc-control-arm/control_arm_ert_rtw/ert_main.c>
+    +<components/common/*/stm/**/*>
+    +<components/common/*>
+    -I src/arm_board
+    +<erc-control-arm/control_arm_manual_ert_rtw/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp

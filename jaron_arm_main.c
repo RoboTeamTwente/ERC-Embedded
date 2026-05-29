@@ -17,11 +17,10 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
 #include <stdint.h>
 
 // Controls code
-#include "erc-control-arm/control_arm_manual_ert_rtw/control_arm_manual.h"
+#include "control_arm_manual.h"
 
 #include "cubemx_main.h"
 #include "erc-control-arm/control_arm_manual_ert_rtw/rtwtypes.h"
@@ -48,8 +47,6 @@
 #include "networking_constants.h"
 
 // packetdispatcher
-#include "cubemars_ak.h"
-#include "fdcan.h"
 #include "packet_dispatcher.h"
 #include "packet_dispatcher_macros.h"
 
@@ -86,7 +83,7 @@ void my_BSP_COM_Init() {
 
 // MY LAPTOP
 uint8_t my_mac[6] = {0x6c, 0x24, 0x08, 0xd2, 0xfa, 0x50};
-uint8_t my_ip[4] = {192, 168, 0, 111};
+uint8_t my_ip[4] = {192, 168, 0, 5};
 // uint8_t my_mac[6] = {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00};
 // uint8_t my_ip[4] = {192, 168, 0, 111};
 uint8_t netmask[4] = NETMASK;
@@ -137,17 +134,9 @@ const int item_size = sizeof(uint32_t);
 // StaticTask_t xTaskBuffer;
 // StackType_t xStack[STACK_SIZE];
 
-#define STEPPER_QUEUE_SIZE sizeof(arm_stepper_signals)
-#define STEPPER_QUEUE_LENGTH 5
 QueueHandle_t xQueueStepper1;
-static uint8_t xQueueStepper1Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper1QueueBuffer;
 QueueHandle_t xQueueStepper2;
-static uint8_t xQueueStepper2Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper2QueueBuffer;
 QueueHandle_t xQueueStepper3;
-static uint8_t xQueueStepper3Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper3QueueBuffer;
 
 static void vEthernetTask(void *argument);
 static void vStepperTask1(void *argument);
@@ -166,111 +155,6 @@ void setup_control_parameters() {
   rtU.stepperRightActualPosition = 0;
 }
 
-static void CAN_ConfigRx_AllStandard(void) {
-  FDCAN_FilterTypeDef filter = {0};
-
-  filter.IdType = FDCAN_STANDARD_ID;
-  filter.FilterIndex = 0;
-  filter.FilterType = FDCAN_FILTER_MASK;
-  filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-
-  // Accept everything: (ID & 0x000) == (0x000 & 0x000)
-  filter.FilterID1 = 0x000;
-  filter.FilterID2 = 0x000;
-
-  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
-    LOGE("CAN", "Filter config failed, err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan1));
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_ConfigGlobalFilter(
-          &hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
-          FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
-    LOGE("CAN", "Global filter failed, err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan1));
-    Error_Handler();
-  }
-}
-void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan,
-                                        uint32_t BufferIndexes) {
-  LOGI("CAN", "TX complete buffers=0x%08lx\n", BufferIndexes);
-}
-
-void HAL_FDCAN_TxBufferAbortCallback(FDCAN_HandleTypeDef *hfdcan,
-                                     uint32_t BufferIndexes) {
-  LOGI("CAN", "TX abort buffers=0x%08lx\n", BufferIndexes);
-}
-
-void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
-  LOGE("CAN", "Error callback HALerr=0x%08lx\n", HAL_FDCAN_GetError(hfdcan));
-}
-
-static cubemars_ak_information motor_info = {0};
-
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
-                               uint32_t RxFifo0ITs) {
-  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0) {
-    return;
-  }
-
-  FDCAN_RxHeaderTypeDef rx_header = {0};
-  uint8_t rx_data[8] = {0};
-
-  if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) !=
-      HAL_OK) {
-    LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
-    return;
-  }
-  cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
-}
-
-static void CAN2_ConfigRx_AllStandard(void) {
-  FDCAN_FilterTypeDef filter = {0};
-
-  filter.IdType = FDCAN_STANDARD_ID;
-  filter.FilterIndex = 0;
-  filter.FilterType = FDCAN_FILTER_MASK;
-  filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-
-  // Accept everything: (ID & 0x000) == (0x000 & 0x000)
-  filter.FilterID1 = 0x000;
-  filter.FilterID2 = 0x000;
-
-  if (HAL_FDCAN_ConfigFilter(&hfdcan2, &filter) != HAL_OK) {
-    LOGE("CAN", "Filter config failed, err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan2));
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_ConfigGlobalFilter(
-          &hfdcan2, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
-          FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
-    LOGE("CAN", "Global filter failed, err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan2));
-    Error_Handler();
-  }
-}
-
-static void CAN_LogStatus(FDCAN_HandleTypeDef *hfdcan) {
-  FDCAN_ProtocolStatusTypeDef protocol_status;
-  FDCAN_ErrorCountersTypeDef error_counters;
-
-  if (HAL_FDCAN_GetProtocolStatus(hfdcan, &protocol_status) == HAL_OK) {
-    LOGI("CAN",
-         "LastErrorCode=%lu DataLastErrorCode=%lu Activity=%lu BusOff=%lu",
-         protocol_status.LastErrorCode, protocol_status.DataLastErrorCode,
-         protocol_status.Activity, protocol_status.BusOff);
-  }
-
-  if (HAL_FDCAN_GetErrorCounters(hfdcan, &error_counters) == HAL_OK) {
-    LOGI("CAN", "TxErrorCnt=%lu RxErrorCnt=%lu RxErrorPassive=%lu",
-         error_counters.TxErrorCnt, error_counters.RxErrorCnt,
-         error_counters.RxErrorPassive);
-  }
-
-  LOGI("CAN", "HAL error=0x%08lx", HAL_FDCAN_GetError(hfdcan));
-}
 int main(void) {
   setup_control_parameters();
   LOGI(TAG, "-----------------main-----------------");
@@ -286,9 +170,6 @@ int main(void) {
   SCB_EnableICache();
   // SCB_EnableDCache();
 
-  MX_FDCAN1_Init();
-  MX_FDCAN2_Init();
-
   // Init timers
   MX_TIM2_Init();
   MX_TIM3_Init();
@@ -299,59 +180,10 @@ int main(void) {
   // Log init
   LOG_init(&huart_com);
 
-  // ETH_init(NULL, my_ip, netmask, gateway, my_mac);
+  ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
   // Init scheduler
   osKernelInitialize();
-
-  CAN_ConfigRx_AllStandard();
-  if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-                                     FDCAN_INTERRUPT_LINE0) != HAL_OK) {
-    LOGE("CAN", "Interrupt line config failed err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan1));
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-                                     0) != HAL_OK) {
-    LOGE("CAN", "Activate RX notification failed err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan1));
-    Error_Handler();
-  }
-  if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
-    LOGE(TAG, "FDCAN start failed, err=0x%08lx", HAL_FDCAN_GetError(&hfdcan1));
-    for (;;)
-      ;
-  }
-  LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
-       hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
-       hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
-
-  CAN2_ConfigRx_AllStandard();
-
-  if (HAL_FDCAN_ConfigInterruptLines(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-                                     FDCAN_INTERRUPT_LINE0) != HAL_OK) {
-    LOGE("CAN", "Interrupt line config failed err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan2));
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-                                     0) != HAL_OK) {
-    LOGE("CAN", "Activate RX notification failed err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan2));
-    Error_Handler();
-  }
-  if (HAL_FDCAN_Start(&hfdcan2) != HAL_OK) {
-    LOGE(TAG, "FDCAN start failed, err=0x%08lx", HAL_FDCAN_GetError(&hfdcan2));
-    for (;;)
-      ;
-  }
-
-  LOGI("CAN", "FDCAN2: Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu",
-       hfdcan2.Init.Mode, hfdcan2.Init.NominalPrescaler,
-       hfdcan2.Init.NominalTimeSeg1, hfdcan2.Init.NominalTimeSeg2,
-       hfdcan2.Init.NominalSyncJumpWidth);
 
   // // /* Create the thread(s) */
   // testethernetTaskHandle = osThreadNew(vEthernetTask, NULL,
@@ -365,19 +197,14 @@ int main(void) {
   //     //HANDLE
   // }
 
-  // xQueueStepper1 =
-  //     xQueueCreateStatic(STEPPER_QUEUE_LENGTH, STEPPER_QUEUE_SIZE,
-  //                        xQueueStepper1Storage, &xQueueStepper1QueueBuffer);
-  // xQueueStepper2 =
-  //     xQueueCreateStatic(STEPPER_QUEUE_LENGTH, STEPPER_QUEUE_SIZE,
-  //                        xQueueStepper2Storage, &xQueueStepper2QueueBuffer);
-  ;
+  xQueueStepper1 = xQueueCreate(5, sizeof(Arm_StepperSignals_size));
+  xQueueStepper2 = xQueueCreate(5, sizeof(Arm_StepperSignals_size));
   // xQueueStepper3 = xQueueCreate(5, sizeof(rtY.baseControl));
 
-  // if (xQueueStepper1 == NULL) {
-  //   // HANDLE
-  //   LOGE(TAG, "Queue could not be created");
-  // }
+  if (xQueueStepper1 == NULL) {
+    // HANDLE
+    LOGE(TAG, "Queue could not be created");
+  }
 
   // Sending task
   // xTaskCreate(vArmInTask, "Sender1", 1024 * 8, NULL, tskIDLE_PRIORITY,
@@ -385,18 +212,16 @@ int main(void) {
 
   // Receiving tasks, prio is one above sending task so it should always empty
   // the queue when msgs are there
-  // xTaskCreate(vStepperTask1, "Receiver1", 1024 * 8, NULL, tskIDLE_PRIORITY +
-  // 1U,
-  //             NULL);
-  // xTaskCreate(vStepperTask2, "Receiver2", 1024 * 8, NULL, tskIDLE_PRIORITY +
-  // 5U,
-  //             NULL);
+  xTaskCreate(vStepperTask1, "Receiver1", 1024 * 8, NULL, tskIDLE_PRIORITY + 1U,
+              NULL);
+  xTaskCreate(vStepperTask2, "Receiver2", 1024 * 8, NULL, tskIDLE_PRIORITY + 1U,
+              NULL);
 
   xTaskCreate(vArmController, "ArmController", 1024 * 8, NULL,
               tskIDLE_PRIORITY + 2U, NULL);
   // xTaskCreate(vEthernetTask, "ethernet", 1024 * 8, NULL, tskIDLE_PRIORITY +
   // 1U,
-  //             NULL);
+  //           NULL);
   // Start scheduler
   osKernelStart();
 
@@ -409,26 +234,38 @@ static void vStepperTask1(void *argument) {
   pin_t pin1 = {GPIOA, GPIO_PIN_4};
   pin_t pin2 = {GPIOC, GPIO_PIN_0};
   init_stepper(&stepper1, 50, &htim2, pin1, pin2);
-  osDelay(300);
+
   /* Declare the variable that will hold the values received from the
      queue. */
-  arm_stepper_signals signals;
+  void *buffer;
   BaseType_t xStatus;
+  const TickType_t xTicksToWait =
+      pdMS_TO_TICKS(10); // Queue checks receiving every 10 ms
 
   /* This task is also defined within an infinite loop. */
   while (1) {
+    if (uxQueueMessagesWaiting(xQueueStepper1) != 0) {
+      LOGE(TAG, "Queue is not empty!\r\n");
+    }
 
-    xStatus = xQueueReceive(xQueueStepper1, &signals, portMAX_DELAY);
+    xStatus = xQueueReceive(xQueueStepper1, &buffer, xTicksToWait);
 
     if (xStatus == pdPASS) {
-      LOGI(TAG, "Received = %u", signals);
+      LOGI(TAG, "Received = %u", buffer);
 
-      LOGI(TAG, "freq: %u", signals.stepper_freq);
-      LOGI(TAG, "steps: %u", signals.stepper_steps);
+      Arm_StepperSignals *decoded_ss = Arm_StepperSignals_DEFAULT;
+      size_t size = Arm_StepperSignals_size;
+      result_t res = pb_message_decode(buffer, Arm_StepperSignals_size,
+                                       Arm_StepperSignals_fields,
+                                       Arm_StepperSignals_size, &decoded_ss);
 
-      stepper1_count += signals.stepper_steps;
+      LOGI(TAG, "freq: %u", decoded_ss->stepper_freq);
+      LOGI(TAG, "steps: %u", decoded_ss->stepper_steps);
 
-      rotate_stepper(&stepper1, signals.stepper_steps, signals.stepper_freq);
+      stepper1_count += decoded_ss->stepper_steps;
+
+      rotate_stepper(&stepper1, decoded_ss->stepper_steps,
+                     decoded_ss->stepper_freq);
     }
   }
 }
@@ -438,111 +275,93 @@ static void vStepperTask2(void *argument) {
   pin_t pin3 = {GPIOA, GPIO_PIN_5};
   pin_t pin4 = {GPIOB, GPIO_PIN_6};
   init_stepper(&stepper2, 50, &htim3, pin3, pin4);
-  osDelay(300);
+
   /* Declare the variable that will hold the values received from the
      queue. */
+  void *buffer;
   BaseType_t xStatus;
-  arm_stepper_signals signals;
+  const TickType_t xTicksToWait =
+      pdMS_TO_TICKS(10); // Queue checks receiving every 10 ms
+
   /* This task is also defined within an infinite loop. */
   while (1) {
+    if (uxQueueMessagesWaiting(xQueueStepper2) != 0) {
+      LOGE(TAG, "Queue is not empty!\r\n");
+    }
 
-    xStatus = xQueueReceive(xQueueStepper2, &signals, portMAX_DELAY);
+    xStatus = xQueueReceive(xQueueStepper2, &buffer, xTicksToWait);
 
     if (xStatus == pdPASS) {
-      LOGI(TAG, "Received = %u", signals);
+      LOGI(TAG, "Received = %u", buffer);
 
-      LOGI(TAG, "freq: %u", signals.stepper_freq);
-      LOGI(TAG, "steps: %u", signals.stepper_steps);
+      Arm_StepperSignals *decoded_ss = Arm_StepperSignals_DEFAULT;
+      size_t size = Arm_StepperSignals_size;
+      result_t res = pb_message_decode(buffer, Arm_StepperSignals_size,
+                                       Arm_StepperSignals_fields,
+                                       Arm_StepperSignals_size, &decoded_ss);
 
-      stepper2_count += signals.stepper_steps;
+      LOGI(TAG, "freq: %u", decoded_ss->stepper_freq);
+      LOGI(TAG, "steps: %u", decoded_ss->stepper_steps);
 
-      rotate_stepper(&stepper2, signals.stepper_steps, signals.stepper_freq);
+      stepper2_count += decoded_ss->stepper_steps;
+      rotate_stepper(&stepper2, decoded_ss->stepper_steps,
+                     decoded_ss->stepper_freq);
     }
   }
 }
 
 uint32_t old_time;
 static void vArmController(void *argument) {
-
-  pin_t pin3 = {GPIOA, GPIO_PIN_5};
-  pin_t pin4 = {GPIOB, GPIO_PIN_6};
-  pin_t pin1 = {GPIOA, GPIO_PIN_4};
-  pin_t pin2 = {GPIOC, GPIO_PIN_0};
-  init_stepper(&stepper1, 50, &htim2, pin1, pin2);
-  init_stepper(&stepper2, 50, &htim3, pin3, pin4);
-  int steps;
-  int freq;
-  float delta = 0.01;
-
   while (1) {
-
-    if (rtU.x >= 0.85) {
-      delta = -0.01;
-    } else if (rtU.x <= 0.75) {
-      delta = 0.01;
-    }
-    rtU.x = rtU.x + delta;
-
-    LOGI(TAG, "rtU.x: %f", rtU.x);
     if (old_time == NULL) {
       rtU.deltaTime = 2 / 1000.0;
     } else {
       rtU.deltaTime = (osKernelGetTickCount() - old_time) / 1000.0;
     }
-    rtU.stepperLeftActualPosition =
-        rtY.stepperLeftSteps; // stepper count - keep count
-    rtU.stepperRightActualPosition =
-        rtY.stepperRightSteps; // stepper count - keep count
 
     old_time = osKernelGetTickCount();
     control_arm_manual_step();
-
     rtY.stepperLeftFrequency;
     rtY.stepperRightFrequency;
-    rtY.controlGripperPitch;
-    cubemars_ak_set_speed(&hfdcan2, 93, rtY.controlGripperPitch);
-    if (rtY.stepperLeftSteps == 0 || rtY.stepperRightSteps == 0) {
-      __builtin_trap();
-      while (true) {
-      };
-    }
-    steps = rtY.stepperLeftSteps;
-    freq = 50; // rtY.stepperLeftFrequency;
-    LOGI(TAG, "LEFT freq: %u", freq);
-    LOGI(TAG, "LEFT steps: %u", steps);
-    steps = -10;
-    rotate_stepper(&stepper1, steps, freq);
+    rtY.controlGripperPitch; // TODO: WTF doe ik met dit??
 
-    steps = rtY.stepperRightSteps;
-    LOGI(TAG, "RIGHT freq: %u", freq);
-    LOGI(TAG, "RIGHT steps: %u", steps);
-    steps = 10;
-    rotate_stepper(&stepper2, steps, freq);
+    /* Encode messages */
 
-    while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
-      osDelay(1); // Delay for thread switching
-    }
-    while (htim3.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
-      osDelay(1); // Delay for thread switching
-    }
+    Arm_StepperSignals ss_left = {(uint32_t)rtY.stepperLeftSteps -
+                                      stepper1_count,
+                                  (uint32_t)rtY.stepperLeftFrequency};
+    Arm_StepperSignals ss_right = {(uint32_t)rtY.stepperRightSteps -
+                                       stepper2_count,
+                                   (uint32_t)rtY.stepperRightFrequency};
 
-    // if (old_time > 8000) {
-    //   BaseType_t xStatus1;
-    //   xStatus1 = xQueueSendToBack(xQueueStepper1, &ss_left,
-    //                               0); //! TODO: wait how many seconds?
-    //
-    //   if (xStatus1 != pdPASS) {
-    //     LOGE(TAG, "Could not send into queue1 (probably full)");
-    //   }
-    //
-    //   BaseType_t xStatus2;
-    //   xStatus2 = xQueueSendToBack(xQueueStepper2, &ss_right,
-    //                               0); //! TODO: wait how many seconds?
-    //
-    //   if (xStatus2 != pdPASS) {
-    //     LOGE(TAG, "Could not send into queue2 (probably full)");
-    //   }
-    // }
+    uint8_t *msg_encoded1 = NULL;
+    size_t msg_size1 = 0;
+    pb_message_encode(&ss_left, Arm_StepperSignals_fields, &msg_encoded1,
+                      &msg_size1);
+    //! TODO: error handling
+
+    uint8_t *msg_encoded2 = NULL;
+    size_t msg_size2 = 0;
+    pb_message_encode(&ss_right, Arm_StepperSignals_fields, &msg_encoded2,
+                      &msg_size2);
+    //! TODO: error handling
+    if (old_time > 8000) {
+      BaseType_t xStatus1;
+      xStatus1 = xQueueSendToBack(xQueueStepper1, &msg_encoded1,
+                                  0); //! TODO: wait how many seconds?
+
+      if (xStatus1 != pdPASS) {
+        LOGE(TAG, "Could not send into queue1 (probably full)");
+      }
+
+      BaseType_t xStatus2;
+      xStatus2 = xQueueSendToBack(xQueueStepper2, &msg_encoded2,
+                                  0); //! TODO: wait how many seconds?
+
+      if (xStatus2 != pdPASS) {
+        LOGE(TAG, "Could not send into queue2 (probably full)");
+      }
+    }
 
     // BLDC
 
@@ -554,6 +373,8 @@ static void vArmController(void *argument) {
     //   LOGE(TAG, "Could not send into queue3
     //   (probably full)");
     // }
+
+    osDelay(100);
   }
 }
 
@@ -563,29 +384,36 @@ static void vArmInTask(void *argument) {
 
     // Steppers
 
-    arm_stepper_signals ss_left = {(uint32_t)rtY.stepperLeftSteps -
-                                       stepper1_count,
-                                   (uint32_t)rtY.stepperLeftFrequency};
-    arm_stepper_signals ss_right = {(uint32_t)rtY.stepperRightSteps -
-                                        stepper2_count,
-                                    (uint32_t)rtY.stepperRightFrequency};
+    //! NOTE: placeholder values!!!
+    Arm_StepperSignals ss_left = {(uint32_t)30, (uint32_t)300};
+    Arm_StepperSignals ss_right = {(uint32_t)60, (uint32_t)600};
 
-    if (old_time > 8000) {
-      BaseType_t xStatus1;
-      xStatus1 = xQueueSendToBack(xQueueStepper1, &ss_left,
-                                  0); //! TODO: wait how many seconds?
+    uint8_t *msg_encoded1 = NULL;
+    size_t msg_size1 = 0;
+    pb_message_encode(&ss_left, Arm_StepperSignals_fields, &msg_encoded1,
+                      &msg_size1);
+    //! TODO: error handling
 
-      if (xStatus1 != pdPASS) {
-        LOGE(TAG, "Could not send into queue1 (probably full)");
-      }
+    uint8_t *msg_encoded2 = NULL;
+    size_t msg_size2 = 0;
+    pb_message_encode(&ss_right, Arm_StepperSignals_fields, &msg_encoded2,
+                      &msg_size2);
+    //! TODO: error handling
 
-      BaseType_t xStatus2;
-      xStatus2 = xQueueSendToBack(xQueueStepper2, &ss_right,
-                                  0); //! TODO: wait how many seconds?
+    BaseType_t xStatus1;
+    xStatus1 = xQueueSendToBack(xQueueStepper1, &msg_encoded1,
+                                0); //! TODO: wait how many seconds?
 
-      if (xStatus2 != pdPASS) {
-        LOGE(TAG, "Could not send into queue2 (probably full)");
-      }
+    if (xStatus1 != pdPASS) {
+      LOGE(TAG, "Could not send into queue1 (probably full)");
+    }
+
+    BaseType_t xStatus2;
+    xStatus2 = xQueueSendToBack(xQueueStepper2, &msg_encoded2,
+                                0); //! TODO: wait how many seconds?
+
+    if (xStatus2 != pdPASS) {
+      LOGE(TAG, "Could not send into queue2 (probably full)");
     }
 
     // BLDC
@@ -662,7 +490,9 @@ Callback_BaseStationManualArmControl(
   rtU.z += pckt->delta_x / (double)(1ULL << 31) * 0.01;
   rtU.gripperAng +=
       pckt->delta_final_gripper_angle / (double)(1ULL << 31) * 0.005;
-  rtU.gripperPitchActualPosition; // get from can
+  rtU.gripperPitchActualPosition;                  // get from can
+  rtU.stepperLeftActualPosition = stepper1_count;  // stepper count - keep count
+  rtU.stepperRightActualPosition = stepper2_count; // stepper count - keep count
 }
 // PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals,
 // PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);

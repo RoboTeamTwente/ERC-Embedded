@@ -57,6 +57,8 @@ int b = 0;
 
 /* External variables --------------------------------------------------------*/
 extern ETH_HandleTypeDef heth;
+extern FDCAN_HandleTypeDef hfdcan1;
+extern FDCAN_HandleTypeDef hfdcan2;
 extern DMA_HandleTypeDef hdma_tim2_ch1;
 extern DMA_HandleTypeDef hdma_tim3_ch1;
 extern TIM_HandleTypeDef htim2;
@@ -91,7 +93,7 @@ void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
   /* USER CODE END HardFault_IRQn 0 */
-  while (a==0)
+  while (1)
   {
     /* USER CODE BEGIN W1_HardFault_IRQn 0 */
     /* USER CODE END W1_HardFault_IRQn 0 */
@@ -189,6 +191,62 @@ void DMA1_Stream1_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Stream1_IRQn 1 */
 
   /* USER CODE END DMA1_Stream1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles FDCAN1 interrupt 0.
+  */
+void FDCAN1_IT0_IRQHandler(void)
+{
+  /* USER CODE BEGIN FDCAN1_IT0_IRQn 0 */
+
+  /* USER CODE END FDCAN1_IT0_IRQn 0 */
+  HAL_FDCAN_IRQHandler(&hfdcan1);
+  /* USER CODE BEGIN FDCAN1_IT0_IRQn 1 */
+
+  /* USER CODE END FDCAN1_IT0_IRQn 1 */
+}
+
+/**
+  * @brief This function handles FDCAN2 interrupt 0.
+  */
+void FDCAN2_IT0_IRQHandler(void)
+{
+  /* USER CODE BEGIN FDCAN2_IT0_IRQn 0 */
+
+  /* USER CODE END FDCAN2_IT0_IRQn 0 */
+  HAL_FDCAN_IRQHandler(&hfdcan2);
+  /* USER CODE BEGIN FDCAN2_IT0_IRQn 1 */
+
+  /* USER CODE END FDCAN2_IT0_IRQn 1 */
+}
+
+/**
+  * @brief This function handles FDCAN1 interrupt 1.
+  */
+void FDCAN1_IT1_IRQHandler(void)
+{
+  /* USER CODE BEGIN FDCAN1_IT1_IRQn 0 */
+
+  /* USER CODE END FDCAN1_IT1_IRQn 0 */
+  HAL_FDCAN_IRQHandler(&hfdcan1);
+  /* USER CODE BEGIN FDCAN1_IT1_IRQn 1 */
+
+  /* USER CODE END FDCAN1_IT1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles FDCAN2 interrupt 1.
+  */
+void FDCAN2_IT1_IRQHandler(void)
+{
+  /* USER CODE BEGIN FDCAN2_IT1_IRQn 0 */
+
+  /* USER CODE END FDCAN2_IT1_IRQn 0 */
+  HAL_FDCAN_IRQHandler(&hfdcan2);
+  /* USER CODE BEGIN FDCAN2_IT1_IRQn 1 */
+
+  /* USER CODE END FDCAN2_IT1_IRQn 1 */
 }
 
 /**
