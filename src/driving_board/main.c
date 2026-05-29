@@ -167,13 +167,16 @@ static result_t HandleTypeManualDrivePacket(void *buffer) {
   BasestationManualDrive *packet = (BasestationManualDrive *)buffer;
   incomming_counter += 1;
   
-
-  int speed = 0;
+/**
+ *   int speed = 0;
   if (packet->forward_backward > 100000) {
     speed = 10000;
   }
   cubemars_ak_set_speed(&hfdcan1, 93, speed);
+ */
 
+  rtU.controllerSpeed = (float)packet->forward_backward;
+  rtU.controllerSteering = (float)packet->turn;
   LOGI(TAG,"Envelope of type forward_backward to go info has value: %f\n", packet->forward_backward);
   LOGI(TAG,"Envelope of type turn to go info has value: %f\n", packet->turn);
   LOGI(TAG, "BasestationManualDrive This is packet: %d\n", incomming_counter);
@@ -423,7 +426,7 @@ void init_board() {
         
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
-  //osThreadNew(PwmTask, NULL, &pwmTask_attributes);
+  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
   osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
   osThreadNew(DriveTask, NULL, &driveTask_attributes);
   osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
@@ -579,55 +582,29 @@ void PwmTask(void *argument)
   pin_t pin8 = {GPIOB, GPIO_PIN_9};
   init_stepper(&stepperRB, 50, &htim5, pin7, pin8);
 
-
-  rtU.controllerSteering = 2000000000;                       // Mock: Slight turn to the right (-1.0 to 1.0)
-  rtU.controllerSpeed    = 0.50;                       // Mock: Half speed forward (-1.0 to 1.0)
-  rtU.break_d            = 0.0;                        // Mock: Brake disengaged (0.0 or 1.0)
-
-
-  // Left Front (LF)
-  rtU.LFActualSpeed      = 2.1;                        // rad/s or m/s
-  rtU.LFActualPos        = 1024.0;                     // Encoder counts or degrees
-  rtU.LFCurrent          = 1.2;                        // Amperes
-  rtU.LFTemperature      = 35.5;                       // Degrees Celsius
-
-  // Left Middle (LM)
-  rtU.LMActualSpeed      = 2.1;
-  rtU.LMActualPos        = 1024.0;
-  rtU.LMCurrent          = 1.1;
-  rtU.LMTemperature      = 34.8;
-
-  // Left Back (LB)
-  rtU.LBActualSpeed      = 2.0;
-  rtU.LBActualPos        = 1022.0;
-  rtU.LBCurrent          = 1.3;
-  rtU.LBTemperature      = 36.1;
-
-  // --- 3. Right Side Wheels Actual Feedback ---
-  // Right Front (RF)
-  rtU.RFActualSpeed      = 2.3;                        // Slightly faster due to the steering angle
-  rtU.RFActualPos        = 1040.0;
-  rtU.RFCurrent          = 1.4;
-  rtU.RFTemperature      = 37.0;
-
-  // Right Middle (RM)
-  rtU.RMActualSpeed      = 2.2;
-  rtU.RMActualPos        = 1035.0;
-  rtU.RMCurrent          = 1.2;
-  rtU.RMTemperature      = 35.9;
-
-  // Right Back (RB)
-  rtU.RBActualSpeed      = 2.2;
-  rtU.RBActualPos        = 1035.0;
-  rtU.RBCurrent          = 1.3;
-  rtU.RBTemperature      = 36.4;
-
-  //LOGI(TAG,"FREQ:%f" ,rtY.stepperLFFrequency);
-  //LOGI(TAG,"STEP:%f" ,rtY.stepperLFSteps);
   uint32_t last_tick = osKernelGetTickCount();
   uint32_t wake_time = last_tick;
   const uint32_t period = 1;
 
+  while(1){
+
+      control_drive_manual_step();
+
+      rotate_stepper(&stepperLF, rtY.stepperLFSteps, rtY.stepperLFFrequency);
+      rotate_stepper(&stepperRF, rtY.stepperLFSteps, rtY.stepperLFFrequency);
+      rotate_stepper(&stepperRB, rtY.stepperLFSteps, rtY.stepperLFFrequency);
+      rotate_stepper(&stepperLB, rtY.stepperLFSteps, rtY.stepperLFFrequency);
+     
+      uint32_t now = osKernelGetTickCount();
+
+      rtU.deltaTime = (now - last_tick) * 0.001f;
+      last_tick = now;
+     
+      wake_time += period;// schedule next exact tick
+      osDelayUntil(wake_time);
+ 
+
+  }
   /**
    * 
     static const uint32_t scope_pulse_counts[] = {
@@ -658,23 +635,34 @@ void PwmTask(void *argument)
     }
   }
    */
+  /**
+   * while (1)
+{
+    for (float x = -1000000000.0f;
+         x <= 1000000000.0f;
+         x += 10000000.0f)
+    {
+        rtU.controllerSteering = x;
 
-  
-     while (1) {
+        control_drive_manual_step();
+
+        LOGI(TAG,
+     "ctrl=%f steps=%f freq=%f",
+     rtU.controllerSteering,
+     rtY.stepperLFSteps,
+     rtY.stepperLFFrequency);
+
+     rotate_stepper(&stepperLF, rtY.stepperLFSteps, rtY.stepperLFFrequency);
+        osDelay(1);
+    }
+}
+   */
 
 
-      control_drive_manual_step();
 
-      rotate_stepper(&stepperLF, rtY.stepperLFSteps, rtY.stepperLFFrequency);
-      //rotate_stepper(&stepperRB, 50, 50);
-     
-      uint32_t now = osKernelGetTickCount();
 
-      rtU.deltaTime = (now - last_tick) * 0.001f;
-      last_tick = now;
-     
-      wake_time += period;// schedule next exact tick
-      osDelayUntil(wake_time);
+
+      
      
 
       }   
@@ -682,31 +670,51 @@ void PwmTask(void *argument)
 
  
 
-    }
+    
 
 
 void DrivingEncoderTask(void *argument){
 
   for(;;)
   {
- 
-    osDelay(1000);
 
-  }
-}
+  osDelay(100);
+}}
 
 void DriveTask(void *argument)
 {
-    osDelay(3000);
+    //osDelay(3000);
 
 
     for (;;)
     {
-        LOGI("TEST", "sending");
+      /**
+       *       for (int x = 0; x<256;x++) {
+              cubemars_ak_set_speed(&hfdcan1, x, 10000);
+              osDelay(10);
+      }
+      cubemars_ak_set_speed(&hfdcan1, 69+92, 10000);
+      osDelay(1000);
+      CAN_LogStatus(&hfdcan1);
+      cubemars_ak_set_speed(&hfdcan1, 69+92, 0);
+      osDelay(1000);
+      cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+      osDelay(1000);
+      cubemars_ak_set_speed(&hfdcan1, 93, 0);
+      osDelay(1000);
+       */
+
+       cubemars_ak_set_speed(&hfdcan1, 69, 10000);
+       osDelay(1000);
+       cubemars_ak_set_speed(&hfdcan1, 69, 10000);
+        osDelay(1000);
+        CAN_LogStatus(&hfdcan1);
+      /**
+       * LOGI("TEST", "sending");
         for (int speed = 0; speed<5000; speed=+100){
             
         //cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
-        cubemars_ak_set_speed(&hfdcan1, 93, speed*16);
+        cubemars_ak_set_speed(&hfdcan1, 69, speed*16);
         osDelay(20);
         }
         osDelay(1000);
@@ -714,10 +722,12 @@ void DriveTask(void *argument)
         for (int speed = 5000; speed>0; speed=-100){
             
         //cubemars_ak_set_speed(&hfdcan2, 93, -speed*16);
-        cubemars_ak_set_speed(&hfdcan1, 93, speed*16);
+        cubemars_ak_set_speed(&hfdcan1, 69, speed*16);
         osDelay(20);
         }
         osDelay(10000);
+       */
+        
 
 
 /**
