@@ -111,7 +111,7 @@ const osThreadAttr_t pwmTask_attributes = {
 
 const osThreadAttr_t drivingEncoderTask_attributes = {
     .name = "encoderTask",
-    .stack_size = 1024 * 4,
+    .stack_size = 1024 * 6,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
@@ -252,7 +252,6 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
 
 
 static cubemars_ak_information motor_info = {0};
-//static volatile cubemars_ak_information motors[256] = {0};//TODO:NOT BEING UPDATED RN CHANGE LATER
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
                                uint32_t RxFifo0ITs) {
@@ -660,13 +659,6 @@ void PwmTask(void *argument)
 }
    */
 
-
-
-
-
-      
-     
-
       }   
    
 
@@ -679,8 +671,60 @@ void DrivingEncoderTask(void *argument){
 
   for(;;)
   {
+rtU.LFActualSpeed = (real_T)motor_info.motor_speed;
+        rtU.LMActualSpeed = (real_T)motor_info.motor_speed;
+        rtU.LBActualSpeed = (real_T)motor_info.motor_speed;
 
-  osDelay(100);
+        rtU.RFActualSpeed = (real_T)motor_info.motor_speed;
+        rtU.RMActualSpeed = (real_T)motor_info.motor_speed;
+        rtU.RBActualSpeed = (real_T)motor_info.motor_speed;
+
+
+        rtU.LFActualPos = (real_T)motor_info.motor_position;
+        rtU.LMActualPos = (real_T)motor_info.motor_position;
+        rtU.LBActualPos = (real_T)motor_info.motor_position;
+
+        rtU.RFActualPos = (real_T)motor_info.motor_position;
+        rtU.RMActualPos = (real_T)motor_info.motor_position;
+        rtU.RBActualPos = (real_T)motor_info.motor_position;
+
+
+        rtU.LFCurrent = (real_T)motor_info.motor_current;
+        rtU.LMCurrent = (real_T)motor_info.motor_current;
+        rtU.LBCurrent = (real_T)motor_info.motor_current;
+
+        rtU.RFCurrent = (real_T)motor_info.motor_current;
+        rtU.RMCurrent = (real_T)motor_info.motor_current;
+        rtU.RBCurrent = (real_T)motor_info.motor_current;
+
+
+        rtU.LFTemperature = (real_T)motor_info.motor_temperature;
+        rtU.LMTemperature = (real_T)motor_info.motor_temperature;
+        rtU.LBTemperature = (real_T)motor_info.motor_temperature;
+
+        rtU.RFTemperature = (real_T)motor_info.motor_temperature;
+        rtU.RMTemperature = (real_T)motor_info.motor_temperature;
+        rtU.RBTemperature = (real_T)motor_info.motor_temperature;
+
+
+        rtU.LFStatus = (real_T)motor_info.status_code;
+        rtU.LMStatus = (real_T)motor_info.status_code;
+        rtU.LBStatus = (real_T)motor_info.status_code;
+
+        rtU.RFStatus = (real_T)motor_info.status_code;
+        rtU.RMStatus = (real_T)motor_info.status_code;
+        rtU.RBStatus = (real_T)motor_info.status_code;
+
+
+        rtU.LFCanId = (real_T)motor_info.motor_id;
+        rtU.LMCanId = (real_T)motor_info.motor_id;
+        rtU.LBCanId = (real_T)motor_info.motor_id;
+
+        rtU.RFCanId = (real_T)motor_info.motor_id;
+        rtU.RMCanId = (real_T)motor_info.motor_id;
+        rtU.RBCanId = (real_T)motor_info.motor_id;
+
+        osDelay(100);
 }}
 
 void DriveTask(void *argument)
@@ -707,14 +751,15 @@ void DriveTask(void *argument)
        */
 
        cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlLM);
-       //cubemars_ak_set_speed(&hfdcan2, 93, -rtY.controlRM);
+       cubemars_ak_set_speed(&hfdcan2, 93, -rtY.controlRM);
        osDelay(100);
        CAN_LogStatus(&hfdcan1);
        osDelay(100);
        LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlRM);
        LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlLM);
-osDelay(1000);
+        osDelay(1000);
        
+        
       /**
        * LOGI("TEST", "sending");
         for (int speed = 0; speed<5000; speed=+100){
