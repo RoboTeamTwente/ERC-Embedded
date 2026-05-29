@@ -208,13 +208,13 @@ SECTIONS
 
   .lwip_sec (NOLOAD) :
   {
-      . = ABSOLUTE(0x30000000);
+      . = ABSOLUTE(0x300000FF);
       *(.RxDecripSection)
 
-      . = ABSOLUTE(0x30000080);
+      . = ABSOLUTE(0x3000017F);
       *(.TxDecripSection)
       
-      . = ABSOLUTE(0x30000100);
+      . = ABSOLUTE(0x300001FF);
       *(.Rx_PoolSection)
 
   } >RAM_D2

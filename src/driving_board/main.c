@@ -74,7 +74,7 @@ void MPU_Config(void);
 void MX_GPIO_Init(void);
 void MX_TIM1_Init(void);
 void MX_TIM3_Init(void);
-void MX_TIM4_Init(void);
+void MX_TIM8_Init(void);
 void MX_TIM5_Init(void);
 extern struct netif gnetif;
 extern ETH_HandleTypeDef heth;
@@ -83,7 +83,7 @@ COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
-TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim8;
 TIM_HandleTypeDef htim5;
 
 //uint16_t dac_value;
@@ -99,32 +99,32 @@ void MainTaskListener(void *argument);
 
 const osThreadAttr_t mainTask_attributes = {
     .name = "mainTask",
-    .stack_size = 1024 * 10,
+    .stack_size = 1024 * 6,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t pwmTask_attributes = {
     .name = "pwmTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t drivingEncoderTask_attributes = {
     .name = "encoderTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 
 const osThreadAttr_t driveTask_attributes = {
     .name = "driveTask",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
 const osThreadAttr_t mainTaskListener_attributes = {
     .name = "mainTaskListener",
-    .stack_size = 1024 * 8,
+    .stack_size = 1024 * 4,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
@@ -177,9 +177,9 @@ static result_t HandleTypeManualDrivePacket(void *buffer) {
 
   rtU.controllerSpeed = (float)packet->forward_backward;
   rtU.controllerSteering = (float)packet->turn;
-  LOGI(TAG,"Envelope of type forward_backward to go info has value: %ld\n", packet->forward_backward);
-  LOGI(TAG,"Envelope of type turn to go info has value: %ld\n", packet->turn);
-  LOGI(TAG, "BasestationManualDrive This is packet: %d\n", incomming_counter);
+  //LOGI(TAG,"Envelope of type forward_backward to go info has value: %ld\n", packet->forward_backward);
+  //LOGI(TAG,"Envelope of type turn to go info has value: %ld\n", packet->turn);
+  //LOGI(TAG, "BasestationManualDrive This is packet: %d\n", incomming_counter);
   return RESULT_OK;
 }
 
@@ -250,6 +250,7 @@ void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
   LOGE("CAN", "Error callback HALerr=0x%08lx\n", HAL_FDCAN_GetError(hfdcan));
 }
 
+
 static cubemars_ak_information motor_info = {0};
 //static volatile cubemars_ak_information motors[256] = {0};//TODO:NOT BEING UPDATED RN CHANGE LATER
 
@@ -269,11 +270,11 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
   }
   cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
 
-  //cl3e_parse_can_message(&rx_header, rx_data);
+ 
 }
 
-/**
- * static void CAN2_ConfigRx_AllStandard(void) {
+
+  static void CAN2_ConfigRx_AllStandard(void) {
     FDCAN_FilterTypeDef filter = {0};
 
     filter.IdType = FDCAN_STANDARD_ID;
@@ -299,7 +300,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
         Error_Handler();
     }
 }
- */
+ 
 
 
 static void CAN_LogStatus(FDCAN_HandleTypeDef* hfdcan) {
@@ -353,7 +354,7 @@ void init_board() {
   LOG_init(&huart_com);
   MX_TIM1_Init();
   MX_TIM3_Init();
-  MX_TIM4_Init();
+  MX_TIM8_Init();
   MX_TIM5_Init();
   MX_FDCAN1_Init();
   //MX_FDCAN2_Init();
@@ -426,7 +427,7 @@ void init_board() {
         
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
-  osThreadNew(PwmTask, NULL, &pwmTask_attributes);
+  //osThreadNew(PwmTask, NULL, &pwmTask_attributes);
   osThreadNew(DrivingEncoderTask, NULL, &drivingEncoderTask_attributes);
   osThreadNew(DriveTask, NULL, &driveTask_attributes);
   osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
@@ -577,7 +578,7 @@ void PwmTask(void *argument)
   init_stepper(&stepperLF, 50, &htim3, pin3, pin4);
   pin_t pin5 = {GPIOE, GPIO_PIN_4};
   pin_t pin6 = {GPIOE, GPIO_PIN_5};
-  init_stepper(&stepperLB, 50, &htim4, pin5, pin6);
+  init_stepper(&stepperLB, 50, &htim8, pin5, pin6);
   pin_t pin7 = {GPIOE, GPIO_PIN_6};
   pin_t pin8 = {GPIOB, GPIO_PIN_9};
   init_stepper(&stepperRB, 50, &htim5, pin7, pin8);
@@ -704,11 +705,15 @@ void DriveTask(void *argument)
       osDelay(1000);
        */
 
-       cubemars_ak_set_speed(&hfdcan1, 69, 10000);
-       osDelay(1000);
-       cubemars_ak_set_speed(&hfdcan1, 69, 10000);
-        osDelay(1000);
-        CAN_LogStatus(&hfdcan1);
+       cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlLM);
+       cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlRM);
+       osDelay(100);
+       CAN_LogStatus(&hfdcan1);
+       osDelay(100);
+       LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlRM);
+       LOGI(TAG, "SPEEEEEEEEEEEEEEEEEEEDDDDDDDDDDDDDDDDDDDDDD: %f",rtY.controlLM);
+osDelay(1000);
+       
       /**
        * LOGI("TEST", "sending");
         for (int speed = 0; speed<5000; speed=+100){
