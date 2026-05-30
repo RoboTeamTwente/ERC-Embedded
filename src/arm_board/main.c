@@ -461,6 +461,19 @@ static void vStepperTask2(void *argument) {
   }
 }
 
+float delta = 0.01;
+static void position_setter() {
+
+  if (rtU.x >= 0.85) {
+    delta = -0.01;
+  } else if (rtU.x <= 0.75) {
+    delta = 0.01;
+  }
+  rtU.x = rtU.x + delta;
+
+  LOGI(TAG, "rtU.x: %f", rtU.x);
+}
+
 uint32_t old_time;
 static void vArmController(void *argument) {
 
@@ -472,18 +485,9 @@ static void vArmController(void *argument) {
   init_stepper(&stepper2, 50, &htim3, pin3, pin4);
   int steps;
   int freq;
-  float delta = 0.01;
 
   while (1) {
-
-    if (rtU.x >= 0.85) {
-      delta = -0.01;
-    } else if (rtU.x <= 0.75) {
-      delta = 0.01;
-    }
-    rtU.x = rtU.x + delta;
-
-    LOGI(TAG, "rtU.x: %f", rtU.x);
+    position_setter();
     if (old_time == NULL) {
       rtU.deltaTime = 2 / 1000.0;
     } else {
@@ -500,7 +504,9 @@ static void vArmController(void *argument) {
     rtY.stepperLeftFrequency;
     rtY.stepperRightFrequency;
     rtY.controlGripperPitch;
-    cubemars_ak_set_speed(&hfdcan2, 93, rtY.controlGripperPitch);
+    LOGI(TAG, "gripper pitch: %f", rtY.controlGripperPitch);
+    cubemars_ak_set_speed(&hfdcan1, 111, 100);
+    CAN_LogStatus(&hfdcan1);
     if (rtY.stepperLeftSteps == 0 || rtY.stepperRightSteps == 0) {
       __builtin_trap();
       while (true) {
@@ -510,14 +516,14 @@ static void vArmController(void *argument) {
     freq = 50; // rtY.stepperLeftFrequency;
     LOGI(TAG, "LEFT freq: %u", freq);
     LOGI(TAG, "LEFT steps: %u", steps);
-    steps = -10;
-    rotate_stepper(&stepper1, steps, freq);
+    // steps = -100;
+    // rotate_stepper(&stepper1, steps, freq);
 
     steps = rtY.stepperRightSteps;
     LOGI(TAG, "RIGHT freq: %u", freq);
     LOGI(TAG, "RIGHT steps: %u", steps);
-    steps = 10;
-    rotate_stepper(&stepper2, steps, freq);
+    // steps = 100;
+    // rotate_stepper(&stepper2, steps, freq);
 
     while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
       osDelay(1); // Delay for thread switching
