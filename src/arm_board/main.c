@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 // Controls code
+#include "cmsis_os2.h"
 #include "erc-control-arm/control_arm_manual_ert_rtw/control_arm_manual.h"
 
 #include "cubemx_main.h"
@@ -154,7 +155,7 @@ static void vStepperTask1(void *argument);
 static void vStepperTask2(void *argument);
 static void vArmInTask(void *argument);
 static void vArmController(void *argument);
-
+static void vWristController(void *argument);
 void setup_control_parameters() {
 
   rtU.x = 0.795;
@@ -225,32 +226,32 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
   cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
 }
 
-static void CAN2_ConfigRx_AllStandard(void) {
-  FDCAN_FilterTypeDef filter = {0};
-
-  filter.IdType = FDCAN_STANDARD_ID;
-  filter.FilterIndex = 0;
-  filter.FilterType = FDCAN_FILTER_MASK;
-  filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-
-  // Accept everything: (ID & 0x000) == (0x000 & 0x000)
-  filter.FilterID1 = 0x000;
-  filter.FilterID2 = 0x000;
-
-  if (HAL_FDCAN_ConfigFilter(&hfdcan2, &filter) != HAL_OK) {
-    LOGE("CAN", "Filter config failed, err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan2));
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_ConfigGlobalFilter(
-          &hfdcan2, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
-          FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
-    LOGE("CAN", "Global filter failed, err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan2));
-    Error_Handler();
-  }
-}
+// static void CAN2_ConfigRx_AllStandard(void) {
+//   FDCAN_FilterTypeDef filter = {0};
+//
+//   filter.IdType = FDCAN_STANDARD_ID;
+//   filter.FilterIndex = 0;
+//   filter.FilterType = FDCAN_FILTER_MASK;
+//   filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+//
+//   // Accept everything: (ID & 0x000) == (0x000 & 0x000)
+//   filter.FilterID1 = 0x000;
+//   filter.FilterID2 = 0x000;
+//
+//   if (HAL_FDCAN_ConfigFilter(&hfdcan2, &filter) != HAL_OK) {
+//     LOGE("CAN", "Filter config failed, err=0x%08lx",
+//          HAL_FDCAN_GetError(&hfdcan2));
+//     Error_Handler();
+//   }
+//
+//   if (HAL_FDCAN_ConfigGlobalFilter(
+//           &hfdcan2, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+//           FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
+//     LOGE("CAN", "Global filter failed, err=0x%08lx",
+//          HAL_FDCAN_GetError(&hfdcan2));
+//     Error_Handler();
+//   }
+// }
 
 static void CAN_LogStatus(FDCAN_HandleTypeDef *hfdcan) {
   FDCAN_ProtocolStatusTypeDef protocol_status;
@@ -287,7 +288,7 @@ int main(void) {
   // SCB_EnableDCache();
 
   MX_FDCAN1_Init();
-  MX_FDCAN2_Init();
+  // MX_FDCAN2_Init();
 
   // Init timers
   MX_TIM2_Init();
@@ -326,32 +327,6 @@ int main(void) {
   LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
-
-  CAN2_ConfigRx_AllStandard();
-
-  if (HAL_FDCAN_ConfigInterruptLines(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-                                     FDCAN_INTERRUPT_LINE0) != HAL_OK) {
-    LOGE("CAN", "Interrupt line config failed err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan2));
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO0_NEW_MESSAGE,
-                                     0) != HAL_OK) {
-    LOGE("CAN", "Activate RX notification failed err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan2));
-    Error_Handler();
-  }
-  if (HAL_FDCAN_Start(&hfdcan2) != HAL_OK) {
-    LOGE(TAG, "FDCAN start failed, err=0x%08lx", HAL_FDCAN_GetError(&hfdcan2));
-    for (;;)
-      ;
-  }
-
-  LOGI("CAN", "FDCAN2: Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu",
-       hfdcan2.Init.Mode, hfdcan2.Init.NominalPrescaler,
-       hfdcan2.Init.NominalTimeSeg1, hfdcan2.Init.NominalTimeSeg2,
-       hfdcan2.Init.NominalSyncJumpWidth);
 
   // // /* Create the thread(s) */
   // testethernetTaskHandle = osThreadNew(vEthernetTask, NULL,
@@ -394,6 +369,8 @@ int main(void) {
 
   xTaskCreate(vArmController, "ArmController", 1024 * 8, NULL,
               tskIDLE_PRIORITY + 2U, NULL);
+  xTaskCreate(vWristController, "WristController", 1024 * 8, NULL,
+              tskIDLE_PRIORITY + 3U, NULL);
   // xTaskCreate(vEthernetTask, "ethernet", 1024 * 8, NULL, tskIDLE_PRIORITY +
   // 1U,
   //             NULL);
@@ -461,20 +438,95 @@ static void vStepperTask2(void *argument) {
   }
 }
 
-float delta = 0.01;
+float delta = 0.05;
+float delta_gripper = 0.001;
+int state = 0;
 static void position_setter() {
 
-  if (rtU.x >= 0.85) {
-    delta = -0.01;
-  } else if (rtU.x <= 0.75) {
-    delta = 0.01;
+  // if (rtU.x >= 0.85) {
+  //   delta = abs(delta);
+  // } else if (rtU.x <= 0.75) {
+  //   delta = -abs(delta);
+  // }
+  switch (state) {
+  case 0:
+    rtU.x = rtU.x - delta * 1.1;
+    rtU.z = rtU.z - delta;
+    if ((rtU.x <= 0.7 || rtU.z <= 0.099) && state == 0) {
+      state = 1;
+    }
+    break;
+  case 1:
+    rtU.gripperAng += delta_gripper;
+    if (rtU.gripperAng >= 0.2 * M_PI && state == 1) {
+      state = 2;
+    }
+    break;
+  case 2:
+    // rtU.x += delta * 1.1;
+    // if (rtU.x >= 0.9) {
+    //   state = 3;
+    // }
+    // break;
+  case 3:
+    rtU.z += delta * 1;
+    if (rtU.z > 0.2) {
+      state = 4;
+    }
+    break;
+  case 4:
+    rtU.z -= delta;
+    if (rtU.z < 0.1) {
+      state = 3;
+    }
+    break;
   }
-  rtU.x = rtU.x + delta;
-
+  LOGI(TAG, "state: %i", state);
+  LOGI(TAG, "set x: %f", rtU.x);
+  // if (rtU.x >= 0.85) {
+  //   delta = abs(delta);
+  // } else if (rtU.x <= 0.75) {
+  //   delta = -abs(delta);
+  // }
+  // if (rtU.gripperAng >= 0.2) {
+  //   delta_gripper = abs(delta_gripper);
+  // } else if (rtU.gripperAng <= 15) {
+  //   delta_gripper = -abs(delta_gripper);
+  // }
+  // rtU.gripperAng += delta;
   LOGI(TAG, "rtU.x: %f", rtU.x);
 }
 
 uint32_t old_time;
+
+const float start_gripper_angle = 0.9;
+
+#define calibration 0 // 0 = off, 1 = left, 2 = right, 3 = both
+
+static void vWristController(void *argument) {
+
+  const float d_t = 0.01;
+  const float speed = 0.01 * d_t;
+  float current_pos = start_gripper_angle;
+  while (true) {
+    if (rtY.controlGripperPitch != 0) {
+      float setpoint =
+          rtY.controlGripperPitch * 10 * (M_PI / 180) + start_gripper_angle;
+      float diff = setpoint - current_pos;
+      float real_speed;
+      if (diff < speed) {
+        real_speed = diff;
+      } else {
+        real_speed = speed;
+      }
+      current_pos += real_speed;
+      if (calibration == 0) {
+        cubemars_ak_set_position(&hfdcan1, 111, current_pos);
+      }
+    }
+    osDelay(d_t * 1000);
+  }
+}
 static void vArmController(void *argument) {
 
   pin_t pin3 = {GPIOA, GPIO_PIN_5};
@@ -483,8 +535,21 @@ static void vArmController(void *argument) {
   pin_t pin2 = {GPIOC, GPIO_PIN_0};
   init_stepper(&stepper1, 50, &htim2, pin1, pin2);
   init_stepper(&stepper2, 50, &htim3, pin3, pin4);
-  int steps;
+  int32_t steps;
   int freq;
+  osDelay(5000);
+  if (calibration == 0) {
+    for (float f = 0; f < start_gripper_angle; f += 0.005) {
+      cubemars_ak_set_position(&hfdcan1, 111, f);
+      LOGI(TAG, "gripper angle: %f", f);
+      osDelay(10);
+    }
+
+    for (int i = 0; i < 100; i++) {
+      cubemars_ak_set_position(&hfdcan1, 111, start_gripper_angle);
+      osDelay(10);
+    }
+  }
 
   while (1) {
     position_setter();
@@ -504,26 +569,35 @@ static void vArmController(void *argument) {
     rtY.stepperLeftFrequency;
     rtY.stepperRightFrequency;
     rtY.controlGripperPitch;
-    LOGI(TAG, "gripper pitch: %f", rtY.controlGripperPitch);
-    cubemars_ak_set_speed(&hfdcan1, 111, 100);
+    LOGI(TAG, "gripper pitch: %i", rtY.controlGripperPitch * 10 * (M_PI / 180));
     CAN_LogStatus(&hfdcan1);
-    if (rtY.stepperLeftSteps == 0 || rtY.stepperRightSteps == 0) {
-      __builtin_trap();
-      while (true) {
-      };
-    }
-    steps = rtY.stepperLeftSteps;
-    freq = 50; // rtY.stepperLeftFrequency;
-    LOGI(TAG, "LEFT freq: %u", freq);
-    LOGI(TAG, "LEFT steps: %u", steps);
-    // steps = -100;
-    // rotate_stepper(&stepper1, steps, freq);
+    // if (rtY.stepperLeftSteps == 0 && rtY.stepperRightSteps == 0) {
+    //   LOGI(TAG, "ERROR EVEYRTHING 0");
+    //   osDelay(10);
+    //   __builtin_trap();
+    //   while (true) {
+    //   };
+    // }
 
     steps = rtY.stepperRightSteps;
     LOGI(TAG, "RIGHT freq: %u", freq);
-    LOGI(TAG, "RIGHT steps: %u", steps);
-    // steps = 100;
-    // rotate_stepper(&stepper2, steps, freq);
+    LOGI(TAG, "RIGHT steps: %i", steps);
+    if (calibration == 2 || calibration == 3) {
+      steps = 10000;
+    }
+    if (calibration == 0 || calibration == 2 || calibration == 3) {
+      rotate_stepper(&stepper2, steps, freq);
+    }
+    steps = rtY.stepperLeftSteps;
+    freq = 200; // rtY.stepperLeftFrequency;
+    LOGI(TAG, "LEFT freq: %u", freq);
+    LOGI(TAG, "LEFT steps: %i", steps);
+    if (calibration == 1 || calibration == 3) {
+      steps = -10000;
+    }
+    if (calibration == 0 || calibration == 1 || calibration == 3) {
+      rotate_stepper(&stepper1, -steps, freq);
+    }
 
     while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
       osDelay(1); // Delay for thread switching
@@ -531,6 +605,7 @@ static void vArmController(void *argument) {
     while (htim3.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
       osDelay(1); // Delay for thread switching
     }
+    osDelay(10);
 
     // if (old_time > 8000) {
     //   BaseType_t xStatus1;
