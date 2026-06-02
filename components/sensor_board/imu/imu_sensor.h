@@ -1,4 +1,4 @@
-/**
+ /**
  * @file imu_sensor.h
  * @brief Header file for the IMU sensor data handling.
  *
