@@ -1,5 +1,6 @@
 import glob
 from pathlib import Path
+import warnings
 import re
 import os
 import sys
@@ -77,7 +78,13 @@ def parse_pio_file(input_file_path, result_file_path):
 
 
 def parse_c_defines(board_folder):
-    makefile = Path(board_path + board_folder + "/firmware/Makefile")
+    try:
+        makefile = Path(board_path + board_folder + "/firmware/Makefile")
+        if not makefile.is_file():
+            raise FileNotFoundError(makefile)
+    except FileNotFoundError as e:
+        warnings.warn(f"Makefile not found: {e}", UserWarning)
+    makefile = None
     defines = []
     with open(makefile, "r") as inputf:
         while line := inputf.readline():
