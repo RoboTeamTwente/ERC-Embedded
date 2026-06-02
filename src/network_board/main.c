@@ -72,8 +72,8 @@ const osThreadAttr_t mainTask_attributes = {
 
 void ethernet_linkstatus_callback(void *arg) {
   struct netif *netif = (struct netif *)arg;
-  uint8_t ip[4] = NETWORK_IP;
-  uint8_t mac[6] = SAMPEL_BOARD_MAC;
+  uint8_t ip[4] = TEST_SEND_IP;
+  uint8_t mac[6] = TEST_SEND_MAC;
   if (netif_is_up(netif)) {
     LOGI(TAG, "Physical ethernet link is up");
     ETH_add_arp(ip, mac, 5);
