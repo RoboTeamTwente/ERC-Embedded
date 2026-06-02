@@ -40,7 +40,7 @@ build_flags=
     +<components/common/**>
     +<components/common/*/inc>
     +<components/common/*/network_board/**>
-    +<test/networking/**>
+    +<test/common/networking/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp
