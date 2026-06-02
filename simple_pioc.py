@@ -78,14 +78,15 @@ def parse_pio_file(input_file_path, result_file_path):
 
 
 def parse_c_defines(board_folder):
+    makefile = None
+    defines = []
     try:
         makefile = Path(board_path + board_folder + "/firmware/Makefile")
         if not makefile.is_file():
             raise FileNotFoundError(makefile)
     except FileNotFoundError as e:
         warnings.warn(f"Makefile not found: {e}", UserWarning)
-    makefile = None
-    defines = []
+        return defines
     with open(makefile, "r") as inputf:
         while line := inputf.readline():
             if(line.startswith(c_defines_tag)):
