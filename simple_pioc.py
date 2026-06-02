@@ -1,6 +1,5 @@
 import glob
 from pathlib import Path
-import warnings
 import re
 import os
 import sys
@@ -85,8 +84,8 @@ def parse_c_defines(board_folder):
         if not makefile.is_file():
             raise FileNotFoundError(makefile)
     except FileNotFoundError as e:
-        warnings.warn(f"Makefile not found: {e}", UserWarning)
-        return defines
+        print(f"\033[93mWARNING: Makefile not found: {makefile}\033[0m", file=sys.stderr)
+    return defines
     with open(makefile, "r") as inputf:
         while line := inputf.readline():
             if(line.startswith(c_defines_tag)):
