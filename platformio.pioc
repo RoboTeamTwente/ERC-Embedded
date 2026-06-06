@@ -19,35 +19,43 @@ custom_nanopb_options =
 test_build_src = True
 monitor_speed = 115200
 
-[env:network_board]
-board = nucleo_h753zi
-custom_nanopb_protos = +<components/**/*.proto>
-board_build.stm32cube.custom_config_header = yes
-board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
-build_src_filter = +<src/${this.__env__}/**/*.c>
+PIOC_build_flags = 
+    +<components/${this.__env__}/**>
+    -<components/${this.__env__}/firmware/Drivers/**>
+    +<components/${this.__env__}/firmware/Drivers/BSP/**>
+    +<components/common/**>
+    +<components/common/*/inc>
+    +<components/common/*/${this.__env__}/**>
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=softfp
+    -Wl,-u,_printf_float
+    -D CONFIG_LOG_LEVEL=LOG_INFO
+
+PIOC_build_src_filter =  
+    +<src/${this.__env__}/**/*.c> 
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/stm/**/*.c>
     +<components/common/*/*.c>
     +<components/${this.__env__}/**>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
+
+
+
+[env:network_board]
+board = nucleo_h753zi
+custom_nanopb_protos = +<components/**/*.proto>
+board_build.stm32cube.custom_config_header = yes
+board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
+build_src_filter = 
+    ${{PIOC_build_src_filter}} 
     -<components/${this.__env__}/*/test/*>
 
 lib_deps = ${extra.common_lib_deps}
 build_flags=
-    +<components/network_board/**>
-    -<components/network_board/firmware/Drivers/**>
-    +<components/network_board/firmware/Drivers/BSP/**>
-    +<components/common/**>
-    +<components/common/*/inc>
-    +<components/common/*/network_board/**>
     +<test/common/networking/**>
-    -mthumb
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=softfp
-    -Wl,-u,_printf_float
-    -D CONFIG_LOG_LEVEL=LOG_INFO
-    
+    ${{PIOC_build_flags}}   
 
 [env:sensor_board]
 board = nucleo_h753zi
@@ -56,33 +64,10 @@ board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
 lib_deps = ${extra.common_lib_deps}
 test_filter = sensor_board/*
 build_src_filter =
-    +<src/sensor_board/**/*.c>
-    +<components/sensor_board/**>
-    +<components/common/networking/**/*.c>
-    +<components/common/packet_dispatcher/**/*.c>
-    +<components/common/pb_message/**/*.c>
-    +<components/common/result/**/*.c>
-    +<components/common/bucketed_pqueue/**/*.c>
-    +<components/common/logging/sensor_board/**/*.c>
-    +<components/common/*/sensor_board/**/*.c>
-    +<components/common/*.c>
-    -<components/sensor_board/firmware/Drivers/**>
-    +<components/sensor_board/firmware/Drivers/BSP/**>
+    PIOC_build_src_filter 
 custom_nanopb_protos = +<components/**/*.proto>
 build_flags = 
-    +<components/common/*/inc>
-    +<components/common/*>
-    +<components/common/*/stm/**>    
-    +<components/sensor_board/**>
-    +<components/sensor_board/firmware/Core/Inc/>
-    +<components/sensor_board/firmware/LWIP/App/>
-    +<components/sensor_board/firmware/LWIP/Target/>
-    -<components/sensor_board/firmware/Drivers/**>
-    +<components/sensor_board/firmware/Drivers/BSP/**> 
-	  -mthumb
- 	  -mfpu=fpv4-sp-d16
-	  -mfloat-abi=softfp
-	  -Wl,-u,_printf_float
+    PIOC_build_flags   
 	  -D CONFIG_LOG_LEVEL=LOG_INFO
     -DUNITY_INCLUDE_DOUBLE
     -lm
@@ -91,124 +76,64 @@ build_flags =
 board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
 board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
-build_src_filter = +<src/${this.__env__}/**/*.c>
-    +<components/common/*/*.c>
+build_src_filter = 
+    PIOC_build_src_filter 
     +<components/common/motor_driver/**>
     -<components/common/motor_driver/cl3e/**>
-    +<components/common/*/stm/*.c>
-    +<components/common/networking/**>
-    +<components/common/*/${this.__env__}/**/*.c>
-    +<components/${this.__env__}/**>
-    -<components/${this.__env__}/firmware/Drivers/*>
-    +<components/${this.__env__}/firmware/Drivers/BSP/**>
-    -<components/${this.__env__}/*/test/*>
     -<components/${this.__env__}/firmware/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/**>
     +<components/${this.__env__}/firmware/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c>
     +<erc-control-arm/control_arm_manual_ert_rtw/**>
     -<erc-control-arm/control_arm_manual_ert_rtw/ert_main.c>
+
 custom_nanopb_protos = +<components/**/*.proto>
 lib_deps = ${extra.common_lib_deps}
 build_flags=
-    +<components/arm_board/**>
-    -<components/arm_board/firmware/Drivers/**>
-    +<components/arm_board/firmware/Drivers/BSP/**>
-    +<components/common/*>
-    +<components/common/networking/**>
+    PIOC_build_flags   
     +<components/common/motor_driver/**>
     -<components/common/motor_driver/cl3e/**>
-    +<components/common/*/inc>
-    +<components/common/*/arm_board/**>
-    +<components/common/*/stm/**/*>
-    +<components/common/*>
     -I src/arm_board
     +<erc-control-arm/control_arm_manual_ert_rtw/**>
-    -mthumb
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=softfp
-    -Wl,-u,_printf_float
-    -D CONFIG_LOG_LEVEL=LOG_INFO
 
 [env:driving_board]
 board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
 board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
-build_src_filter = +<src/${this.__env__}/**/*.c>
-    +<components/common/*/${this.__env__}/**/*.c>
-    +<components/common/*/*.c>
-    +<components/common/*/stm/**/*.c>
+build_src_filter = 
+    PIOC_build_src_filter 
     +<components/common/motor_driver/**>
-    +<components/common/stepper/driving_board/**>
-    +<components/driving_board/**>
-    -<components/driving_board/firmware/Drivers/**>
-    +<components/driving_board/firmware/Drivers/BSP/**>
 custom_nanopb_protos = +<components/**/*.proto>
 test_filter = driving_board/*
 lib_deps = ${extra.common_lib_deps}
 build_flags=
-    +<components/common/*/inc> 
-    +<components/common/*>
-    +<components/common/*/stm/**>
+    PIOC_build_flags   
     +<components/common/motor_driver/**>
     +<components/common/stepper/driving_board/**>
-    +<components/driving_board/**>
-    -<components/driving_board/firmware/Drivers/**>
-    +<components/driving_board/firmware/Drivers/BSP/**>
-    -mthumb
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=softfp
-    -Wl,-u,_printf_float
-    -D CONFIG_LOG_LEVEL=LOG_INFO
 
 [env:debugging_board]
 board = nucleo_h753zi
 custom_nanopb_protos = +<components/**/*.proto>
 board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
-build_src_filter = +<src/${this.__env__}/**/*.c>
-    +<components/common/*/${this.__env__}/**/*.c>
-    +<components/common/*/*.c>
-    +<components/debugging_board/**>
-    -<components/debugging_board/firmware/Drivers/**>
-    +<components/debugging_board/firmware/Drivers/BSP/**>
+build_src_filter = 
+    PIOC_build_src_filter 
 
 lib_deps = ${extra.common_lib_deps}
 test_filter = common/*
 build_flags=
-    +<components/common/*/inc/**>
-    +<components/common/*>
-    +<components/debugging_board/**>
-    -mthumb
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=softfp
-    -Wl,-u,_printf_float
-    -D CONFIG_LOG_LEVEL=LOG_INFO
+    PIOC_build_flags   
 
 [env:can_board]
 board = nucleo_h753zi
 custom_nanopb_protos = +<components/**/*.proto>
 board_build.ldscript = components/can_board/firmware/STM32H753XX_FLASH.ld
-build_src_filter = +<src/${this.__env__}/**/*.c>
-    +<components/common/*/${this.__env__}/**/*.c>
-    +<components/common/*/*.c>
-    +<components/common/*/stm/*.c>
+build_src_filter =
+    PIOC_build_src_filter 
     +<components/common/motor_driver/*/*.c>
     +<components/common/motor_driver/*/can_board/*.c>
-    +<components/can_board/**>
-    -<components/can_board/firmware/Drivers/**>
-    +<components/can_board/firmware/Drivers/BSP/**>
 
 lib_deps = ${extra.common_lib_deps}
 test_filter = common/*
 build_flags=
-    +<components/common/*/inc/**>
-    +<components/common/*>
-    +<components/can_board/**>
-    +<components/common/*>
-    +<components/common/motor_driver/**>
+    PIOC_build_flags   
     +<components/common/motor_driver/*/*>
     +<components/common/motor_driver/*/can_board/*>
-    -mthumb
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=softfp
-    -Wl,-u,_printf_float
-    -D CONFIG_LOG_LEVEL=LOG_INFO
 
