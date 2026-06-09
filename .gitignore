@@ -12,3 +12,6 @@ platformio.ini
 .vscode
 .venv
 venv
+*.nix
+components/**/firmware
+!components/**/firmware/**.ioc

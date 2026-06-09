@@ -3,7 +3,6 @@ from pathlib import Path
 import re
 import os
 import sys
-
 build_flags_tag = "build_flags"
 board_path = "components/"
 c_defines_tag = "C_DEFS"
@@ -78,8 +77,15 @@ def parse_pio_file(input_file_path, result_file_path):
 
 
 def parse_c_defines(board_folder):
-    makefile = Path(board_path + board_folder + "/firmware/Makefile")
+    makefile = None
     defines = []
+    try:
+        makefile = Path(board_path + board_folder + "/firmware/Makefile")
+        if not makefile.is_file():
+            raise FileNotFoundError(makefile)
+    except FileNotFoundError as e:
+        print(f"\033[93mWARNING: Makefile not found: {makefile}\033[0m", file=sys.stderr)
+    return defines
     with open(makefile, "r") as inputf:
         while line := inputf.readline():
             if(line.startswith(c_defines_tag)):

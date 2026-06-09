@@ -1,5 +1,5 @@
 [platformio]
-default_envs = can_board
+default_envs = arm_board
 src_dir = .
 lib_dir = lib
 
@@ -11,6 +11,7 @@ common_lib_deps = https://github.com/nanopb/nanopb.git#d68cd4e954ae1d376275d9fce
 platform = ststm32
 framework = stm32cube
 custom_nanopb_preserve_directory_hierarchy = true
+
 custom_nanopb_project_dir = ${{project_absolute_path}}$/ERC-Protobufs
 custom_nanopb_options = 
     --error-on-unmatched
@@ -22,7 +23,7 @@ monitor_speed = 115200
 board = nucleo_h753zi
 custom_nanopb_protos = +<components/**/*.proto>
 board_build.stm32cube.custom_config_header = yes
-board_build.ldscript = components/network_board/firmware/STM32H753XX_FLASH.ld
+board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/stm/**/*.c>
@@ -40,29 +41,42 @@ build_flags=
     +<components/common/**>
     +<components/common/*/inc>
     +<components/common/*/network_board/**>
-    +<test/networking/**>
+    +<test/common/networking/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp
     -Wl,-u,_printf_float
     -D CONFIG_LOG_LEVEL=LOG_INFO
+    
 
 [env:sensor_board]
 board = nucleo_h753zi
+board_build.stm32cube.custom_config_header = yes
+board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
 lib_deps = ${extra.common_lib_deps}
 test_filter = sensor_board/*
-build_src_filter = +<src/${this.__env__}/**/*.c>
-    +<components/common/*/${this.__env__}/**/*.c>
-    +<components/common/*/stm/**/*.c>
-    +<components/common/*.c>
+build_src_filter =
+    +<src/sensor_board/**/*.c>
     +<components/sensor_board/**>
+    +<components/common/networking/**/*.c>
+    +<components/common/packet_dispatcher/**/*.c>
+    +<components/common/pb_message/**/*.c>
+    +<components/common/result/**/*.c>
+    +<components/common/bucketed_pqueue/**/*.c>
+    +<components/common/logging/sensor_board/**/*.c>
+    +<components/common/*/sensor_board/**/*.c>
+    +<components/common/*.c>
     -<components/sensor_board/firmware/Drivers/**>
     +<components/sensor_board/firmware/Drivers/BSP/**>
 custom_nanopb_protos = +<components/**/*.proto>
 build_flags = 
     +<components/common/*/inc>
     +<components/common/*>
+    +<components/common/*/stm/**>    
     +<components/sensor_board/**>
+    +<components/sensor_board/firmware/Core/Inc/>
+    +<components/sensor_board/firmware/LWIP/App/>
+    +<components/sensor_board/firmware/LWIP/Target/>
     -<components/sensor_board/firmware/Drivers/**>
     +<components/sensor_board/firmware/Drivers/BSP/**> 
 	  -mthumb
@@ -76,12 +90,22 @@ build_flags =
 [env:arm_board]
 board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
+board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
 build_src_filter = +<src/${this.__env__}/**/*.c>
+    +<components/common/*/*.c>
+    +<components/common/motor_driver/**>
+    -<components/common/motor_driver/cl3e/**>
+    +<components/common/*/stm/*.c>
+    +<components/common/networking/**>
     +<components/common/*/${this.__env__}/**/*.c>
-    +<components/${this.__env__}/*>
+    +<components/${this.__env__}/**>
     -<components/${this.__env__}/firmware/Drivers/*>
     +<components/${this.__env__}/firmware/Drivers/BSP/**>
     -<components/${this.__env__}/*/test/*>
+    -<components/${this.__env__}/firmware/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/**>
+    +<components/${this.__env__}/firmware/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c>
+    +<erc-control-arm/control_arm_manual_ert_rtw/**>
+    -<erc-control-arm/control_arm_manual_ert_rtw/ert_main.c>
 custom_nanopb_protos = +<components/**/*.proto>
 lib_deps = ${extra.common_lib_deps}
 build_flags=
@@ -89,8 +113,15 @@ build_flags=
     -<components/arm_board/firmware/Drivers/**>
     +<components/arm_board/firmware/Drivers/BSP/**>
     +<components/common/*>
+    +<components/common/networking/**>
+    +<components/common/motor_driver/**>
+    -<components/common/motor_driver/cl3e/**>
     +<components/common/*/inc>
     +<components/common/*/arm_board/**>
+    +<components/common/*/stm/**/*>
+    +<components/common/*>
+    -I src/arm_board
+    +<erc-control-arm/control_arm_manual_ert_rtw/**>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp
@@ -100,10 +131,13 @@ build_flags=
 [env:driving_board]
 board = nucleo_h753zi
 board_build.stm32cube.custom_config_header = yes
+board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
     +<components/common/*/stm/**/*.c>
+    +<components/common/motor_driver/**>
+    +<components/common/stepper/driving_board/**>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
@@ -114,6 +148,8 @@ build_flags=
     +<components/common/*/inc> 
     +<components/common/*>
     +<components/common/*/stm/**>
+    +<components/common/motor_driver/**>
+    +<components/common/stepper/driving_board/**>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
@@ -126,6 +162,7 @@ build_flags=
 [env:debugging_board]
 board = nucleo_h753zi
 custom_nanopb_protos = +<components/**/*.proto>
+board_build.ldscript = components/${this.__env__}/STM32H753XX_FLASH.ld
 build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
@@ -153,7 +190,8 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
     +<components/common/*/stm/*.c>
-    +<components/common/motor_driver/**>
+    +<components/common/motor_driver/*/*.c>
+    +<components/common/motor_driver/*/can_board/*.c>
     +<components/can_board/**>
     -<components/can_board/firmware/Drivers/**>
     +<components/can_board/firmware/Drivers/BSP/**>
@@ -166,6 +204,8 @@ build_flags=
     +<components/can_board/**>
     +<components/common/*>
     +<components/common/motor_driver/**>
+    +<components/common/motor_driver/*/*>
+    +<components/common/motor_driver/*/can_board/*>
     -mthumb
     -mfpu=fpv4-sp-d16
     -mfloat-abi=softfp

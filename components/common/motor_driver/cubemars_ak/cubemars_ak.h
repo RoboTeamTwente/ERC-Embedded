@@ -96,9 +96,9 @@ typedef struct {
 
     /** Motor fault/status code. */
     cubemars_ak_error_code status_code;
-
     /** Motor controller ID extracted from the CAN identifier. */
     uint8_t motor_id;
+
 } cubemars_ak_information;
 
 /**
