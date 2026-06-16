@@ -20,57 +20,30 @@
 #include "main.h"
 #include <stdint.h>
 
-// Controls code
 #include "cmsis_os2.h"
-#include "erc-control-arm/control_arm_manual_ert_rtw/control_arm_manual.h"
-
 #include "cubemx_main.h"
-#include "erc-control-arm/control_arm_manual_ert_rtw/rtwtypes.h"
 #include "gpio.h"
-#include "stepper.h"
-#include "tim.h"
 
+// protobuffers
+#include "components/arm_board/movement_control_in.pb.h"
 // common libraries
 #include "logging.h"
 #include "result.h"
 
-// protobuffers
-#include "components/arm_board/movement_control_in.pb.h"
-#include "pb_message.h"
-
-// freertos
-#include "FreeRTOS.h"
-#include "cmsis_os.h"
-
 // networking
 #include "components/common/networking/inc/ethernet.h" //long path since LWIP also has ethernet.h
 #include "ethernet_udp.h"
-#include "ip_mac_constants.h"
 #include "networking_constants.h"
 
-// packetdispatcher
+// packet_dispatcher
+#include "can.h"
 #include "cubemars_ak.h"
-#include "fdcan.h"
 #include "packet_dispatcher.h"
 #include "packet_dispatcher_macros.h"
 
 #define TAG "ARM_BOARD"
 
-extern ExtY rtY; // Get controls in :)
-extern ExtU rtU; // Get controls in :)
-extern void controlArmManualStep(void);
-/*External functions*/
-extern COM_InitTypeDef BspCOMInit;
-extern void MX_FREERTOS_Init(void);
-extern void SystemClock_Config(void);
-extern void MPU_Config_wrapper(void);
-extern void MX_DMA_Init(void);
-
 /*Handles*/
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim3;
-UART_HandleTypeDef huart_com;
-
 void my_BSP_COM_Init() {
   BspCOMInit.BaudRate = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
@@ -82,82 +55,7 @@ void my_BSP_COM_Init() {
   }
   MX_USART3_Init(&huart_com, &BspCOMInit);
 }
-
-/*Ethernet constants*/
-
-// MY LAPTOP
-uint8_t my_mac[6] = {0x6c, 0x24, 0x08, 0xd2, 0xfa, 0x50};
-uint8_t my_ip[4] = {192, 168, 0, 111};
-// uint8_t my_mac[6] = {0x00, 0x80, 0xe1, 0x00, 0x00, 0x00};
-// uint8_t my_ip[4] = {192, 168, 0, 111};
-uint8_t netmask[4] = NETMASK;
-uint8_t gateway[4] = GATEWAY;
-
-// OTHER LAPTOP
-uint8_t ip[4] = {192, 168, 0, 50};
-uint8_t mac[6] = NETWORK_MAC;
-
-osThreadId_t stepperTaskHandle;
-osThreadId_t testethernetTaskHandle;
-
-/* Task attributes for CMSIS-RTOS v2 */
-
-// osThreadId_t task_2Handle;
-// const osThreadAttr_t task2_attributes = {
-//     .name = "task2",
-//     .stack_size = 1024 * 10, // Make sure this is enough
-//     .priority = tskIDLE_PRIORITY + 1U,
-// };
-// static void test_ethernet(void* argument);
-
-osThreadId_t pwmScopeTaskHandle;
-const osThreadAttr_t pwm_scope_attributes = {
-    .name = "pwm_scope",
-    .stack_size = 1024 * 8,
-    .priority = tskIDLE_PRIORITY,
-};
-static void pwm_scope_task(void *argument);
-
-// Stepper objects
-stepper_t stepper1;
-stepper_t stepper2;
-
-int stepper1_count = 0;
-int stepper2_count = 0;
-/* FOR QUEUE CREATION */
-const int queue_size = 5;
-const int item_size = sizeof(uint32_t);
-
-// QueueHandle_t stepper1_queue_handle;
-// QueueHandle_t stepper2_queue_handle;
-// static StaticQueue_t stepper2_queue;
-// static StaticQueue_t stepper1_queue;
-
-// TaskHandle_t stepper1_notifier = NULL;
-// #define STACK_SIZE 1024 * 8
-// StaticTask_t xTaskBuffer;
-// StackType_t xStack[STACK_SIZE];
-
-#define STEPPER_QUEUE_SIZE sizeof(arm_stepper_signals)
-#define STEPPER_QUEUE_LENGTH 5
-QueueHandle_t xQueueStepper1;
-static uint8_t xQueueStepper1Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper1QueueBuffer;
-QueueHandle_t xQueueStepper2;
-static uint8_t xQueueStepper2Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper2QueueBuffer;
-QueueHandle_t xQueueStepper3;
-static uint8_t xQueueStepper3Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper3QueueBuffer;
-
-static void vEthernetTask(void *argument);
-static void vStepperTask1(void *argument);
-static void vStepperTask2(void *argument);
-static void vArmInTask(void *argument);
-static void vArmController(void *argument);
-static void vWristController(void *argument);
 void setup_control_parameters() {
-
   rtU.x = 0.795;
   rtU.y = 0.0;
   rtU.z = 0.322;
@@ -167,111 +65,6 @@ void setup_control_parameters() {
   rtU.stepperRightActualPosition = 0;
 }
 
-static void CAN_ConfigRx_AllStandard(void) {
-  FDCAN_FilterTypeDef filter = {0};
-
-  filter.IdType = FDCAN_STANDARD_ID;
-  filter.FilterIndex = 0;
-  filter.FilterType = FDCAN_FILTER_MASK;
-  filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-
-  // Accept everything: (ID & 0x000) == (0x000 & 0x000)
-  filter.FilterID1 = 0x000;
-  filter.FilterID2 = 0x000;
-
-  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
-    LOGE("CAN", "Filter config failed, err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan1));
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_ConfigGlobalFilter(
-          &hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
-          FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
-    LOGE("CAN", "Global filter failed, err=0x%08lx",
-         HAL_FDCAN_GetError(&hfdcan1));
-    Error_Handler();
-  }
-}
-void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan,
-                                        uint32_t BufferIndexes) {
-  LOGI("CAN", "TX complete buffers=0x%08lx\n", BufferIndexes);
-}
-
-void HAL_FDCAN_TxBufferAbortCallback(FDCAN_HandleTypeDef *hfdcan,
-                                     uint32_t BufferIndexes) {
-  LOGI("CAN", "TX abort buffers=0x%08lx\n", BufferIndexes);
-}
-
-void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
-  LOGE("CAN", "Error callback HALerr=0x%08lx\n", HAL_FDCAN_GetError(hfdcan));
-}
-
-static cubemars_ak_information motor_info = {0};
-
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
-                               uint32_t RxFifo0ITs) {
-  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0) {
-    return;
-  }
-
-  FDCAN_RxHeaderTypeDef rx_header = {0};
-  uint8_t rx_data[8] = {0};
-
-  if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data) !=
-      HAL_OK) {
-    LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
-    return;
-  }
-  cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
-}
-
-// static void CAN2_ConfigRx_AllStandard(void) {
-//   FDCAN_FilterTypeDef filter = {0};
-//
-//   filter.IdType = FDCAN_STANDARD_ID;
-//   filter.FilterIndex = 0;
-//   filter.FilterType = FDCAN_FILTER_MASK;
-//   filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-//
-//   // Accept everything: (ID & 0x000) == (0x000 & 0x000)
-//   filter.FilterID1 = 0x000;
-//   filter.FilterID2 = 0x000;
-//
-//   if (HAL_FDCAN_ConfigFilter(&hfdcan2, &filter) != HAL_OK) {
-//     LOGE("CAN", "Filter config failed, err=0x%08lx",
-//          HAL_FDCAN_GetError(&hfdcan2));
-//     Error_Handler();
-//   }
-//
-//   if (HAL_FDCAN_ConfigGlobalFilter(
-//           &hfdcan2, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
-//           FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
-//     LOGE("CAN", "Global filter failed, err=0x%08lx",
-//          HAL_FDCAN_GetError(&hfdcan2));
-//     Error_Handler();
-//   }
-// }
-
-static void CAN_LogStatus(FDCAN_HandleTypeDef *hfdcan) {
-  FDCAN_ProtocolStatusTypeDef protocol_status;
-  FDCAN_ErrorCountersTypeDef error_counters;
-
-  if (HAL_FDCAN_GetProtocolStatus(hfdcan, &protocol_status) == HAL_OK) {
-    LOGI("CAN",
-         "LastErrorCode=%lu DataLastErrorCode=%lu Activity=%lu BusOff=%lu",
-         protocol_status.LastErrorCode, protocol_status.DataLastErrorCode,
-         protocol_status.Activity, protocol_status.BusOff);
-  }
-
-  if (HAL_FDCAN_GetErrorCounters(hfdcan, &error_counters) == HAL_OK) {
-    LOGI("CAN", "TxErrorCnt=%lu RxErrorCnt=%lu RxErrorPassive=%lu",
-         error_counters.TxErrorCnt, error_counters.RxErrorCnt,
-         error_counters.RxErrorPassive);
-  }
-
-  LOGI("CAN", "HAL error=0x%08lx", HAL_FDCAN_GetError(hfdcan));
-}
 int main(void) {
   setup_control_parameters();
   LOGI(TAG, "-----------------main-----------------");
@@ -327,12 +120,6 @@ int main(void) {
   LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
-
-  // // /* Create the thread(s) */
-  // testethernetTaskHandle = osThreadNew(vEthernetTask, NULL,
-  // &task2_attributes); if (testethernetTaskHandle == NULL) {
-  //   // HANDLE2
-  // }
 
   // pwmScopeTaskHandle =
   // osThreadNew(pwm_scope_task,NULL,&pwm_scope_attributes); if
@@ -745,8 +532,6 @@ Callback_BaseStationManualArmControl(
       pckt->delta_final_gripper_angle / (double)(1ULL << 31) * 0.005;
   rtU.gripperPitchActualPosition; // get from can
 }
-// PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals,
-// PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
 
 /*Init and pass packet dispatcher*/
 static uint8_t Handle_ArmBoardControlSignals_queue_buffer
