@@ -13,6 +13,8 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
+#define calibration 0 // 0 = off, 1 = left, 2 = right, 3 = both
+
 #define STEPPER_QUEUE_SIZE sizeof(arm_stepper_signals)
 #define STEPPER_QUEUE_LENGTH 5
 
@@ -55,19 +57,20 @@ stepper_t stepper2;
 int stepper1_count = 0;
 int stepper2_count = 0;
 
-QueueHandle_t xQueueStepper1;
-static uint8_t xQueueStepper1Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper1QueueBuffer;
-QueueHandle_t xQueueStepper2;
-static uint8_t xQueueStepper2Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper2QueueBuffer;
-QueueHandle_t xQueueStepper3;
-static uint8_t xQueueStepper3Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper3QueueBuffer;
+QueueHandle_t xQueueStepperLeft;
+QueueHandle_t xQueueStepperRight;
+
+// static uint8_t xQueueStepper1Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
+// static StaticQueue_t xQueueStepper1QueueBuffer;
+// static uint8_t xQueueStepper2Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
+// static StaticQueue_t xQueueStepper2QueueBuffer;
+// QueueHandle_t xQueueStepper3;
+// static uint8_t xQueueStepper3Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
+// static StaticQueue_t xQueueStepper3QueueBuffer;
 
 static void vEthernetTask(void *argument);
-static void vStepperTask1(void *argument);
-static void vStepperTask2(void *argument);
+static void vStepperTaskLeft(void *argument);
+static void vStepperTaskRight(void *argument);
 static void vArmInTask(void *argument);
 static void vArmController(void *argument);
 static void vWristController(void *argument);

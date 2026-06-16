@@ -30,6 +30,7 @@ void CAN_ConfigRx_AllStandard(void) {
     Error_Handler();
   }
 }
+
 void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan,
                                         uint32_t BufferIndexes) {
   LOGI("CAN", "TX complete buffers=0x%08lx\n", BufferIndexes);

@@ -76,15 +76,14 @@ void do_pwm_dma(stepper_t *stepper, int amt_steps, uint32_t freq) {
   }
 
   //! TODO: error handling
-  HAL_StatusTypeDef res =
-      HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, data_arr_ptr, data_arr_size);
+  HAL_StatusTypeDef res = HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_1, data_arr_ptr, data_arr_size);
 
   // Block until DMA transfer complete
   //! NOTE: CC1 means on channel 1!!!!!!!!!1
-  // while (htim->hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
-  //   osDelay(1); // Delay for thread switching
-  // }
-  // TODO: WHAT if never gets out?
+  while (htim->hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
+    osDelay(1); // Delay for thread switching
+  }
+  //! TODO: WHAT if never gets out?
 
   free(data_arr_ptr);
 }
