@@ -41,9 +41,9 @@ result_t init_stepper(stepper_t *stepper, uint8_t duty_cycle,
 
   HAL_TIM_PWM_Stop(htim, TIM_CHANNEL_1);
 
-  HAL_GPIO_WritePin(ena_pin.GPIOx, ena_pin.GPIO_PIN_no,
-                    GPIO_PIN_RESET); // enable stepper
-  osDelay(300);
+  //reset the gpio pins
+  HAL_GPIO_WritePin(dir_pin.GPIOx, dir_pin.GPIO_PIN_no, GPIO_PIN_RESET); 
+  HAL_GPIO_WritePin(ena_pin.GPIOx, ena_pin.GPIO_PIN_no, GPIO_PIN_RESET); 
 
   LOGI(TAG, "Stepper %u initialized", stepper->htim);
   return RESULT_OK;
@@ -88,8 +88,7 @@ void do_pwm_dma(stepper_t *stepper, int amt_steps, uint32_t freq) {
   free(data_arr_ptr);
 }
 
-void rotate_stepper(stepper_t *stepper, int32_t amt_steps_absolute,
-                    uint32_t freq) {
+void rotate_stepper(stepper_t *stepper, int32_t amt_steps_absolute, uint32_t freq) {
   /* Calculate shortest the relative angle */
   //! NOTE: the "angles" are in amounts of steps and they are absolute
   int32_t relative_angle =

@@ -51,11 +51,8 @@ TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart_com;
 
 // Stepper objects
-stepper_t stepper1;
-stepper_t stepper2;
-
-int stepper1_count = 0;
-int stepper2_count = 0;
+stepper_t stepperLeft;
+stepper_t stepperRight;
 
 QueueHandle_t xQueueStepperLeft;
 QueueHandle_t xQueueStepperRight;

@@ -97,6 +97,15 @@ int main(void) {
   // Init scheduler
   osKernelInitialize();
 
+  //--------------------------- INIT STEPPERS
+  pin_t pin1 = {GPIOA, GPIO_PIN_4};
+  pin_t pin2 = {GPIOC, GPIO_PIN_0};
+  init_stepper(&stepperLeft, 50, &htim2, pin1, pin2);
+
+  pin_t pin3 = {GPIOA, GPIO_PIN_5};
+  pin_t pin4 = {GPIOB, GPIO_PIN_6};
+  init_stepper(&stepperRight, 50, &htim3, pin3, pin4);
+
   //--------------------------- CAN CONFIGS
   CAN_ConfigRx_AllStandard();
   if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, FDCAN_INTERRUPT_LINE0) != HAL_OK) {
@@ -135,7 +144,7 @@ int main(void) {
 
   //Receiving tasks, prio is one above sending task so it should always empty the queue when msgs are there
   xTaskCreate(vStepperTaskLeft, "ReceiverLeft", 1024*8, NULL, tskIDLE_PRIORITY + 4U, NULL);
-  xTaskCreate(vStepperTaskRight, "ReceiverRight", 1024*8, NULL, tskIDLE_PRIORITY + 5U, NULL);
+  xTaskCreate(vStepperTaskRight, "ReceiverRight", 1024*8, NULL, tskIDLE_PRIORITY + 4U, NULL);
 
   // Start scheduler
   osKernelStart();
@@ -144,15 +153,9 @@ int main(void) {
   while (1) {}
 }
 
-stepper_t stepperLeft;
 static void vStepperTaskLeft(void* argument) {
-  //Init stepper
-  pin_t pin1 = {GPIOA, GPIO_PIN_4};
-  pin_t pin2 = {GPIOC, GPIO_PIN_0};
-  init_stepper(&stepperLeft, 50, &htim2, pin1, pin2);
 
-  /* Declare the variable that will hold the values received from the
-     queue. */
+  /* Declare the variable that will hold the values received from the queue. */
   void* buffer;
   BaseType_t xStatus;
   const TickType_t xTicksToWait = pdMS_TO_TICKS(10); //Queue checks receiving every 10 ms
@@ -181,17 +184,12 @@ static void vStepperTaskLeft(void* argument) {
 
     }
 
-    osDelay(1); // Delay for thread switching
+    osDelay(10); // Delay for thread switching
 
   }
 }
 
-stepper_t stepperRight;
 static void vStepperTaskRight(void* argument) {
-  //Init stepper
-  pin_t pin1 = {GPIOA, GPIO_PIN_5};
-  pin_t pin2 = {GPIOB, GPIO_PIN_6};
-  init_stepper(&stepperRight, 50, &htim3, pin1, pin2);
 
   /* Declare the variable that will hold the values received from the queue. */
   void* buffer;
@@ -222,7 +220,7 @@ static void vStepperTaskRight(void* argument) {
 
     }
 
-    osDelay(1); // Delay for thread switching
+    osDelay(10); // Delay for thread switching
 
   }
 }
@@ -302,17 +300,6 @@ static void vWristController(void *argument) {
 }
 
 static void vArmController(void *argument) {  
-  pin_t pin1 = {GPIOA, GPIO_PIN_4};
-  pin_t pin2 = {GPIOC, GPIO_PIN_0};
-  init_stepper(&stepper1, 50, &htim2, pin1, pin2);
-
-  pin_t pin3 = {GPIOA, GPIO_PIN_5};
-  pin_t pin4 = {GPIOB, GPIO_PIN_6};
-  init_stepper(&stepper2, 50, &htim3, pin3, pin4);
-
-  osDelay(1000);
-  int32_t steps;
-  int freq;
 
   //if calibration off, move cubemars to start_gripper_angle to keep wrist in place while doing movements
   if (calibration == 0) {
@@ -337,12 +324,11 @@ static void vArmController(void *argument) {
     } else {
       rtU.deltaTime = (osKernelGetTickCount() - old_time) / 1000.0;
     }
+    old_time = osKernelGetTickCount();
 
     // update positions
     rtU.stepperLeftActualPosition = rtY.stepperLeftSteps; 
     rtU.stepperRightActualPosition = rtY.stepperRightSteps;
-
-    old_time = osKernelGetTickCount();
 
     //do actual control, calling rowans control code :)
     control_arm_manual_step(); 
@@ -358,58 +344,50 @@ static void vArmController(void *argument) {
     CAN_LogStatus(&hfdcan1);
 
     //TODO: should be rtY.stepperLeft/RightFrequency but rowan needs to bug fix
-    freq = 200;
-    int32_t stepsR;
-    int32_t stepsL;
+    int32_t stepsR = 0;
+    int32_t stepsL = 0;
     switch (calibration) {
       case 0: //off, the steppers move the calulated amount
         stepsR = rtY.stepperRightSteps;
-        rotate_stepper(&stepper2, stepsR, freq);
-
         stepsL = rtY.stepperLeftSteps;
-        rotate_stepper(&stepper1, -stepsL, freq);
-
         break;
       case 1: //left, the left stepper moves 10.000
         stepsL = -10000;
-        rotate_stepper(&stepper1, -stepsL, freq);
         break;
       case 2: //right, the right stepper moves 10.000
         stepsR = 10000;
-        rotate_stepper(&stepper2, stepsR, freq);
         break;
       case 3: //both, both steppers move 10.000 
         stepsR = 10000;
-        rotate_stepper(&stepper2, stepsR, freq);
-
         stepsL = -10000;
-        rotate_stepper(&stepper1, -stepsL, freq);
         break;
     }
 
+    int freq = 200;
+    Arm_StepperSignals ss_right = {stepsR,freq};
+    Arm_StepperSignals ss_left = {stepsL,freq};
 
-    // Arm_StepperSignals ss_right = {stepsR,freq};
-    // Arm_StepperSignals ss_left = {stepsL,freq};
+    uint8_t* ss_right_enc = NULL;
+    size_t msg_size = 0;
+    pb_message_encode(&ss_right,Arm_StepperSignals_fields,&ss_right_enc,&msg_size);
+    //!TODO: error handling
 
-    // uint8_t* ss_right_enc = NULL;
-    // size_t msg_size = 0;
-    // pb_message_encode(&ss_right,Arm_StepperSignals_fields,&ss_right_enc,&msg_size);
-    // //!TODO: error handling
-    // uint8_t* ss_left_enc = NULL;
-    // size_t msg_size1 = 0;
-    // pb_message_encode(&ss_left,Arm_StepperSignals_fields,&ss_left_enc,&msg_size1);
-    // //!TODO: error handling
+    uint8_t* ss_left_enc = NULL;
+    size_t msg_size1 = 0;
+    pb_message_encode(&ss_left,Arm_StepperSignals_fields,&ss_left_enc,&msg_size1);
+    //!TODO: error handling
 
-    // BaseType_t xStatus1 = xQueueSendToBack(xQueueStepperRight, &ss_right_enc, 0); //!TODO: wait how many seconds?
-    // if (xStatus1 != pdPASS) {
-    //   LOGE(TAG, "Could not send into queue Reciever Right (probably full)");
-    // }
-    // BaseType_t xStatus2 = xQueueSendToBack(xQueueStepperLeft, &ss_left_enc, 0); //!TODO: wait how many seconds?
-    // if (xStatus2 != pdPASS) {
-    //   LOGE(TAG, "Could not send into queue Reciever Right (probably full)");
-    // }
+    BaseType_t xStatus1 = xQueueSendToBack(xQueueStepperRight, &ss_right_enc, 0); //!TODO: wait how many seconds?
+    if (xStatus1 != pdPASS) {
+      LOGE(TAG, "Could not send into queue Reciever Right (probably full)");
+    }
 
-    osDelay(1);
+    BaseType_t xStatus2 = xQueueSendToBack(xQueueStepperLeft, &ss_left_enc, 0); //!TODO: wait how many seconds?
+    if (xStatus2 != pdPASS) {
+      LOGE(TAG, "Could not send into queue Reciever Right (probably full)");
+    }
+
+    osDelay(1000);
   }
 }
 
