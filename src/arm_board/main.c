@@ -719,7 +719,7 @@ static result_t Callback_ArmBoardControlSignals(void *buffer) {
     return RESULT_ERR_INVALID_ARG;
   }
 
-  ArmBoardControlSignals *pckt = (ArmBoardControlSignals *)buffer;
+  Arm_ControlSignals *pckt = (Arm_ControlSignals *)buffer;
 
   int32_t steps1 = 50;
 
