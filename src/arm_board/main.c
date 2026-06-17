@@ -419,11 +419,12 @@ static void position_setter() {
 uint32_t old_time;
 
 bool startWristControl = false;
-const float start_gripper_angle = 0.94;
+const float start_gripper_angle = 87; //in degrees
 
 #define calibration 0          // 0 = off, 1 = right, 2 = left, 3 = both, 4 = wrist motor
 #define calibrationDirection 1 // 0 = clockwise, 1 = counter clockwise
 #define calibrationSpeed 100   // fequency when calibrating
+#define maxFrequency 250       // maximum frequency, to prevent the pullies from slipping
 
 static void vWristController(void *argument) {
     //const float d_t = 0.001;
@@ -436,7 +437,7 @@ static void vWristController(void *argument) {
 
     while (1) {
         control_arm_step();
-        float setpoint = (rtY.controlGripperPitch/2) + start_gripper_angle;
+        float setpoint = (rtY.controlGripperPitch)*(180/M_PI) + start_gripper_angle;
         //LOGI(TAG, "wrist pitch position: %f", setpoint);
         cubemars_ak_set_position(&hfdcan1, 111, setpoint);
         osDelay(10);
@@ -451,7 +452,7 @@ static void vArmController(void *argument) {
     init_stepper(&stepper1, 50, &htim2, pin1, pin2);
     init_stepper(&stepper2, 50, &htim3, pin3, pin4);
     int32_t steps;
-    int freq;
+    int32_t freq;
     osDelay(5000);
 
     //only calibrating while calibration is enabled
@@ -479,15 +480,14 @@ static void vArmController(void *argument) {
             rotate_stepper(&stepper1, -steps, freq);
         }
         else if(calibration == 4){
-            float delta = 0.0005;
-            float currentPos = 0;
+            float delta = 0.05;
+            float maxPos = 270;
             if(calibrationDirection){
                 delta *= -1;
             }
-            while (true) {
+            for (float currentPos = 0; abs(currentPos) < maxPos; currentPos += delta) {
                 cubemars_ak_set_position(&hfdcan1, 111, currentPos);
                 LOGI(TAG, "gripper angle: %f", currentPos);
-                currentPos += delta;
                 osDelay(10);
             }
         }
@@ -503,15 +503,17 @@ static void vArmController(void *argument) {
     }
 
     //setting gripper angle to initial position
-    for (float f = 0; f < start_gripper_angle; f += 0.005) {
+    for (float f = 0; f < start_gripper_angle; f += 0.5) {
         cubemars_ak_set_position(&hfdcan1, 111, f);
-        LOGI(TAG, "gripper angle: %f", f);
+        LOGI(TAG, "gripper angle: %.2f", f);
         osDelay(10);
     }
     for (int i = 0; i < 100; i++) {
         cubemars_ak_set_position(&hfdcan1, 111, start_gripper_angle);
         osDelay(10);
     }
+    //stopping program here for testing
+    //for(;;){};
     startWristControl = true;
 
     rtU.timePerMovement = 5;
@@ -543,12 +545,22 @@ static void vArmController(void *argument) {
 
         steps = rtY.stepperRightSteps;
         freq = rtY.stepperRightFrequency;
+        //capping frequency
+        if(freq > maxFrequency){
+            freq = maxFrequency;
+            LOGE(TAG, "the frequency for stepper1 is to high, the timePerMovement should be higher");
+        }
         LOGI(TAG, "RIGHT steps: %d", steps);
         LOGI(TAG, "RIGHT freq: %d", freq);
         rotate_stepper(&stepper1, steps, freq);
 
         steps = rtY.stepperLeftSteps;
         freq = rtY.stepperLeftFrequency;
+        //capping frequency
+        if(freq > maxFrequency){
+            freq = maxFrequency;
+            LOGE(TAG, "the frequency for stepper2 is to high, the timePerMovement should be higher");
+        }
         LOGI(TAG, "LEFT steps: %d", steps);
         LOGI(TAG, "LEFT freq: %d", freq);
         rotate_stepper(&stepper2, -steps, freq);
@@ -559,6 +571,7 @@ static void vArmController(void *argument) {
         while (htim3.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
             osDelay(1); // Delay for thread switching
         }
+
         reachedPosition = true;
         osDelay(10);
     }
