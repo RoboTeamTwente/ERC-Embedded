@@ -21,11 +21,11 @@
 #include <stdint.h>
 
 // Controls code
-#include "cmsis_os2.h"
+#include "erc-control-arm/control_arm_ert_rtw/rtwtypes.h"
 #include "erc-control-arm/control_arm_ert_rtw/control_arm.h"
 
+#include "cmsis_os2.h"
 #include "cubemx_main.h"
-#include "erc-control-arm/control_arm_ert_rtw/rtwtypes.h"
 #include "gpio.h"
 #include "stepper.h"
 #include "tim.h"
@@ -56,12 +56,10 @@
 
 #define TAG "ARM_BOARD"
 
-extern ExtY rtY; // Get controls in :)
-extern ExtU rtU; // Get controls in :)
-extern void controlArmManualStep(void);
+extern ExtU rtU; // Get controls in  :)
+extern ExtY rtY; // Get controls out :)
 /*External functions*/
 extern COM_InitTypeDef BspCOMInit;
-extern void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
 extern void MX_DMA_Init(void);
@@ -153,7 +151,6 @@ static StaticQueue_t xQueueStepper3QueueBuffer;
 static void vEthernetTask(void *argument);
 static void vStepperTask1(void *argument);
 static void vStepperTask2(void *argument);
-static void vArmInTask(void *argument);
 static void vArmController(void *argument);
 static void vWristController(void *argument);
 
@@ -161,7 +158,7 @@ void setup_control_parameters() {
     rtU.x = 0.795;
     rtU.y = 0.0;
     rtU.z = 0.322;
-    rtU.gripperAng = 5 * (M_PI / 180);
+    rtU.gripperAng = 0 * (M_PI / 180);
     rtU.gripperPitchOldPosition = 0;
     rtU.baseOldPosition = 0;
     rtU.stepperLeftOldPosition = 0;
@@ -427,9 +424,6 @@ const float start_gripper_angle = 87; //in degrees
 #define maxFrequency 250       // maximum frequency, to prevent the pullies from slipping
 
 static void vWristController(void *argument) {
-    //const float d_t = 0.001;
-    //const float speed = 0.01 * d_t;
-    //float current_pos = start_gripper_angle;
     //doing nothing before wrist position is initialized, and if calibrating the stepper motors
     while (!startWristControl || calibration != 0) {
         osDelay(1000);
@@ -438,8 +432,8 @@ static void vWristController(void *argument) {
     while (1) {
         control_arm_step();
         float setpoint = (rtY.controlGripperPitch)*(180/M_PI) + start_gripper_angle;
-        //LOGI(TAG, "wrist pitch position: %f", setpoint);
         cubemars_ak_set_position(&hfdcan1, 111, setpoint);
+        //LOGI(TAG, "wrist pitch position: %f", setpoint);
         osDelay(10);
     }
 }
@@ -455,7 +449,6 @@ static void vArmController(void *argument) {
     int32_t freq;
     osDelay(5000);
 
-    //only calibrating while calibration is enabled
     while(calibration != 0){
         steps = 10000;
         freq = calibrationSpeed;
@@ -535,13 +528,14 @@ static void vArmController(void *argument) {
         rtY.controlGripperPitch;
         LOGI(TAG, "gripper pitch: %f", rtY.controlGripperPitch);
         CAN_LogStatus(&hfdcan1);
-        // if (rtY.stepperLeftSteps == 0 && rtY.stepperRightSteps == 0) {
-        //   LOGI(TAG, "ERROR EVEYRTHING 0");
-        //   osDelay(10);
-        //   __builtin_trap();
-        //   while (true) {
-        //   };
-        // }
+        /*
+        if (rtY.stepperLeftSteps == 0 && rtY.stepperRightSteps == 0 && rtY.controlGripperPitch == 0 && rtY.controlBase == 0) {
+          LOGI(TAG, "ERROR EVEYRTHING 0");
+          osDelay(10);
+          __builtin_trap();
+          while (true) {};
+        }
+        */
 
         steps = rtY.stepperRightSteps;
         freq = rtY.stepperRightFrequency;
