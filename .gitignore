@@ -15,4 +15,4 @@ venv
 *.nix
 components/**/firmware
 !components/**/firmware/**.ioc
-.claude
+.claude/*
