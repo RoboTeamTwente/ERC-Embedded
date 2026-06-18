@@ -31,7 +31,6 @@
 
 #include "components/sensor_board/load_cell/load_cell_sensor.h"
 #include "components/sensor_board/pressure/pressure_sensor.h"
-#include "gps_sensor.h"
 #include "imu_sensor.h"
 #include "ph_sensor.h"
 #include "sensor_basics.h"
@@ -45,7 +44,6 @@
 
 // Protobuf includes
 #include "components/sensor_board/diagnostics.pb.h"
-#include "components/sensor_board/gps_sensor.pb.h"
 #include "components/sensor_board/imu_sensor.pb.h"
 #include "components/sensor_board/load_cell.pb.h"
 #include "components/sensor_board/ph_sensor.pb.h"
@@ -85,16 +83,6 @@ static result_t handle_sensor_ph_info(void *buffer) {
   SensorBoardPHInfo *ph = (SensorBoardPHInfo *)buffer;
   LOGI(TAG, "Received pH info (value: %.2f, V: %.3f, state: %d)", ph->ph_value,
        ph->voltage, ph->state);
-  return RESULT_OK;
-}
-
-static result_t handle_sensor_gps_info(void *buffer) {
-  if (buffer == NULL) {
-    return RESULT_ERR_INVALID_ARG;
-  }
-  SensorBoardGPSInfo *gps = (SensorBoardGPSInfo *)buffer;
-  LOGI(TAG, "Received GPS info (lat: %.6f, lon: %.6f, alt: %.2f, sats: %ld)",
-       gps->latitude, gps->longitude, gps->altitude, (long)gps->satellites);
   return RESULT_OK;
 }
 
@@ -205,10 +193,6 @@ static result_t init_ph_wrapper(ph_sensor_t *ph, float voltage) {
   return ph_sensor_init(ph, voltage);
 }
 
-static result_t init_gps_wrapper(gps_data_t *gps) {
-  return gps_sensor_init(gps);
-}
-
 static result_t init_load_cells_wrapper(load_cell_data_t *load_cells) {
   for (size_t i = 0; i < 2; i++) {
     result_t result = load_cell_sensor_init(&load_cells[i]);
@@ -250,9 +234,6 @@ void MainTask(void *argument);
 
 PACKET_HANDLER_CONFIG_STATIC(sensor_ph_handler, PBEnvelope_ph_info_tag, ph_info,
                              handle_sensor_ph_info);
-
-PACKET_HANDLER_CONFIG_STATIC(sensor_gps_handler, PBEnvelope_gps_info_tag,
-                             gps_info, handle_sensor_gps_info);
 
 PACKET_HANDLER_CONFIG_STATIC(sensor_imu_handler, PBEnvelope_imu_info_tag,
                              imu_info, handle_sensor_imu_info);
@@ -335,14 +316,6 @@ void MainTask(void *argument) {
     LOGI(TAG, "pH sensor init completed");
   }
 
-  gps_data_t gps_data;
-  LOGI(TAG, "Initializing GPS...");
-  if (init_gps_wrapper(&gps_data) != RESULT_OK) {
-    LOGW(TAG, "GPS may not be available, continuing...");
-  } else {
-    LOGI(TAG, "GPS init completed");
-  }
-
   load_cell_data_t load_cell_data[2];
   LOGI(TAG, "Initializing Load Cells...");
   if (init_load_cells_wrapper(load_cell_data) == RESULT_OK) {
@@ -421,7 +394,6 @@ void MainTask(void *argument) {
 
     if (skip_sensor_polling) {
       diagnostics.has_ph_sensor = false;
-      diagnostics.has_gps_sensor_1 = false;
       diagnostics.has_imu_sensor = false;
     } else {
 
@@ -443,6 +415,7 @@ void MainTask(void *argument) {
           diagnostics.ph_sensor.voltage = ph_voltage;
           diagnostics.ph_sensor.state = SensorState_SENSOR_OPERATING;
           diagnostics.ph_sensor.error_code = PHErrorCode_PH_NO_ERROR;
+          LOGI(TAG, "pH Sensor - OK (pH: %.2f, V: %.3f)", ph_value, ph_voltage);
         } else {
           LOGW(TAG, "pH Sensor - Invalid value: %.2f", ph_value);
           diagnostics.ph_sensor.ph_value = ph_value;
@@ -456,60 +429,6 @@ void MainTask(void *argument) {
         diagnostics.ph_sensor.error_code = PHErrorCode_PH_COMMUNICATION_FAILURE;
         diagnostics.ph_sensor.ph_value = 0.0f;
         diagnostics.ph_sensor.voltage = 0.0f;
-      }
-
-      /* ---------- GPS -------------------------------------------------------
-       */
-      result_t gps_poll_result = poll_gps_sensor(&gps_data);
-      diagnostics.has_gps_sensor_1 = true;
-
-      if (!handle_sensor_poll_result(&diagnostics.gps_sensor_1.state,
-                                      "GPS", gps_poll_result)) {
-        diagnostics.gps_sensor_1.error_code = GPSErrorCode_GPS_COMMUNICATION_FAILURE;
-        diagnostics.gps_sensor_1.latitude = 0.0;
-        diagnostics.gps_sensor_1.longitude = 0.0;
-        diagnostics.gps_sensor_1.altitude = 0.0f;
-        diagnostics.gps_sensor_1.speed = 0.0f;
-        diagnostics.gps_sensor_1.heading = 0.0f;
-        diagnostics.gps_sensor_1.hdop = 99.9f;
-        diagnostics.gps_sensor_1.vdop = 99.9f;
-        diagnostics.gps_sensor_1.satellites = 0;
-        diagnostics.gps_sensor_1.fix_quality = GPSFixQuality_NO_FIX;
-      } else {
-        bool gps_valid = false;
-        if (gps_sensor_is_valid(&gps_data, &gps_valid) == RESULT_OK &&
-            gps_valid) {
-          diagnostics.gps_sensor_1.state = SensorState_SENSOR_OPERATING;
-          diagnostics.gps_sensor_1.error_code = GPSErrorCode_GPS_NO_ERROR;
-
-          double lat, lon;
-          float altitude, speed, heading;
-          gps_fix_quality_t fix_quality;
-          int32_t satellites;
-
-          if (gps_sensor_get_coordinates(&gps_data, &lat, &lon) == RESULT_OK) {
-            diagnostics.gps_sensor_1.latitude = lat;
-            diagnostics.gps_sensor_1.longitude = lon;
-          }
-          if (gps_sensor_get_altitude(&gps_data, &altitude) == RESULT_OK) {
-            diagnostics.gps_sensor_1.altitude = altitude;
-          }
-          if (gps_sensor_get_velocity(&gps_data, &speed, &heading) == RESULT_OK) {
-            diagnostics.gps_sensor_1.speed = speed;
-            diagnostics.gps_sensor_1.heading = heading;
-          }
-          if (gps_sensor_get_fix_info(&gps_data, &fix_quality, &satellites) ==
-              RESULT_OK) {
-            diagnostics.gps_sensor_1.fix_quality = (GPSFixQuality)fix_quality;
-            diagnostics.gps_sensor_1.satellites = satellites;
-          }
-          diagnostics.gps_sensor_1.hdop = gps_data.hdop;
-          diagnostics.gps_sensor_1.vdop = gps_data.vdop;
-        } else {
-          LOGW(TAG, "GPS - No valid data received");
-          diagnostics.gps_sensor_1.state = SensorState_SENSOR_ERROR;
-          diagnostics.gps_sensor_1.error_code = GPSErrorCode_GPS_INVALID_DATA;
-        }
       }
 
       /* ---------- IMU -------------------------------------------------------
@@ -541,6 +460,10 @@ void MainTask(void *argument) {
         diagnostics.imu_sensor.mag_z = imu_data.mag[2];
         diagnostics.imu_sensor.state = SensorState_SENSOR_OPERATING;
         diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_NO_ERROR;
+        LOGI(TAG,
+             "IMU - OK (accel: %.2f, %.2f, %.2f; gyro: %.2f, %.2f, %.2f)",
+             imu_data.accel[0], imu_data.accel[1], imu_data.accel[2],
+             imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2]);
 
         /* Validate IMU ranges */
         if (!imu_validate_accelerometer_range(&imu_data)) {
@@ -585,6 +508,8 @@ void MainTask(void *argument) {
             if (lc_valid) {
               load_cell_info.state = SensorState_SENSOR_OPERATING;
               load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_NO_ERROR;
+              LOGI(TAG, "Load cell %lu - OK (force: %.2f N, mass: %.2f g)",
+                   (unsigned long)i, lc_force, lc_mass);
             } else {
               LOGW(TAG, "Load cell %lu - Invalid data", (unsigned long)i);
               load_cell_info.state = SensorState_SENSOR_ERROR;
@@ -630,6 +555,8 @@ void MainTask(void *argument) {
             if (pr_valid) {
               pressure_info.state = SensorState_SENSOR_OPERATING;
               pressure_info.error_code = PressureErrorCode_PRESSURE_NO_ERROR;
+              LOGI(TAG, "Pressure %lu - OK (%.2f kPa, %.2f C, %.3f V)",
+                   (unsigned long)i, pr_kpa, pr_temp, pr_voltage);
             } else {
               LOGW(TAG, "Pressure %lu - Invalid data", (unsigned long)i);
               pressure_info.state = SensorState_SENSOR_ERROR;
@@ -708,6 +635,7 @@ void MainTask(void *argument) {
       if (!g_pump_data.is_initialised) {
         pump_info.state = SensorState_SENSOR_ERROR;
         pump_info.status = SensorStatus_STATUS_ERROR;
+        LOGW(TAG, "Pump - Not connected / not initialised");
       } else {
         pump_get_enabled(&g_pump_data, &pump_info.enabled);
         pump_get_direction(&g_pump_data, &pump_info.direction);
@@ -716,6 +644,10 @@ void MainTask(void *argument) {
         pump_info.state = g_pump_data.enabled ? SensorState_SENSOR_OPERATING
                                               : SensorState_SENSOR_IDLE;
         pump_info.status = SensorStatus_STATUS_OK;
+        LOGI(TAG, "Pump - OK (enabled: %d, dir: %d, speed: %lu%%, rpm: %lu)",
+             pump_info.enabled, pump_info.direction,
+             (unsigned long)pump_info.speed_percent,
+             (unsigned long)pump_info.speed_rpm);
       }
     }
 

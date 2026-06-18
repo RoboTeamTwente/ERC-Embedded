@@ -59,32 +59,4 @@ result_t bar_to_psi(float bar, float *psi);
  */
 result_t psi_to_bar(float psi, float *bar);
 
-/**
- * @brief Validates GPS latitude value.
- * @param latitude The latitude value to validate (-90 to +90 degrees).
- * @return RESULT_OK if the value is valid, RESULT_ERR_INVALID_DATA otherwise.
- */
-result_t validate_gps_latitude(double latitude);
-
-/**
- * @brief Validates GPS longitude value.
- * @param longitude The longitude value to validate (-180 to +180 degrees).
- * @return RESULT_OK if the value is valid, RESULT_ERR_INVALID_DATA otherwise.
- */
-result_t validate_gps_longitude(double longitude);
-
-/**
- * @brief Validates GPS HDOP value.
- * @param hdop The HDOP value to validate (0-50 typical range).
- * @return RESULT_OK if the value is valid, RESULT_ERR_INVALID_DATA otherwise.
- */
-result_t validate_gps_hdop(float hdop);
-
-/**
- * @brief Validates GPS satellite count.
- * @param satellites The number of satellites to validate.
- * @return RESULT_OK if the value is valid, RESULT_ERR_INVALID_DATA otherwise.
- */
-result_t validate_gps_satellite_count(int32_t satellites);
-
 #endif

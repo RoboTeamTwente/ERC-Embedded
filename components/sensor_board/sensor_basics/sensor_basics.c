@@ -59,35 +59,3 @@ result_t validate_imu_data(float accel_x, float accel_y, float accel_z) {
 //     *bar = psi / 14.5038f;
 //     return RESULT_OK;
 // }
-
-// Validate GPS latitude value (-90 to +90 degrees)
-result_t validate_gps_latitude(double latitude) {
-    if (latitude >= -90.0 && latitude <= 90.0) {
-        return RESULT_OK;
-    }
-    return RESULT_ERR_INVALID_DATA;
-}
-
-// Validate GPS longitude value (-180 to +180 degrees)
-result_t validate_gps_longitude(double longitude) {
-    if (longitude >= -180.0 && longitude <= 180.0) {
-        return RESULT_OK;
-    }
-    return RESULT_ERR_INVALID_DATA;
-}
-
-// Validate GPS HDOP value (0-50 typical range)
-result_t validate_gps_hdop(float hdop) {
-    if (hdop >= 0.0f && hdop <= 50.0f) {
-        return RESULT_OK;
-    }
-    return RESULT_ERR_INVALID_DATA;
-}
-
-// Validate GPS satellite count (0-30 typical range)
-result_t validate_gps_satellite_count(int32_t satellites) {
-    if (satellites >= 0 && satellites <= 30) {
-        return RESULT_OK;
-    }
-    return RESULT_ERR_INVALID_DATA;
-}
