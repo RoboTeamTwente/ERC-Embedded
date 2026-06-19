@@ -17,7 +17,6 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
 #include <stdint.h>
 
 // Controls code
@@ -95,64 +94,16 @@ uint8_t gateway[4] = GATEWAY;
 uint8_t ip[4] = {192, 168, 0, 50};
 uint8_t mac[6] = NETWORK_MAC;
 
-osThreadId_t stepperTaskHandle;
-osThreadId_t testEthernetTaskHandle;
-
-/* Task attributes for CMSIS-RTOS v2 */
-
-// osThreadId_t task_2Handle;
-// const osThreadAttr_t task2_attributes = {
-//     .name = "task2",
-//     .stack_size = 1024 * 10, // Make sure this is enough
-//     .priority = tskIDLE_PRIORITY + 1U,
-// };
-// static void test_ethernet(void* argument);
-
-osThreadId_t pwmScopeTaskHandle;
-const osThreadAttr_t pwm_scope_attributes = {
-    .name = "pwm_scope",
-    .stack_size = 1024 * 8,
-    .priority = tskIDLE_PRIORITY,
-};
-static void pwm_scope_task(void *argument);
-
 // Stepper objects
 stepper_t stepper1;
 stepper_t stepper2;
 
-int stepper1_count = 0;
-int stepper2_count = 0;
-/* FOR QUEUE CREATION */
-const int queue_size = 5;
-const int item_size = sizeof(uint32_t);
-
-// QueueHandle_t stepper1_queue_handle;
-// QueueHandle_t stepper2_queue_handle;
-// static StaticQueue_t stepper2_queue;
-// static StaticQueue_t stepper1_queue;
-
-// TaskHandle_t stepper1_notifier = NULL;
-// #define STACK_SIZE 1024 * 8
-// StaticTask_t xTaskBuffer;
-// StackType_t xStack[STACK_SIZE];
-
-#define STEPPER_QUEUE_SIZE sizeof(arm_stepper_signals)
-#define STEPPER_QUEUE_LENGTH 5
-QueueHandle_t xQueueStepper1;
-static uint8_t xQueueStepper1Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper1QueueBuffer;
-QueueHandle_t xQueueStepper2;
-static uint8_t xQueueStepper2Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper2QueueBuffer;
-QueueHandle_t xQueueStepper3;
-static uint8_t xQueueStepper3Storage[STEPPER_QUEUE_SIZE * STEPPER_QUEUE_LENGTH];
-static StaticQueue_t xQueueStepper3QueueBuffer;
-
 static void vEthernetTask(void *argument);
-static void vStepperTask1(void *argument);
-static void vStepperTask2(void *argument);
+static void vControlTask(void *arguments);
 static void vArmController(void *argument);
 static void vWristController(void *argument);
+static void vStepperTask1(void *argument);
+static void vStepperTask2(void *argument);
 
 void setup_control_parameters() {
     rtU.x = 0.795;
@@ -222,33 +173,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
     cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
 }
 
-// static void CAN2_ConfigRx_AllStandard(void) {
-//   FDCAN_FilterTypeDef filter = {0};
-//
-//   filter.IdType = FDCAN_STANDARD_ID;
-//   filter.FilterIndex = 0;
-//   filter.FilterType = FDCAN_FILTER_MASK;
-//   filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-//
-//   // Accept everything: (ID & 0x000) == (0x000 & 0x000)
-//   filter.FilterID1 = 0x000;
-//   filter.FilterID2 = 0x000;
-//
-//   if (HAL_FDCAN_ConfigFilter(&hfdcan2, &filter) != HAL_OK) {
-//     LOGE("CAN", "Filter config failed, err=0x%08lx",
-//          HAL_FDCAN_GetError(&hfdcan2));
-//     Error_Handler();
-//   }
-//
-//   if (HAL_FDCAN_ConfigGlobalFilter(
-//           &hfdcan2, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
-//           FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
-//     LOGE("CAN", "Global filter failed, err=0x%08lx",
-//          HAL_FDCAN_GetError(&hfdcan2));
-//     Error_Handler();
-//   }
-// }
-
 static void CAN_LogStatus(FDCAN_HandleTypeDef *hfdcan) {
     FDCAN_ProtocolStatusTypeDef protocol_status;
     FDCAN_ErrorCountersTypeDef error_counters;
@@ -276,8 +200,6 @@ static void CAN_LogStatus(FDCAN_HandleTypeDef *hfdcan) {
 int main(void) {
     setup_control_parameters();
 
-    LOGI(TAG, "-----------------main-----------------");
-
     /*Inits*/
     MPU_Config_wrapper();
     HAL_Init();
@@ -302,10 +224,9 @@ int main(void) {
     // Log init
     LOG_init(&huart_com);
 
-    // ETH_init(NULL, my_ip, netmask, gateway, my_mac);
+    LOGI(TAG, "--------------------main--------------------");
 
-    // Init scheduler
-    osKernelInitialize();
+    // ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
     CAN_ConfigRx_AllStandard();
     if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, FDCAN_INTERRUPT_LINE0) != HAL_OK) {
@@ -326,8 +247,47 @@ int main(void) {
          hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
          hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
 
-    xTaskCreate(vArmController, "ArmController", 1024 * 8, NULL, tskIDLE_PRIORITY + 2U, NULL);
-    xTaskCreate(vWristController, "WristController", 1024 * 8, NULL, tskIDLE_PRIORITY + 3U, NULL);
+    // Init scheduler
+    osKernelInitialize();
+
+    const osThreadAttr_t controlTaskAttr = {
+        .name = "controlController",
+        .stack_size = 1024 * 8,
+        .priority = (osPriority_t)tskIDLE_PRIORITY + 5U,
+    };
+    const osThreadAttr_t armTaskAttr = {
+        .name = "ArmController",
+        .stack_size = 1024 * 8,
+        .priority = (osPriority_t)tskIDLE_PRIORITY + 5U,
+    };
+    const osThreadAttr_t wristTaskAttr = {
+        .name = "WristController",
+        .stack_size = 1024 * 8,
+        .priority = (osPriority_t)tskIDLE_PRIORITY + 4U,
+    };
+    const osThreadAttr_t stepper1TaskAttr = {
+        .name = "Stepper1Controller",
+        .stack_size = 1024 * 8,
+        .priority = (osPriority_t)tskIDLE_PRIORITY + 3U,
+    };
+    const osThreadAttr_t stepper2TaskAttr = {
+        .name = "Stepper2Controller",
+        .stack_size = 1024 * 8,
+        .priority = (osPriority_t)tskIDLE_PRIORITY + 2U,
+    };
+
+    osThreadNew(vControlTask, NULL, &controlTaskAttr);
+    osThreadNew(vArmController, NULL, &armTaskAttr);
+    osThreadNew(vWristController, NULL, &wristTaskAttr);
+    osThreadNew(vStepperTask1, NULL, &stepper1TaskAttr);
+    osThreadNew(vStepperTask2, NULL, &stepper2TaskAttr);
+    /*
+    xTaskCreate(vControlTask,   "controlController", 1024 * 8, NULL, tskIDLE_PRIORITY + 5U, NULL);
+    xTaskCreate(vArmController,     "ArmController", 1024 * 8, NULL, tskIDLE_PRIORITY + 5U, NULL);
+    xTaskCreate(vWristController, "WristController", 1024 * 8, NULL, tskIDLE_PRIORITY + 4U, NULL);
+    xTaskCreate(vStepperTask1, "Stepper1Controller", 1024 * 8, NULL, tskIDLE_PRIORITY + 3U, NULL);
+    xTaskCreate(vStepperTask2, "Stepper2Controller", 1024 * 8, NULL, tskIDLE_PRIORITY + 2U, NULL);
+    */
 
     // Start scheduler
     osKernelStart();
@@ -356,7 +316,8 @@ static void position_setter() {
             rtU.baseOldPosition = rtY.controlBase;
             rtU.stepperLeftOldPosition = rtY.stepperLeftSteps;
             rtU.stepperRightOldPosition = rtY.stepperRightSteps;
-            state = 10;
+            state = 500;
+            //state = 10;
         }
         else {
             return;
@@ -406,50 +367,57 @@ static void position_setter() {
     }
 
     LOGI(TAG, "state: %i", state);
-    LOGI(TAG, "rtU.x: %f", rtU.x);
-    LOGI(TAG, "rtU.y: %f", rtU.y);
-    LOGI(TAG, "rtU.z: %f", rtU.z);
-    LOGI(TAG, "rtU.gripperAng: %f", rtU.gripperAng);
+    LOGI(TAG, "rtU.x: %.3f", rtU.x);
+    LOGI(TAG, "rtU.y: %.3f", rtU.y);
+    LOGI(TAG, "rtU.z: %.3f", rtU.z);
+    LOGI(TAG, "rtU.gripperAng: %.3f", rtU.gripperAng);
     control_arm_step();
+    LOGI(TAG, "rtY.stepperRightSteps: %.1f", rtY.stepperRightSteps);
+    LOGI(TAG, "rtY.stepperRightFrequency: %.1f", rtY.stepperRightFrequency);
+    LOGI(TAG, "rtY.stepperLeftSteps: %.1f", rtY.stepperLeftSteps);
+    LOGI(TAG, "rtY.stepperLeftFrequency: %.1f", rtY.stepperLeftFrequency);
 }
 
 uint32_t old_time;
 
-bool startWristControl = false;
+bool startMovements = false;
 const float start_gripper_angle = 87; //in degrees
 
-#define calibration 0          // 0 = off, 1 = right, 2 = left, 3 = both, 4 = wrist motor
-#define calibrationDirection 1 // 0 = clockwise, 1 = counter clockwise
-#define calibrationSpeed 100   // fequency when calibrating
-#define maxFrequency 250       // maximum frequency, to prevent the pullies from slipping
+bool stepper1ReachedPosition = false;
+bool stepper2ReachedPosition = false;
+bool wristReachedPosition = false;
 
-static void vWristController(void *argument) {
-    //doing nothing before wrist position is initialized, and if calibrating the stepper motors
-    while (!startWristControl || calibration != 0) {
-        osDelay(1000);
-    }
-
+static void vControlTask(void *argument){
+    LOGI(TAG, "control task running");
     while (1) {
+        rtU.deltaTime = 0.01;
+        rtU.timePerMovement = 5;
         control_arm_step();
-        float setpoint = (rtY.controlGripperPitch)*(180/M_PI) + start_gripper_angle;
-        cubemars_ak_set_position(&hfdcan1, 111, setpoint);
-        //LOGI(TAG, "wrist pitch position: %f", setpoint);
         osDelay(10);
     }
 }
 
+#define calibration 0          // 0 = off, 1 = right, 2 = left, 3 = both, 4 = wrist motor
+#define calibrationDirection 1 // 0 = clockwise, 1 = counter clockwise
+#define calibrationSpeed 100   // fequency when calibrating stepper motors
+#define maxFrequency 250       // maximum frequency, to prevent the pullies from slipping
+
 static void vArmController(void *argument) {
+    //initializing stepper motors
     pin_t pin1 = {GPIOA, GPIO_PIN_4};
     pin_t pin2 = {GPIOC, GPIO_PIN_0};
+    init_stepper(&stepper1, 50, &htim2, pin1, pin2);
     pin_t pin3 = {GPIOA, GPIO_PIN_5};
     pin_t pin4 = {GPIOB, GPIO_PIN_6};
-    init_stepper(&stepper1, 50, &htim2, pin1, pin2);
     init_stepper(&stepper2, 50, &htim3, pin3, pin4);
-    int32_t steps;
-    int32_t freq;
-    osDelay(5000);
+
+    LOGI(TAG, "initialized stepper motors");
+
+    //osDelay(5000);
 
     while(calibration != 0){
+        int32_t steps;
+        int32_t freq;
         steps = 10000;
         freq = calibrationSpeed;
         if(calibrationDirection){
@@ -496,9 +464,9 @@ static void vArmController(void *argument) {
     }
 
     //setting gripper angle to initial position
+    LOGI(TAG, "setting gripper angle to %.2f", start_gripper_angle);
     for (float f = 0; f < start_gripper_angle; f += 0.5) {
         cubemars_ak_set_position(&hfdcan1, 111, f);
-        LOGI(TAG, "gripper angle: %.2f", f);
         osDelay(10);
     }
     for (int i = 0; i < 100; i++) {
@@ -507,27 +475,23 @@ static void vArmController(void *argument) {
     }
     //stopping program here for testing
     //for(;;){};
-    startWristControl = true;
 
-    rtU.timePerMovement = 5;
+    position_setter();
+    startMovements = true;
+    LOGI(TAG, "starting movements");
+
     while (1) {
-        position_setter();
+        reachedPosition = (stepper1ReachedPosition && stepper2ReachedPosition);
         //only doing something if the position is not reached
         if(reachedPosition){
+            LOGI(TAG, "new position");
+            //position_setter();
             continue;
         }
+        osDelay(100);
 
-        rtU.deltaTime = 0.02;
-        //rtU.stepperLeftActualPosition = rtY.stepperLeftSteps; // stepper count - keep count
-        //rtU.stepperRightActualPosition = rtY.stepperRightSteps; // stepper count - keep count
 
-        old_time = osKernelGetTickCount();
 
-        rtY.stepperLeftFrequency;
-        rtY.stepperRightFrequency;
-        rtY.controlGripperPitch;
-        LOGI(TAG, "gripper pitch: %f", rtY.controlGripperPitch);
-        CAN_LogStatus(&hfdcan1);
         /*
         if (rtY.stepperLeftSteps == 0 && rtY.stepperRightSteps == 0 && rtY.controlGripperPitch == 0 && rtY.controlBase == 0) {
           LOGI(TAG, "ERROR EVEYRTHING 0");
@@ -536,38 +500,89 @@ static void vArmController(void *argument) {
           while (true) {};
         }
         */
+    }
+}
 
-        steps = rtY.stepperRightSteps;
-        freq = rtY.stepperRightFrequency;
-        //capping frequency
-        if(freq > maxFrequency){
-            freq = maxFrequency;
-            LOGE(TAG, "the frequency for stepper1 is to high, the timePerMovement should be higher");
-        }
-        LOGI(TAG, "RIGHT steps: %d", steps);
-        LOGI(TAG, "RIGHT freq: %d", freq);
-        rotate_stepper(&stepper1, steps, freq);
+static void vStepperTask1(void *argument) {
+    LOGI(TAG, "stepper1 controller started");
+    //doing nothing before wrist position is initialized, and if calibrating the stepper motors
+    while (!startMovements || calibration != 0) {
+        osDelay(1000);
+    }
+    LOGI(TAG, "stepper1 controller running");
+    while(1) {
+        if(rtU.stepperRightActualPosition != rtY.stepperRightSteps){
+            if(rtY.stepperRightFrequency > maxFrequency){
+                rtY.stepperRightFrequency = maxFrequency;
+                LOGE(TAG, "the frequency for stepper1 is to high, the timePerMovement should be higher");
+            }
+            LOGI(TAG, "Right steps: %.1f", rtY.stepperRightSteps);
+            LOGI(TAG, "Right freq: %.1f", rtY.stepperRightFrequency);
+            rotate_stepper(&stepper1, rtY.stepperRightSteps, rtY.stepperRightFrequency);
 
-        steps = rtY.stepperLeftSteps;
-        freq = rtY.stepperLeftFrequency;
-        //capping frequency
-        if(freq > maxFrequency){
-            freq = maxFrequency;
-            LOGE(TAG, "the frequency for stepper2 is to high, the timePerMovement should be higher");
+            //waiting for stepper to be done
+            while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
+                LOGI(TAG, "waiting");
+                osDelay(100); // Delay for thread switching
+            }
+            rtU.stepperRightActualPosition = rtY.stepperRightSteps;
+            stepper1ReachedPosition = true;
+            LOGI(TAG, "stepper1 reached position");
         }
-        LOGI(TAG, "LEFT steps: %d", steps);
-        LOGI(TAG, "LEFT freq: %d", freq);
-        rotate_stepper(&stepper2, -steps, freq);
+        else {
+            //LOGI(TAG, "else1");
+            stepper1ReachedPosition = false;
+        }
+        osDelay(100);
+    }
+}
 
-        while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
-            osDelay(1); // Delay for thread switching
-        }
-        while (htim3.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
-            osDelay(1); // Delay for thread switching
-        }
+static void vStepperTask2(void *argument) {
+    LOGI(TAG, "stepper2 controller started");
+    //doing nothing before wrist position is initialized, and if calibrating the stepper motors
+    while (!startMovements || calibration != 0) {
+        osDelay(1000);
+    }
+    LOGI(TAG, "stepper2 controller running");
+    while(1) {
+        if(rtU.stepperLeftActualPosition != rtY.stepperLeftSteps){
+            if(rtY.stepperLeftFrequency > maxFrequency){
+                rtY.stepperLeftFrequency = maxFrequency;
+                LOGE(TAG, "the frequency for stepper2 is to high, the timePerMovement should be higher");
+            }
+            LOGI(TAG, "Left steps: %.1f", rtY.stepperLeftSteps);
+            LOGI(TAG, "Left freq: %.1f", rtY.stepperLeftFrequency);
+            rotate_stepper(&stepper2, rtY.stepperLeftSteps, rtY.stepperLeftFrequency);
 
-        reachedPosition = true;
-        osDelay(10);
+            //waiting for stepper to be done
+            while (htim3.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
+                LOGI(TAG, "waiting");
+                osDelay(100); // Delay for thread switching
+            }
+            LOGI(TAG, "stepper2 reached position");
+            rtU.stepperLeftActualPosition = rtY.stepperLeftSteps;
+            stepper2ReachedPosition = true;
+        }
+        else {
+            //LOGI(TAG, "else2");
+            stepper2ReachedPosition = false;
+        }
+        osDelay(100);
+    }
+}
+
+static void vWristController(void *argument) {
+    LOGI(TAG, "wrist controller started");
+    //doing nothing before wrist position is initialized, and if calibrating the stepper motors
+    while (!startMovements || calibration != 0) {
+        osDelay(1000);
+    }
+    LOGI(TAG, "wrist controller running");
+    while (1) {
+        float setpoint = (rtY.controlGripperPitch)*(180/M_PI) + start_gripper_angle;
+        cubemars_ak_set_position(&hfdcan1, 111, setpoint);
+        //LOGI(TAG, "wrist pitch position: %f", setpoint);
+        osDelay(100);
     }
 }
 
@@ -576,26 +591,7 @@ void HandlePacket(receive_frame_t *receive_frame) {
     LOGI(TAG, "Wayoo, message received");
 }
 
-/* Config for 1 pbmessage: ArmBoardControlSignals */
-static result_t Callback_ArmBoardControlSignals(void *buffer) {
-    if (buffer == NULL) {
-        return RESULT_ERR_INVALID_ARG;
-    }
-
-    ArmBoardControlSignals *pckt = (ArmBoardControlSignals *)buffer;
-
-    int32_t steps1 = 50;
-
-    BaseType_t xStatus;
-    xStatus = xQueueSendToBack(xQueueStepper1, &steps1, 0); //! TODO: wiat how many seconds?
-
-    if (xStatus != pdPASS) {
-        LOGE(TAG, "Could not send into queue (probably full)");
-    }
-
-    return RESULT_OK;
-}
-
+/*
 Callback_BaseStationManualArmControl(void *buffer) { // define callback met de callback signature
     BasestationManualArmMovement *pckt = (BasestationManualArmMovement *)buffer;
 
@@ -608,7 +604,6 @@ Callback_BaseStationManualArmControl(void *buffer) { // define callback met de c
 // PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals,
 // PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);
 
-/*Init and pass packet dispatcher*/
 static uint8_t Handle_ArmBoardControlSignals_queue_buffer
     [PACKET_HANDLER_DEFAULT_QUEUE_LENGTH * sizeof(((PBEnvelope *)0)->payload.arm_ctrl)];
 static uint8_t Handle_BaseStationManualArmControl_queue_buffer
@@ -640,3 +635,4 @@ static packet_handler_config_t handlers[] = {
         .queue = NULL,
     }
 };
+*/
