@@ -224,7 +224,7 @@ int main(void) {
     // Log init
     LOG_init(&huart_com);
 
-    LOGI(TAG, "--------------------main--------------------");
+    LOGI(TAG, "---------------main---------------");
 
     // ETH_init(NULL, my_ip, netmask, gateway, my_mac);
 
@@ -397,7 +397,7 @@ static void vControlTask(void *argument){
     }
 }
 
-#define calibration 0          // 0 = off, 1 = right, 2 = left, 3 = both, 4 = wrist motor
+#define calibration 1          // 0 = off, 1 = right, 2 = left, 3 = both, 4 = wrist motor
 #define calibrationDirection 1 // 0 = clockwise, 1 = counter clockwise
 #define calibrationSpeed 100   // fequency when calibrating stepper motors
 #define maxFrequency 250       // maximum frequency, to prevent the pullies from slipping
