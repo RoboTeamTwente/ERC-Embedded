@@ -15,4 +15,7 @@ venv
 *.nix
 components/**/firmware
 !components/**/firmware/**.ioc
+<<<<<<< HEAD
 .claude/*
+=======
+>>>>>>> c42b1b14b35567709d0877338fe6de172e617216
