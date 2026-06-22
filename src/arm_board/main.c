@@ -27,6 +27,7 @@
 #include "cubemx_main.h"
 #include "gpio.h"
 #include "stepper.h"
+#include "C5E209.h"
 #include "tim.h"
 
 // common libraries
@@ -102,6 +103,7 @@ static void vEthernetTask(void *argument);
 static void vControlTask(void *arguments);
 static void vArmController(void *argument);
 static void vWristController(void *argument);
+static void vBaseController(void *argument);
 static void vStepperTask1(void *argument);
 static void vStepperTask2(void *argument);
 
@@ -265,6 +267,11 @@ int main(void) {
         .stack_size = 1024 * 8,
         .priority = (osPriority_t)tskIDLE_PRIORITY + 4U,
     };
+    const osThreadAttr_t baseTaskAttr = {
+        .name = "BaseController",
+        .stack_size = 1024 * 8,
+        .priority = (osPriority_t)tskIDLE_PRIORITY + 4U,
+    };
     const osThreadAttr_t stepper1TaskAttr = {
         .name = "Stepper1Controller",
         .stack_size = 1024 * 8,
@@ -279,6 +286,7 @@ int main(void) {
     osThreadNew(vControlTask, NULL, &controlTaskAttr);
     osThreadNew(vArmController, NULL, &armTaskAttr);
     osThreadNew(vWristController, NULL, &wristTaskAttr);
+    osThreadNew(vBaseController, NULL, &baseTaskAttr);
     osThreadNew(vStepperTask1, NULL, &stepper1TaskAttr);
     osThreadNew(vStepperTask2, NULL, &stepper2TaskAttr);
     /*
@@ -304,7 +312,7 @@ static void position_setter() {
     case 0:
         //setting new position
         rtU.x = 0.50;
-        rtU.y = 0.0;
+        rtU.y = 0.10;
         rtU.z = 0.05;
         rtU.gripperAng = 90 * (M_PI / 180);
         state = 5;
@@ -363,6 +371,7 @@ static void position_setter() {
         break;
     case 500:
         LOGI(TAG, "reached final position");
+        return;
         break;
     }
 
@@ -376,6 +385,8 @@ static void position_setter() {
     LOGI(TAG, "rtY.stepperRightFrequency: %.1f", rtY.stepperRightFrequency);
     LOGI(TAG, "rtY.stepperLeftSteps: %.1f", rtY.stepperLeftSteps);
     LOGI(TAG, "rtY.stepperLeftFrequency: %.1f", rtY.stepperLeftFrequency);
+    LOGI(TAG, "rtY.controlBase: %.1f", rtY.controlBase);
+    LOGI(TAG, "rtY.controlGripperPitch: %.1f", rtY.controlGripperPitch);
 }
 
 uint32_t old_time;
@@ -385,19 +396,22 @@ const float start_gripper_angle = 87; //in degrees
 
 bool stepper1ReachedPosition = false;
 bool stepper2ReachedPosition = false;
-bool wristReachedPosition = false;
 
 static void vControlTask(void *argument){
     LOGI(TAG, "control task running");
     while (1) {
         rtU.deltaTime = 0.01;
-        rtU.timePerMovement = 5;
+        rtU.timePerMovement = 10;
+        /*
+        LOGI(TAG, "rtY.controlBase: %.1f", rtY.controlBase);
+        LOGI(TAG, "rtY.controlGripperPitch: %.1f", rtY.controlGripperPitch);
+        */
         control_arm_step();
         osDelay(10);
     }
 }
 
-#define calibration 1          // 0 = off, 1 = right, 2 = left, 3 = both, 4 = wrist motor
+#define calibration 0          // 0 = off, 1 = right, 2 = left, 3 = both, 4 = wrist motor, 5 = base motor
 #define calibrationDirection 1 // 0 = clockwise, 1 = counter clockwise
 #define calibrationSpeed 100   // fequency when calibrating stepper motors
 #define maxFrequency 250       // maximum frequency, to prevent the pullies from slipping
@@ -413,7 +427,7 @@ static void vArmController(void *argument) {
 
     LOGI(TAG, "initialized stepper motors");
 
-    //osDelay(5000);
+    osDelay(5000);
 
     while(calibration != 0){
         int32_t steps;
@@ -452,6 +466,18 @@ static void vArmController(void *argument) {
                 osDelay(10);
             }
         }
+        else if(calibration == 5){
+            float delta = 0.05;
+            float maxPos = 270;
+            if(calibrationDirection){
+                delta *= -1;
+            }
+            for (float currentPos = 0; abs(currentPos) < maxPos; currentPos += delta) {
+                C5E209_set_position(&hfdcan1, 111, currentPos);
+                LOGI(TAG, "base angle: %f", currentPos);
+                osDelay(10);
+            }
+        }
 
         while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
             osDelay(1); // Delay for thread switching
@@ -480,13 +506,18 @@ static void vArmController(void *argument) {
     startMovements = true;
     LOGI(TAG, "starting movements");
 
+    bool lastPosition = false;
+
     while (1) {
         reachedPosition = (stepper1ReachedPosition && stepper2ReachedPosition);
         //only doing something if the position is not reached
-        if(reachedPosition){
+        if(reachedPosition && !lastPosition){
+            reachedPosition = false;
+            //stepper1ReachedPosition = false;
+            //stepper2ReachedPosition = false;
+            lastPosition = true;
             LOGI(TAG, "new position");
-            //position_setter();
-            continue;
+            position_setter();
         }
         osDelay(100);
 
@@ -503,6 +534,36 @@ static void vArmController(void *argument) {
     }
 }
 
+static void vWristController(void *argument) {
+    LOGI(TAG, "wrist controller started");
+    //doing nothing before wrist position is initialized, and if calibrating the stepper motors
+    while (!startMovements || calibration != 0) {
+        osDelay(1000);
+    }
+    LOGI(TAG, "wrist controller running");
+    while (1) {
+        float setpoint = (rtY.controlGripperPitch)*(180/M_PI) + start_gripper_angle;
+        cubemars_ak_set_position(&hfdcan1, 111, setpoint);
+        //LOGI(TAG, "wrist pitch position: %f", setpoint);
+        osDelay(100);
+    }
+}
+
+static void vBaseController(void *argument) {
+    LOGI(TAG, "base controller started");
+    //doing nothing before wrist position is initialized, and if calibrating the stepper motors
+    while (!startMovements || calibration != 0) {
+        osDelay(1000);
+    }
+    LOGI(TAG, "base controller running");
+    while (1) {
+        float setpoint = (rtY.controlBase)*(180/M_PI);
+        C5E209_set_position(&hfdcan1, 111, setpoint);
+        //LOGI(TAG, "wrist pitch position: %f", setpoint);
+        osDelay(100);
+    }
+}
+
 static void vStepperTask1(void *argument) {
     LOGI(TAG, "stepper1 controller started");
     //doing nothing before wrist position is initialized, and if calibrating the stepper motors
@@ -511,7 +572,8 @@ static void vStepperTask1(void *argument) {
     }
     LOGI(TAG, "stepper1 controller running");
     while(1) {
-        if(rtU.stepperRightActualPosition != rtY.stepperRightSteps){
+        if(rtU.stepperRightActualPosition != rtY.stepperRightSteps && !stepper1ReachedPosition){
+            stepper1ReachedPosition = false;
             if(rtY.stepperRightFrequency > maxFrequency){
                 rtY.stepperRightFrequency = maxFrequency;
                 LOGE(TAG, "the frequency for stepper1 is to high, the timePerMovement should be higher");
@@ -522,8 +584,7 @@ static void vStepperTask1(void *argument) {
 
             //waiting for stepper to be done
             while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
-                LOGI(TAG, "waiting");
-                osDelay(100); // Delay for thread switching
+                osDelay(1); // Delay for thread switching
             }
             rtU.stepperRightActualPosition = rtY.stepperRightSteps;
             stepper1ReachedPosition = true;
@@ -531,7 +592,7 @@ static void vStepperTask1(void *argument) {
         }
         else {
             //LOGI(TAG, "else1");
-            stepper1ReachedPosition = false;
+            stepper1ReachedPosition = true;
         }
         osDelay(100);
     }
@@ -545,7 +606,8 @@ static void vStepperTask2(void *argument) {
     }
     LOGI(TAG, "stepper2 controller running");
     while(1) {
-        if(rtU.stepperLeftActualPosition != rtY.stepperLeftSteps){
+        if(rtU.stepperLeftActualPosition != rtY.stepperLeftSteps && !stepper2ReachedPosition){
+            stepper2ReachedPosition = false;
             if(rtY.stepperLeftFrequency > maxFrequency){
                 rtY.stepperLeftFrequency = maxFrequency;
                 LOGE(TAG, "the frequency for stepper2 is to high, the timePerMovement should be higher");
@@ -556,8 +618,7 @@ static void vStepperTask2(void *argument) {
 
             //waiting for stepper to be done
             while (htim3.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
-                LOGI(TAG, "waiting");
-                osDelay(100); // Delay for thread switching
+                osDelay(1); // Delay for thread switching
             }
             LOGI(TAG, "stepper2 reached position");
             rtU.stepperLeftActualPosition = rtY.stepperLeftSteps;
@@ -565,23 +626,8 @@ static void vStepperTask2(void *argument) {
         }
         else {
             //LOGI(TAG, "else2");
-            stepper2ReachedPosition = false;
+            stepper2ReachedPosition = true;
         }
-        osDelay(100);
-    }
-}
-
-static void vWristController(void *argument) {
-    LOGI(TAG, "wrist controller started");
-    //doing nothing before wrist position is initialized, and if calibrating the stepper motors
-    while (!startMovements || calibration != 0) {
-        osDelay(1000);
-    }
-    LOGI(TAG, "wrist controller running");
-    while (1) {
-        float setpoint = (rtY.controlGripperPitch)*(180/M_PI) + start_gripper_angle;
-        cubemars_ak_set_position(&hfdcan1, 111, setpoint);
-        //LOGI(TAG, "wrist pitch position: %f", setpoint);
         osDelay(100);
     }
 }
