@@ -289,13 +289,6 @@ int main(void) {
     osThreadNew(vBaseController, NULL, &baseTaskAttr);
     osThreadNew(vStepperTask1, NULL, &stepper1TaskAttr);
     osThreadNew(vStepperTask2, NULL, &stepper2TaskAttr);
-    /*
-    xTaskCreate(vControlTask,   "controlController", 1024 * 8, NULL, tskIDLE_PRIORITY + 5U, NULL);
-    xTaskCreate(vArmController,     "ArmController", 1024 * 8, NULL, tskIDLE_PRIORITY + 5U, NULL);
-    xTaskCreate(vWristController, "WristController", 1024 * 8, NULL, tskIDLE_PRIORITY + 4U, NULL);
-    xTaskCreate(vStepperTask1, "Stepper1Controller", 1024 * 8, NULL, tskIDLE_PRIORITY + 3U, NULL);
-    xTaskCreate(vStepperTask2, "Stepper2Controller", 1024 * 8, NULL, tskIDLE_PRIORITY + 2U, NULL);
-    */
 
     // Start scheduler
     osKernelStart();
@@ -315,27 +308,24 @@ static void position_setter() {
         rtU.y = 0.10;
         rtU.z = 0.05;
         rtU.gripperAng = 90 * (M_PI / 180);
-        state = 5;
+        state = 10;
         break;
-    case 5:
+    case 10:
         //waiting for movement to finish
         if(reachedPosition){
             rtU.gripperPitchOldPosition = rtY.controlGripperPitch;
             rtU.baseOldPosition = rtY.controlBase;
             rtU.stepperLeftOldPosition = rtY.stepperLeftSteps;
             rtU.stepperRightOldPosition = rtY.stepperRightSteps;
-            state = 500;
-            //state = 10;
+            //state = 500;
+            //setting new position
+            rtU.gripperAng = 80 * (M_PI / 180);
+            reachedPosition = false;
+            state = 20;
         }
         else {
             return;
         }
-        break;
-    case 10:
-        //setting new position
-        rtU.gripperAng = 80 * (M_PI / 180);
-        reachedPosition = false;
-        state = 20;
         break;
     case 20:
         //waiting for movement to finish
@@ -344,25 +334,9 @@ static void position_setter() {
             rtU.baseOldPosition = rtY.controlBase;
             rtU.stepperLeftOldPosition = rtY.stepperLeftSteps;
             rtU.stepperRightOldPosition = rtY.stepperRightSteps;
-            state = 30;
-        }
-        else {
-            return;
-        }
-        break;
-    case 30:
-        //setting new position
-        rtU.gripperAng = 100 * (M_PI / 180);
-        reachedPosition = false;
-        state = 40;
-        break;
-    case 40:
-        //waiting for movement to finish
-        if(reachedPosition){
-            rtU.gripperPitchOldPosition = rtY.controlGripperPitch;
-            rtU.baseOldPosition = rtY.controlBase;
-            rtU.stepperLeftOldPosition = rtY.stepperLeftSteps;
-            rtU.stepperRightOldPosition = rtY.stepperRightSteps;
+            //setting new position
+            rtU.gripperAng = 100 * (M_PI / 180);
+            reachedPosition = false;
             state = 10;
         }
         else {
@@ -407,12 +381,12 @@ static void vControlTask(void *argument){
         LOGI(TAG, "rtY.controlGripperPitch: %.1f", rtY.controlGripperPitch);
         */
         control_arm_step();
-        osDelay(10);
+        osDelay(1);
     }
 }
 
-#define calibration 0          // 0 = off, 1 = right, 2 = left, 3 = both, 4 = wrist motor, 5 = base motor
-#define calibrationDirection 1 // 0 = clockwise, 1 = counter clockwise
+#define calibration 1          // 0 = off, 1 = right, 2 = left, 3 = both (not working), 4 = wrist motor, 5 = base motor
+#define calibrationDirection 0 // 0 = clockwise, 1 = counter clockwise
 #define calibrationSpeed 100   // fequency when calibrating stepper motors
 #define maxFrequency 250       // maximum frequency, to prevent the pullies from slipping
 
@@ -506,20 +480,17 @@ static void vArmController(void *argument) {
     startMovements = true;
     LOGI(TAG, "starting movements");
 
-    bool lastPosition = false;
-
     while (1) {
         reachedPosition = (stepper1ReachedPosition && stepper2ReachedPosition);
         //only doing something if the position is not reached
-        if(reachedPosition && !lastPosition){
-            reachedPosition = false;
-            //stepper1ReachedPosition = false;
-            //stepper2ReachedPosition = false;
-            lastPosition = true;
-            LOGI(TAG, "new position");
+        if (reachedPosition) {
             position_setter();
+            reachedPosition = false;
+            stepper1ReachedPosition = false;
+            stepper2ReachedPosition = false;
+            LOGI(TAG, "position reached");
         }
-        osDelay(100);
+        osDelay(1000);
 
 
 
@@ -542,9 +513,11 @@ static void vWristController(void *argument) {
     }
     LOGI(TAG, "wrist controller running");
     while (1) {
+        //sending position in degrees
         float setpoint = (rtY.controlGripperPitch)*(180/M_PI) + start_gripper_angle;
         cubemars_ak_set_position(&hfdcan1, 111, setpoint);
         //LOGI(TAG, "wrist pitch position: %f", setpoint);
+        rtU.gripperPitchActualPosition = rtY.controlGripperPitch;
         osDelay(100);
     }
 }
@@ -557,9 +530,11 @@ static void vBaseController(void *argument) {
     }
     LOGI(TAG, "base controller running");
     while (1) {
-        float setpoint = (rtY.controlBase)*(180/M_PI);
-        C5E209_set_position(&hfdcan1, 111, setpoint);
+        //sending position in tenths of degrees
+        float setpoint = (rtY.controlBase)*(180/M_PI)*(1/10);
+        C5E209_set_position(&hfdcan1, 112, setpoint);
         //LOGI(TAG, "wrist pitch position: %f", setpoint);
+        rtU.baseActualPosition = rtY.controlBase;
         osDelay(100);
     }
 }
@@ -583,16 +558,15 @@ static void vStepperTask1(void *argument) {
             rotate_stepper(&stepper1, rtY.stepperRightSteps, rtY.stepperRightFrequency);
 
             //waiting for stepper to be done
+            //stepper motor library does this now
+            /*
             while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
                 osDelay(1); // Delay for thread switching
             }
+            */
             rtU.stepperRightActualPosition = rtY.stepperRightSteps;
             stepper1ReachedPosition = true;
             LOGI(TAG, "stepper1 reached position");
-        }
-        else {
-            //LOGI(TAG, "else1");
-            stepper1ReachedPosition = true;
         }
         osDelay(100);
     }
@@ -617,15 +591,14 @@ static void vStepperTask2(void *argument) {
             rotate_stepper(&stepper2, rtY.stepperLeftSteps, rtY.stepperLeftFrequency);
 
             //waiting for stepper to be done
+            //stepper motor library does this now
+            /*
             while (htim3.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
                 osDelay(1); // Delay for thread switching
             }
+            */
             LOGI(TAG, "stepper2 reached position");
             rtU.stepperLeftActualPosition = rtY.stepperLeftSteps;
-            stepper2ReachedPosition = true;
-        }
-        else {
-            //LOGI(TAG, "else2");
             stepper2ReachedPosition = true;
         }
         osDelay(100);
@@ -641,7 +614,6 @@ void HandlePacket(receive_frame_t *receive_frame) {
 Callback_BaseStationManualArmControl(void *buffer) { // define callback met de callback signature
     BasestationManualArmMovement *pckt = (BasestationManualArmMovement *)buffer;
 
-<<<<<<< HEAD
   if (buffer == NULL) {
     return RESULT_ERR_INVALID_ARG;
   }
@@ -671,13 +643,6 @@ Callback_BaseStationManualArmControl(
   rtU.gripperAng +=
       pckt->delta_final_gripper_angle / (double)(1ULL << 31) * 0.005;
   rtU.gripperPitchActualPosition; // get from can
-=======
-    rtU.x += pckt->delta_x / (double)(1ULL << 31) * 0.01;
-    rtU.y += pckt->delta_x / (double)(1ULL << 31) * 0.01;
-    rtU.z += pckt->delta_x / (double)(1ULL << 31) * 0.01;
-    rtU.gripperAng += pckt->delta_final_gripper_angle / (double)(1ULL << 31) * 0.005;
-    rtU.gripperPitchActualPosition; // get from can
->>>>>>> c42b1b14b35567709d0877338fe6de172e617216
 }
 // PACKET_HANDLER_CONFIG_STATIC(Handler_ArmBoardControlSignals,
 // PBEnvelope_arm_ctrl_tag, arm_ctrl, Callback_ArmBoardControlSignals);

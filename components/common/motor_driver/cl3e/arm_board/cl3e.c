@@ -1,7 +1,6 @@
 
 #include <stdint.h>
 #include "math.h"
-#include "control_arm_manual.h"//get control output
 #include <rtwtypes.h>
 #include "stm32h7xx_hal.h" //needed in order to reach HAL timer handlers, dictionary for microcontroller that defines periperals
 #include "cl3e.h"
@@ -9,9 +8,7 @@
 #include "result.h"
 
 
-extern ExtU rtU;
-extern ExtY rtY;// Simulink output
-extern TIM_HandleTypeDef htim1;//from main
+extern TIM_HandleTypeDef htim2;//from main
 extern TIM_HandleTypeDef htim3;//from main
 
 
