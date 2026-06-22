@@ -3,26 +3,40 @@
 
 /**
  * @file pump.h
- * @brief DC 12V Mini Peristaltic Pump Driver (2×4mm hose, controlled current)
+ * @brief 12V DC Mini Peristaltic Dosing Pump Driver — single MOSFET switch
  *
- * Hardware assumptions
- * ====================
- * Speed control : PWM output on a TIM channel driving a motor driver
- *                 (e.g. DRV8833, L298N half-bridge, or MOSFET gate).
- *                 Duty cycle 0–100 % maps directly to speed_percent 0–100.
+ * Target pump
+ * ===========
+ * Grothen 12 V DC mini peristaltic dosing pump (3×5 mm), a plain 2-wire DC
+ * motor. No internal driver, no direction control — apply 12 V, it pumps.
  *
- * Direction     : Single GPIO output to the motor driver IN2/DIR pin.
- *                   GPIO HIGH → forward (default)
- *                   GPIO LOW  → reverse
+ * Hardware (single low-side MOSFET)
+ * =================================
+ *   STM32 PWM (TIM ch) --[gate resistor]--> N-MOSFET gate
+ *   12V  --> pump +
+ *   pump - --> MOSFET drain
+ *   MOSFET source --> GND   (common with STM32 GND)
+ *   Flyback diode across the pump motor (cathode to 12V) — inductive load.
  *
- * Enable        : Optional second GPIO for driver SLEEP/EN pin.
- *                 If your driver has no enable pin, tie it high in hardware
- *                 and the enable GPIO handle can be left NULL.
+ *   PWM duty 0..100 % = speed 0..100 %. Duty 0 % = motor off.
+ *   Use a logic-level MOSFET (e.g. AO3400, IRLZ44N) so 3.3 V fully turns it on.
+ *
+ * UNIDIRECTIONAL
+ * ==============
+ * A single MOSFET cannot reverse the motor. pump_set_direction() therefore
+ * only stores the requested flag (so the network/proto field round-trips) and
+ * has NO hardware effect. The pump always runs forward.
+ *
+ * NO FEEDBACK
+ * ===========
+ * No current-sense or fault line is wired (no ADC enabled in CubeMX). This
+ * driver is OPEN-LOOP: it cannot detect whether a pump is physically
+ * connected, stalled, or dry. speed_rpm is an ESTIMATE from duty cycle only.
+ * Connection/efficacy must be inferred externally (the inline flow sensor) —
+ * see main.c.
  *
  * Peripheral handles must be initialised by CubeMX-generated MX_TIMx_Init()
- * and MX_GPIO_Init() before pump_init() is called.
- *
- * Caller must supply concrete handles at init time (see pump_hw_t).
+ * before pump_init() is called.
  */
 
 #include "result.h"
@@ -34,19 +48,13 @@
 
 /**
  * @brief Hardware resource handles for one pump instance.
+ *        The MOSFET gate is driven by a single PWM channel.
  *        Fill this struct before calling pump_init().
  */
 typedef struct {
-    TIM_HandleTypeDef *htim;        /**< PWM timer handle                   */
-    uint32_t           tim_channel; /**< TIM_CHANNEL_1 … TIM_CHANNEL_4      */
+    TIM_HandleTypeDef *htim;        /**< PWM timer handle -> MOSFET gate     */
+    uint32_t           tim_channel; /**< TIM_CHANNEL_1 … TIM_CHANNEL_4       */
     uint32_t           tim_period;  /**< htim->Init.Period (auto-reload val) */
-
-    GPIO_TypeDef      *dir_port;    /**< Direction GPIO port (e.g. GPIOB)   */
-    uint16_t           dir_pin;     /**< Direction GPIO pin  (e.g. GPIO_PIN_0) */
-
-    /* Optional enable pin — set both to NULL/0 if not used */
-    GPIO_TypeDef      *en_port;     /**< Enable GPIO port, or NULL          */
-    uint16_t           en_pin;      /**< Enable GPIO pin,  or 0             */
 } pump_hw_t;
 
 /* ---- Data structure ------------------------------------------------------ */
@@ -55,9 +63,9 @@ typedef struct {
     pump_hw_t hw;               /**< Hardware handles (copied at init)      */
 
     bool     enabled;           /**< Current on/off state                   */
-    bool     direction;         /**< true = forward, false = reverse        */
+    bool     direction;         /**< Stored only — NO hardware effect       */
     uint32_t speed_percent;     /**< Requested speed 0–100 %                */
-    uint32_t speed_rpm;         /**< Estimated RPM (0 if unknown)           */
+    uint32_t speed_rpm;         /**< ESTIMATED RPM from duty (no encoder)   */
     bool     is_initialised;
 } pump_data_t;
 
@@ -75,23 +83,23 @@ typedef struct {
 /* ---- Public API ---------------------------------------------------------- */
 
 /**
- * @brief Initialise the pump, start PWM at 0 % duty, direction = forward.
+ * @brief Initialise the pump: start PWM (gate) at 0 % duty = motor off.
  * @param data  Caller-allocated pump_data_t
  * @param hw    Pointer to filled pump_hw_t (contents are copied in)
- * @return RESULT_OK | RESULT_ERR_INVALID_ARG | RESULT_ERR_HAL
+ * @return RESULT_OK | RESULT_ERR_INVALID_ARG | RESULT_ERR_IO
  */
 result_t pump_init(pump_data_t *data, const pump_hw_t *hw);
 
 /**
  * @brief Enable or disable the pump output.
- *        Disable sets PWM duty to 0 % and de-asserts the enable pin.
+ *        Enable  -> PWM duty = speed_percent.
+ *        Disable -> PWM duty = 0 % (motor off).
  */
 result_t pump_set_enabled(pump_data_t *data, bool enabled);
 
 /**
- * @brief Set pump direction (true = forward, false = reverse).
- *        The pump is briefly stopped (duty = 0) before direction changes
- *        to protect the motor driver.
+ * @brief Set requested direction flag. NO hardware effect (single MOSFET,
+ *        unidirectional). Stored only so the proto/network field round-trips.
  */
 result_t pump_set_direction(pump_data_t *data, bool forward);
 

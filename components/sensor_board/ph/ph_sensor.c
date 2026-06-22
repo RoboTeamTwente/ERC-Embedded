@@ -14,6 +14,37 @@
 #include "result.h"
 #include <string.h>
 
+/* ---------------------------------------------------------------------------
+ * ADC binding for poll_ph_sensor().
+ *
+ * The SEN0161 outputs an analog voltage, so reading it needs an ADC channel.
+ * No ADC is enabled in CubeMX yet, so this is OFF by default and poll_ph_sensor
+ * returns RESULT_ERR_UNIMPLEMENTED (firmware still links).
+ *
+ * To enable, in CubeMX:
+ *   1. Enable an ADC (e.g. ADC1) + the channel on the pH input pin.
+ *      NOTE: PD14 (current PH_ANALOG_DATA label) has NO ADC function on the
+ *      STM32H753 — move the pH analog input to an ADC-capable pin (PA0, PC0…).
+ *   2. SEN0161 is a 5 V board (output up to ~3 V). The STM32 ADC tops out at
+ *      3.3 V — power/scale the board so its output never exceeds 3.3 V (a
+ *      divider, or DFRobot's 3.3 V-friendly variant).
+ * Then build with:  -D PH_SENSOR_USE_ADC
+ *   optionally  -D PH_SENSOR_ADC_HANDLE=hadc1  -D PH_SENSOR_ADC_MAX=65535
+ * ------------------------------------------------------------------------- */
+#ifdef PH_SENSOR_USE_ADC
+#include "stm32h7xx_hal.h"
+#ifndef PH_SENSOR_ADC_HANDLE
+#define PH_SENSOR_ADC_HANDLE hadc1
+#endif
+#ifndef PH_SENSOR_ADC_MAX
+#define PH_SENSOR_ADC_MAX 65535U /* set to match configured ADC resolution */
+#endif
+#ifndef PH_SENSOR_ADC_TIMEOUT_MS
+#define PH_SENSOR_ADC_TIMEOUT_MS 100U
+#endif
+extern ADC_HandleTypeDef PH_SENSOR_ADC_HANDLE;
+#endif /* PH_SENSOR_USE_ADC */
+
 // Forward declaration for internal averaging function
 static float ph_calculate_average(ph_sensor_t *sensor);
 
@@ -123,21 +154,25 @@ result_t poll_ph_sensor(ph_sensor_t *sensor) {
         return RESULT_ERR_INVALID_ARG;
     }
 
-    // TODO SOon: Implement ADC read once ADC peripheral is configured in CubeMX.
-    // 
-    // Example for STM32H7 with HAL:
-    // extern ADC_HandleTypeDef hadc1;
-    // 
-    // HAL_ADC_Start(&hadc1);
-    // if (HAL_ADC_PollForConversion(&hadc1, 100) != HAL_OK) {
-    //     return RESULT_ERR_TIMEOUT;
-    // }
-    // uint16_t raw_adc_value = HAL_ADC_GetValue(&hadc1);
-    // HAL_ADC_Stop(&hadc1);
-    //
-    // return ph_sensor_update(sensor, raw_adc_value, 4095);  // 12-bit ADC
+#ifdef PH_SENSOR_USE_ADC
+    if (HAL_ADC_Start(&PH_SENSOR_ADC_HANDLE) != HAL_OK) {
+        return RESULT_ERR_COMMS;
+    }
+    if (HAL_ADC_PollForConversion(&PH_SENSOR_ADC_HANDLE,
+                                  PH_SENSOR_ADC_TIMEOUT_MS) != HAL_OK) {
+        HAL_ADC_Stop(&PH_SENSOR_ADC_HANDLE);
+        return RESULT_ERR_COMMS;
+    }
+    uint32_t raw_adc_value = HAL_ADC_GetValue(&PH_SENSOR_ADC_HANDLE);
+    HAL_ADC_Stop(&PH_SENSOR_ADC_HANDLE);
 
+    /* ph_sensor_update() averages, converts to voltage and applies the
+     * SEN0161 pH = slope*V + offset formula. */
+    return ph_sensor_update(sensor, (uint16_t)raw_adc_value, PH_SENSOR_ADC_MAX);
+#else
+    /* ADC not wired yet — see the binding notes at the top of this file. */
     return RESULT_ERR_UNIMPLEMENTED;
+#endif
 }
 
 

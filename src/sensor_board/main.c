@@ -55,6 +55,14 @@
 #include "components/common/packet_dispatcher/packet_dispatcher.h"
 #include "components/common/packet_dispatcher/packet_dispatcher_macros.h"
 
+// Networking includes
+#include "components/common/envelope.pb.h"
+#include "ethernet.h"
+#include "ip_mac_constants.h"
+#include "netif.h"
+#include "pb_message.h"
+#include "task.h"
+
 #define TAG "MAIN"
 #define MAIN_TASK_DELAY_MS 5000
 
@@ -70,6 +78,54 @@ extern void MX_FREERTOS_Init(void);
 extern void SystemClock_Config(void);
 extern void MPU_Config_wrapper(void);
 void Error_Handler(void);
+
+/* LWIP / ETH handles owned by the networking component + firmware */
+extern struct netif gnetif;
+extern ETH_HandleTypeDef heth;
+
+/**
+ * @brief Physical Ethernet link state-change callback.
+ *        Re-adds the static ARP entry for the destination when the link
+ *        comes up so UDP sends resolve immediately.
+ */
+void ethernet_linkstatus_callback(void *arg) {
+  struct netif *netif = (struct netif *)arg;
+  uint8_t ip[4] = SAMPLE_BOARD_IP;
+  uint8_t mac[6] = SAMPEL_BOARD_MAC;
+  if (netif_is_up(netif)) {
+    LOGI(TAG, "Physical ethernet link is up");
+    ETH_add_arp(ip, mac, 5);
+  } else {
+    LOGE(TAG, "Physical ethernet link is down");
+  }
+}
+
+/**
+ * @brief Encode a PBEnvelope and send it as a UDP datagram, freeing the
+ *        heap buffer allocated by pb_message_encode in all paths.
+ *
+ * @param[in] dest_ip Destination IPv4 address (4 bytes)
+ * @param[in] env     Fully-populated envelope (which_payload + payload set)
+ */
+/* true = envelopes sent; false = encode/send skipped. */
+static bool sendUDP = false;
+
+static void udp_send_envelope(uint8_t dest_ip[4], PBEnvelope *env) {
+  if (!sendUDP) {
+    return;
+  }
+
+  uint8_t *encoded = NULL;
+  size_t size = 0;
+  result_t result = pb_message_encode(env, PBEnvelope_fields, &encoded, &size);
+  if (result == RESULT_OK) {
+    ETH_udp_send(dest_ip, PORT, encoded, (uint16_t)size, 1);
+  } else {
+    LOGE(TAG, "Envelope encode failed: %s (%s)", result_to_short_str(result),
+         result_to_desc_str(result));
+  }
+  free(encoded);
+}
 
 /* ============================================================================
  * Packet Dispatcher Handler Functions
@@ -151,28 +207,89 @@ static result_t handle_sensor_pump_command(void *buffer) {
  */
 
 /**
- * @brief Handle common sensor poll result and update sensor state.
- *        Sets state based on the result and logs appropriately.
- *        Error code handling is left to caller since they're different enum types.
+ * @brief Map a SensorState enum to its proto name for logging.
+ */
+static inline const char *sensor_state_str(SensorState state) {
+  switch (state) {
+  case SensorState_SENSOR_IDLE:
+    return "IDLE";
+  case SensorState_SENSOR_OPERATING:
+    return "OPERATING";
+  case SensorState_SENSOR_ERROR:
+    return "ERROR";
+  default:
+    return "UNKNOWN";
+  }
+}
+
+/**
+ * @brief Map a SensorStatus enum to its proto name for logging.
+ */
+static inline const char *sensor_status_str(SensorStatus status) {
+  switch (status) {
+  case SensorStatus_STATUS_OK:
+    return "OK";
+  case SensorStatus_STATUS_DISCONNECTED:
+    return "DISCONNECTED";
+  case SensorStatus_STATUS_ERROR:
+    return "ERROR";
+  case SensorStatus_STATUS_INITIALIZING:
+    return "INITIALIZING";
+  default:
+    return "UNKNOWN";
+  }
+}
+
+/**
+ * @brief Uniform per-sensor status log line.
+ *        Format mirrors the proto model: name | STATUS | STATE | detail.
+ *
+ * @param[in] name    Sensor name
+ * @param[in] status  SensorStatus (connection / data status)
+ * @param[in] state   SensorState  (operating state)
+ * @param[in] detail  Free-text detail (values, or result description)
+ */
+#define LOG_SENSOR_LINE(name, status, state, detail_fmt, ...)                  \
+  LOGI(TAG, "%-10s | %-12s | %-9s | " detail_fmt, (name),                      \
+       sensor_status_str(status), sensor_state_str(state), ##__VA_ARGS__)
+
+/**
+ * @brief Handle common sensor poll result, derive status/state, and log.
+ *        - RESULT_ERR_UNIMPLEMENTED / RESULT_ERR_COMMS -> DISCONNECTED / IDLE
+ *        - any other non-OK                            -> ERROR / ERROR
+ *        Logs a uniform line using components/common/result strings.
+ *        Error code handling is left to caller (different enum types).
  *
  * @param[out] state       Pointer to SensorState field to update
+ * @param[out] status      Pointer to SensorStatus field to update (nullable)
  * @param[in]  sensor_name Name of sensor for logging
  * @param[in]  poll_result Result from poll_*_sensor()
- * @return true if sensor is ready and has valid data, false otherwise
+ * @return true if poll succeeded (RESULT_OK), false otherwise
  */
 static inline bool handle_sensor_poll_result(SensorState *state,
-                                              const char *sensor_name,
-                                              result_t poll_result) {
+                                             SensorStatus *status,
+                                             const char *sensor_name,
+                                             result_t poll_result) {
   if (poll_result == RESULT_ERR_UNIMPLEMENTED ||
       poll_result == RESULT_ERR_COMMS) {
-    LOGW(TAG, "%s - Not connected (%s)", sensor_name,
-         result_to_short_str(poll_result));
     *state = SensorState_SENSOR_IDLE;
+    if (status != NULL) {
+      *status = SensorStatus_STATUS_DISCONNECTED;
+    }
+    LOGW(TAG, "%-10s | %-12s | %-9s | not connected: %s (%s)", sensor_name,
+         sensor_status_str(SensorStatus_STATUS_DISCONNECTED),
+         sensor_state_str(SensorState_SENSOR_IDLE),
+         result_to_short_str(poll_result), result_to_desc_str(poll_result));
     return false;
   } else if (poll_result != RESULT_OK) {
-    LOGE(TAG, "%s - Poll error: %s (%s)", sensor_name,
-         result_to_short_str(poll_result), result_to_desc_str(poll_result));
     *state = SensorState_SENSOR_ERROR;
+    if (status != NULL) {
+      *status = SensorStatus_STATUS_ERROR;
+    }
+    LOGE(TAG, "%-10s | %-12s | %-9s | poll error: %s (%s)", sensor_name,
+         sensor_status_str(SensorStatus_STATUS_ERROR),
+         sensor_state_str(SensorState_SENSOR_ERROR),
+         result_to_short_str(poll_result), result_to_desc_str(poll_result));
     return false;
   }
   return true;
@@ -194,8 +311,23 @@ static result_t init_ph_wrapper(ph_sensor_t *ph, float voltage) {
 }
 
 static result_t init_load_cells_wrapper(load_cell_data_t *load_cells) {
+  /* HX711 GPIO map (see firmware.ioc):
+   *   Unit 0: DOUT = PA5 (WEIGHT_INPUT_1), SCK = PC7 (WEIGHT_CLOCK_1)
+   *   Unit 1: DOUT = PA6 (WEIGHT_INPUT_2), SCK = PB5 (WEIGHT_CLOCK_2) */
+  struct {
+    GPIO_TypeDef *dout_port;
+    uint16_t dout_pin;
+    GPIO_TypeDef *sck_port;
+    uint16_t sck_pin;
+  } hx711_map[2] = {
+      {GPIOA, GPIO_PIN_5, GPIOC, GPIO_PIN_7},
+      {GPIOA, GPIO_PIN_6, GPIOB, GPIO_PIN_5},
+  };
+
   for (size_t i = 0; i < 2; i++) {
-    result_t result = load_cell_sensor_init(&load_cells[i]);
+    result_t result = load_cell_sensor_init_hw(
+        &load_cells[i], hx711_map[i].dout_port, hx711_map[i].dout_pin,
+        hx711_map[i].sck_port, hx711_map[i].sck_pin);
     if (result != RESULT_OK) {
       LOGE(TAG, "Load cell %lu init failed: %s (%s)", (unsigned long)i,
            result_to_short_str(result), result_to_desc_str(result));
@@ -246,14 +378,37 @@ PACKET_HANDLER_CONFIG_STATIC(sensor_pressure_handler,
                              PBEnvelope_pressure_info_tag, pressure_info,
                              handle_sensor_pressure_info);
 
+PACKET_HANDLER_CONFIG_STATIC(sensor_pump_handler, PBEnvelope_pump_info_tag,
+                             pump_info, handle_sensor_pump_command);
+
 /* ============================================================================
  * Global pump handle
  * ============================================================================
  */
 pump_data_t g_pump_data;
 
+/* Flow sensor handle — file scope so the EXTI ISR callback (below) can reach
+ * it. Pulses are counted in HAL_GPIO_EXTI_Callback. */
+flow_sensor_data_t g_flow_data;
+
+/* Flow sensor signal pin — PA4 (FLOW_SENSOR). To generate pulse interrupts it
+ * must be set to EXTI4 rising-edge with the EXTI4 NVIC line enabled in CubeMX;
+ * until then this callback never fires and flow reads 0. */
+#define FLOW_SENSOR_PIN GPIO_PIN_4
+
 /* PWM timer for pump — enable TIM3 CH3 in CubeMX (see note below). */
 extern TIM_HandleTypeDef htim3;
+
+/**
+ * @brief GPIO EXTI interrupt callback. Counts flow-sensor pulses.
+ *        Weak HAL symbol — defining it here (application code) keeps it across
+ *        CubeMX regenerations.
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == FLOW_SENSOR_PIN) {
+    flow_sensor_pulse_isr(&g_flow_data);
+  }
+}
 
 /* mainTask_attributes + the osThreadNew(MainTask,...) call are generated by
  * CubeMX in freertos.c (task entry set to "As external"). Do not redefine here. */
@@ -333,11 +488,8 @@ void MainTask(void *argument) {
   }
 
   /* ---- Flow sensor init -------------------------------------------------- */
-  /*
-   * g_flow_data is made static so the EXTI ISR callback (in stm32h7xx_it.c)
-   * can reach it via:  extern flow_sensor_data_t g_flow_data;
-   */
-  static flow_sensor_data_t g_flow_data;
+  /* g_flow_data is now file-scope (declared near the top) so the EXTI callback
+   * HAL_GPIO_EXTI_Callback() can reach it. */
   LOGI(TAG, "Initializing Flow Sensor...");
   if (init_flow_sensor_wrapper(&g_flow_data) != RESULT_OK) {
     LOGW(TAG, "Flow sensor may not be available, continuing...");
@@ -346,14 +498,12 @@ void MainTask(void *argument) {
   }
 
   /* ---- Pump init --------------------------------------------------------- */
+  /* Single low-side MOSFET: gate = TIM3_CH3 PWM (PC8). PWM duty = speed.
+   * 2-wire DC pump, unidirectional — no direction/enable GPIOs needed. */
   pump_hw_t pump_hw = {
       .htim = &htim3,
       .tim_channel = TIM_CHANNEL_3,
       .tim_period = htim3.Init.Period,
-      .dir_port = GPIOB,
-      .dir_pin = GPIO_PIN_0,
-      .en_port = GPIOB,
-      .en_pin = GPIO_PIN_14,
   };
 
   LOGI(TAG, "Initializing Pump...");
@@ -365,6 +515,54 @@ void MainTask(void *argument) {
     pump_set_speed_percent(&g_pump_data, 50U);
     pump_set_enabled(&g_pump_data, true);
   }
+
+  /* ---- Ethernet init ----------------------------------------------------- */
+  uint8_t self_ip[4] = NETWORK_IP;
+  uint8_t self_mac[6] = NETWORK_MAC;
+  uint8_t self_netmask[4] = NETMASK;
+  uint8_t self_gateway[4] = GATEWAY;
+  uint8_t dest_ip[4] = SAMPLE_BOARD_IP;
+  uint8_t dest_mac[6] = SAMPEL_BOARD_MAC;
+
+  LOGI(TAG, "Initializing Ethernet...");
+  if (ETH_init(ethernet_linkstatus_callback, self_ip, self_netmask,
+               self_gateway, self_mac) != RESULT_OK) {
+    LOGE(TAG, "Ethernet init failed");
+  } else {
+    LOGI(TAG, "Ethernet init completed");
+  }
+
+  int mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+  int mac2[6] = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
+  int mac3[6] = {0x90, 0x2e, 0x16, 0xbe, 0x1b, 0x33};
+  ETH_setup_MAC_address_filtering(mac1, mac2, mac3);
+
+  /* Prioritised UDP transmit queues (statically allocated) */
+#define SENSOR_SEND_QUEUE_SIZE 80
+  static StaticQueue_t xStaticQueue1;
+  static uint8_t
+      ucQueueStorageArea1[SENSOR_SEND_QUEUE_SIZE * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t udp_send_queue1 =
+      xQueueCreateStatic(SENSOR_SEND_QUEUE_SIZE, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea1, &xStaticQueue1);
+
+  static StaticQueue_t xStaticQueue2;
+  static uint8_t
+      ucQueueStorageArea2[SENSOR_SEND_QUEUE_SIZE * ETHERNET_SQ_ITEM_SIZE];
+  QueueHandle_t udp_send_queue2 =
+      xQueueCreateStatic(SENSOR_SEND_QUEUE_SIZE, ETHERNET_SQ_ITEM_SIZE,
+                         ucQueueStorageArea2, &xStaticQueue2);
+  QueueHandle_t send_queues[2] = {udp_send_queue1, udp_send_queue2};
+
+  /* Inbound packet dispatcher (RX) */
+  packet_handler_config_t handler_configs[] = {
+      sensor_ph_handler, sensor_imu_handler, sensor_load_cell_handler,
+      sensor_pressure_handler, sensor_pump_handler};
+  PacketDispatcherInit(handler_configs,
+                       sizeof(handler_configs) / sizeof(handler_configs[0]));
+
+  ETH_udp_init(2, send_queues, DispatchPacket);
+  ETH_add_arp(dest_ip, dest_mac, 5);
 
   BSP_LED_Toggle(LED_GREEN);
 
@@ -403,8 +601,8 @@ void MainTask(void *argument) {
       result_t ph_poll_result = poll_ph_sensor(&ph_sensor);
       diagnostics.has_ph_sensor = true;
 
-      if (!handle_sensor_poll_result(&diagnostics.ph_sensor.state,
-                                      "pH Sensor", ph_poll_result)) {
+      if (!handle_sensor_poll_result(&diagnostics.ph_sensor.state, NULL,
+                                      "pH", ph_poll_result)) {
         diagnostics.ph_sensor.error_code = PHErrorCode_PH_COMMUNICATION_FAILURE;
         diagnostics.ph_sensor.ph_value = 0.0f;
         diagnostics.ph_sensor.voltage = 0.0f;
@@ -415,20 +613,34 @@ void MainTask(void *argument) {
           diagnostics.ph_sensor.voltage = ph_voltage;
           diagnostics.ph_sensor.state = SensorState_SENSOR_OPERATING;
           diagnostics.ph_sensor.error_code = PHErrorCode_PH_NO_ERROR;
-          LOGI(TAG, "pH Sensor - OK (pH: %.2f, V: %.3f)", ph_value, ph_voltage);
+          LOG_SENSOR_LINE("pH", SensorStatus_STATUS_OK,
+                          SensorState_SENSOR_OPERATING, "pH=%.2f V=%.3f",
+                          ph_value, ph_voltage);
         } else {
-          LOGW(TAG, "pH Sensor - Invalid value: %.2f", ph_value);
           diagnostics.ph_sensor.ph_value = ph_value;
           diagnostics.ph_sensor.voltage = ph_voltage;
           diagnostics.ph_sensor.state = SensorState_SENSOR_ERROR;
           diagnostics.ph_sensor.error_code = PHErrorCode_PH_INVALID_DATA;
+          LOGW(TAG, "%-10s | %-12s | %-9s | invalid data: pH=%.2f out of range",
+               "pH", sensor_status_str(SensorStatus_STATUS_ERROR),
+               sensor_state_str(SensorState_SENSOR_ERROR), ph_value);
         }
       } else {
-        LOGE(TAG, "pH Sensor - Failed to read value");
         diagnostics.ph_sensor.state = SensorState_SENSOR_ERROR;
         diagnostics.ph_sensor.error_code = PHErrorCode_PH_COMMUNICATION_FAILURE;
         diagnostics.ph_sensor.ph_value = 0.0f;
         diagnostics.ph_sensor.voltage = 0.0f;
+        LOGE(TAG, "%-10s | %-12s | %-9s | read failed", "pH",
+             sensor_status_str(SensorStatus_STATUS_ERROR),
+             sensor_state_str(SensorState_SENSOR_ERROR));
+      }
+
+      /* Transmit pH info over UDP */
+      {
+        PBEnvelope env = PBEnvelope_init_zero;
+        env.which_payload = PBEnvelope_ph_info_tag;
+        env.payload.ph_info = diagnostics.ph_sensor;
+        udp_send_envelope(dest_ip, &env);
       }
 
       /* ---------- IMU -------------------------------------------------------
@@ -436,7 +648,7 @@ void MainTask(void *argument) {
       result_t imu_poll_result = poll_imu_sensor(&imu_data);
       diagnostics.has_imu_sensor = true;
 
-      if (!handle_sensor_poll_result(&diagnostics.imu_sensor.state,
+      if (!handle_sensor_poll_result(&diagnostics.imu_sensor.state, NULL,
                                       "IMU", imu_poll_result)) {
         diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_COMMUNICATION_FAILURE;
         diagnostics.imu_sensor.accel_x = 0.0f;
@@ -460,10 +672,11 @@ void MainTask(void *argument) {
         diagnostics.imu_sensor.mag_z = imu_data.mag[2];
         diagnostics.imu_sensor.state = SensorState_SENSOR_OPERATING;
         diagnostics.imu_sensor.error_code = IMUErrorCode_IMU_NO_ERROR;
-        LOGI(TAG,
-             "IMU - OK (accel: %.2f, %.2f, %.2f; gyro: %.2f, %.2f, %.2f)",
-             imu_data.accel[0], imu_data.accel[1], imu_data.accel[2],
-             imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2]);
+        LOG_SENSOR_LINE("IMU", SensorStatus_STATUS_OK,
+                        SensorState_SENSOR_OPERATING,
+                        "accel=%.2f,%.2f,%.2f gyro=%.2f,%.2f,%.2f",
+                        imu_data.accel[0], imu_data.accel[1], imu_data.accel[2],
+                        imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2]);
 
         /* Validate IMU ranges */
         if (!imu_validate_accelerometer_range(&imu_data)) {
@@ -478,6 +691,14 @@ void MainTask(void *argument) {
         }
       }
 
+      /* Transmit IMU info over UDP */
+      {
+        PBEnvelope env = PBEnvelope_init_zero;
+        env.which_payload = PBEnvelope_imu_info_tag;
+        env.payload.imu_info = diagnostics.imu_sensor;
+        udp_send_envelope(dest_ip, &env);
+      }
+
       /* ---------- Load cells + pressure (index loop) -----------------------
        */
       for (size_t i = 0; i < 2; i++) {
@@ -487,8 +708,10 @@ void MainTask(void *argument) {
         result_t lc_result = poll_load_cell_sensor(&load_cell_data[i]);
         load_cell_info.sensor_index = (uint32_t)i;
 
-        if (!handle_sensor_poll_result(&load_cell_info.state,
-                                        "Load cell", lc_result)) {
+        char lc_name[12];
+        snprintf(lc_name, sizeof(lc_name), "LoadCell%lu", (unsigned long)i);
+        if (!handle_sensor_poll_result(&load_cell_info.state, NULL,
+                                        lc_name, lc_result)) {
           load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_COMMUNICATION_FAILURE;
           load_cell_info.force_newtons = 0.0f;
           load_cell_info.mass_grams = 0.0f;
@@ -508,12 +731,15 @@ void MainTask(void *argument) {
             if (lc_valid) {
               load_cell_info.state = SensorState_SENSOR_OPERATING;
               load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_NO_ERROR;
-              LOGI(TAG, "Load cell %lu - OK (force: %.2f N, mass: %.2f g)",
-                   (unsigned long)i, lc_force, lc_mass);
+              LOG_SENSOR_LINE(lc_name, SensorStatus_STATUS_OK,
+                              SensorState_SENSOR_OPERATING,
+                              "force=%.2fN mass=%.2fg", lc_force, lc_mass);
             } else {
-              LOGW(TAG, "Load cell %lu - Invalid data", (unsigned long)i);
               load_cell_info.state = SensorState_SENSOR_ERROR;
               load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_INVALID_DATA;
+              LOGW(TAG, "%-10s | %-12s | %-9s | invalid data", lc_name,
+                   sensor_status_str(SensorStatus_STATUS_ERROR),
+                   sensor_state_str(SensorState_SENSOR_ERROR));
             }
             load_cell_info.force_newtons = lc_force;
             load_cell_info.mass_grams = lc_mass;
@@ -521,14 +747,24 @@ void MainTask(void *argument) {
             load_cell_info.scale_newtons_per_count = lc_scale;
             load_cell_info.tare_offset_counts = lc_tare;
           } else {
-            LOGE(TAG, "Load cell %lu - Failed to read values", (unsigned long)i);
             load_cell_info.state = SensorState_SENSOR_ERROR;
             load_cell_info.error_code = LoadCellErrorCode_LOAD_CELL_COMMUNICATION_FAILURE;
             load_cell_info.force_newtons = 0.0f;
             load_cell_info.mass_grams = 0.0f;
+            LOGE(TAG, "%-10s | %-12s | %-9s | read failed", lc_name,
+                 sensor_status_str(SensorStatus_STATUS_ERROR),
+                 sensor_state_str(SensorState_SENSOR_ERROR));
           }
         }
         load_cell_info.is_calibrated = load_cell_data[i].is_calibrated;
+
+        /* Transmit load cell info over UDP */
+        {
+          PBEnvelope env = PBEnvelope_init_zero;
+          env.which_payload = PBEnvelope_load_cell_info_tag;
+          env.payload.load_cell_info = load_cell_info;
+          udp_send_envelope(dest_ip, &env);
+        }
 
         /* Pressure sensor */
         SensorBoardPressureInfo pressure_info =
@@ -536,8 +772,10 @@ void MainTask(void *argument) {
         result_t pr_result = poll_pressure_sensor(&pressure_data[i]);
         pressure_info.sensor_index = (uint32_t)i;
 
-        if (!handle_sensor_poll_result(&pressure_info.state,
-                                        "Pressure", pr_result)) {
+        char pr_name[12];
+        snprintf(pr_name, sizeof(pr_name), "Force%lu", (unsigned long)i);
+        if (!handle_sensor_poll_result(&pressure_info.state, NULL,
+                                        pr_name, pr_result)) {
           pressure_info.error_code = PressureErrorCode_PRESSURE_COMMUNICATION_FAILURE;
           pressure_info.pressure_kpa = 0.0f;
           pressure_info.temperature_c = 0.0f;
@@ -555,26 +793,40 @@ void MainTask(void *argument) {
             if (pr_valid) {
               pressure_info.state = SensorState_SENSOR_OPERATING;
               pressure_info.error_code = PressureErrorCode_PRESSURE_NO_ERROR;
-              LOGI(TAG, "Pressure %lu - OK (%.2f kPa, %.2f C, %.3f V)",
-                   (unsigned long)i, pr_kpa, pr_temp, pr_voltage);
+              LOG_SENSOR_LINE(pr_name, SensorStatus_STATUS_OK,
+                              SensorState_SENSOR_OPERATING,
+                              "%.2fkPa %.2fC %.3fV", pr_kpa, pr_temp,
+                              pr_voltage);
             } else {
-              LOGW(TAG, "Pressure %lu - Invalid data", (unsigned long)i);
               pressure_info.state = SensorState_SENSOR_ERROR;
               pressure_info.error_code = PressureErrorCode_PRESSURE_INVALID_DATA;
+              LOGW(TAG, "%-10s | %-12s | %-9s | invalid data", pr_name,
+                   sensor_status_str(SensorStatus_STATUS_ERROR),
+                   sensor_state_str(SensorState_SENSOR_ERROR));
             }
             pressure_info.pressure_kpa = pr_kpa;
             pressure_info.temperature_c = pr_temp;
             pressure_info.voltage = pr_voltage;
           } else {
-            LOGE(TAG, "Pressure %lu - Failed to read values", (unsigned long)i);
             pressure_info.state = SensorState_SENSOR_ERROR;
             pressure_info.error_code = PressureErrorCode_PRESSURE_COMMUNICATION_FAILURE;
             pressure_info.pressure_kpa = 0.0f;
             pressure_info.temperature_c = 0.0f;
             pressure_info.voltage = 0.0f;
+            LOGE(TAG, "%-10s | %-12s | %-9s | read failed", pr_name,
+                 sensor_status_str(SensorStatus_STATUS_ERROR),
+                 sensor_state_str(SensorState_SENSOR_ERROR));
           }
         }
         pressure_info.is_calibrated = pressure_data[i].is_calibrated;
+
+        /* Transmit pressure (FSR force) info over UDP */
+        {
+          PBEnvelope env = PBEnvelope_init_zero;
+          env.which_payload = PBEnvelope_pressure_info_tag;
+          env.payload.pressure_info = pressure_info;
+          udp_send_envelope(dest_ip, &env);
+        }
       }
 
     } /* end skip_sensor_polling */
@@ -589,9 +841,8 @@ void MainTask(void *argument) {
       SensorBoardFlowSensorInfo flow_info = SensorBoardFlowSensorInfo_init_zero;
       result_t flow_poll_result = poll_flow_sensor(&g_flow_data);
 
-      if (!handle_sensor_poll_result(&flow_info.state,
-                                      "Flow Sensor", flow_poll_result)) {
-        flow_info.status = SensorStatus_STATUS_DISCONNECTED;
+      if (!handle_sensor_poll_result(&flow_info.state, &flow_info.status,
+                                      "Flow", flow_poll_result)) {
         flow_info.flow_rate_ml_min_x100 = 0U;
         flow_info.total_volume_ml = 0U;
         flow_info.pulse_count = 0U;
@@ -599,7 +850,13 @@ void MainTask(void *argument) {
         bool flow_valid = false;
         flow_sensor_is_valid(&g_flow_data, &flow_valid);
 
-        if (flow_valid) {
+        if (!flow_valid) {
+          /* First sampling window not yet complete */
+          flow_info.state = SensorState_SENSOR_IDLE;
+          flow_info.status = SensorStatus_STATUS_INITIALIZING;
+          LOG_SENSOR_LINE("Flow", SensorStatus_STATUS_INITIALIZING,
+                          SensorState_SENSOR_IDLE, "warming up");
+        } else {
           uint32_t rate = 0U;
           uint32_t vol_ml = 0U;
           uint32_t pulses = 0U;
@@ -610,19 +867,38 @@ void MainTask(void *argument) {
           flow_info.flow_rate_ml_min_x100 = rate;
           flow_info.total_volume_ml = vol_ml;
           flow_info.pulse_count = pulses;
-          flow_info.state = SensorState_SENSOR_OPERATING;
-          flow_info.status = SensorStatus_STATUS_OK;
 
-          /* Log as integer to avoid float (rate/100 = ml/min integer part) */
-          LOGD(TAG, "Flow: %lu.%02lu ml/min, total: %lu ml, pulses: %lu",
-               (unsigned long)(rate / 100U), (unsigned long)(rate % 100U),
-               (unsigned long)vol_ml, (unsigned long)pulses);
-        } else {
-          /* First window not yet complete */
-          flow_info.state = SensorState_SENSOR_IDLE;
-          flow_info.status = SensorStatus_STATUS_INITIALIZING;
+          /*
+           * The flow sensor is a passive open-collector pulse source on a GPIO,
+           * so electrical presence cannot be probed directly.  Zero lifetime
+           * pulses => no signal ever received: treat as not connected / no flow
+           * rather than reporting a bogus 0.00 ml/min "OK".
+           */
+          if (pulses == 0U) {
+            flow_info.state = SensorState_SENSOR_IDLE;
+            flow_info.status = SensorStatus_STATUS_DISCONNECTED;
+            LOGW(TAG,
+                 "%-10s | %-12s | %-9s | no pulses (not connected / no flow)",
+                 "Flow", sensor_status_str(SensorStatus_STATUS_DISCONNECTED),
+                 sensor_state_str(SensorState_SENSOR_IDLE));
+          } else {
+            flow_info.state = SensorState_SENSOR_OPERATING;
+            flow_info.status = SensorStatus_STATUS_OK;
+            LOG_SENSOR_LINE("Flow", SensorStatus_STATUS_OK,
+                            SensorState_SENSOR_OPERATING,
+                            "%lu.%02lu ml/min total=%lu ml pulses=%lu",
+                            (unsigned long)(rate / 100U),
+                            (unsigned long)(rate % 100U),
+                            (unsigned long)vol_ml, (unsigned long)pulses);
+          }
         }
       }
+
+      /* Transmit flow info over UDP */
+      PBEnvelope env = PBEnvelope_init_zero;
+      env.which_payload = PBEnvelope_flow_info_tag;
+      env.payload.flow_info = flow_info;
+      udp_send_envelope(dest_ip, &env);
     }
 
     /* ==========================================================================
@@ -632,23 +908,75 @@ void MainTask(void *argument) {
     {
       SensorBoardPumpInfo pump_info = SensorBoardPumpInfo_init_zero;
 
+      /*
+       * The pump is an OPEN-LOOP actuator: the L298N gives no current-sense or
+       * fault line and none is wired to the MCU, so firmware cannot directly
+       * tell whether a pump is plugged in. Do NOT report STATUS_OK just because
+       * we commanded it. The only on-board proof that the pump is actually
+       * moving fluid is the inline flow sensor, so cross-check against it:
+       *   - not initialised                         -> ERROR
+       *   - commanded off (disabled / 0 %)          -> IDLE  + OK  (healthy)
+       *   - commanded on + flow detected            -> OPERATING + OK
+       *   - commanded on + NO flow detected         -> OPERATING + DISCONNECTED
+       *     (pump absent, dry, stalled, or flow sensor not installed)
+       */
       if (!g_pump_data.is_initialised) {
         pump_info.state = SensorState_SENSOR_ERROR;
         pump_info.status = SensorStatus_STATUS_ERROR;
-        LOGW(TAG, "Pump - Not connected / not initialised");
+        LOGE(TAG, "%-10s | %-12s | %-9s | not initialised", "Pump",
+             sensor_status_str(SensorStatus_STATUS_ERROR),
+             sensor_state_str(SensorState_SENSOR_ERROR));
       } else {
         pump_get_enabled(&g_pump_data, &pump_info.enabled);
         pump_get_direction(&g_pump_data, &pump_info.direction);
         pump_get_speed_percent(&g_pump_data, &pump_info.speed_percent);
         pump_get_speed_rpm(&g_pump_data, &pump_info.speed_rpm);
-        pump_info.state = g_pump_data.enabled ? SensorState_SENSOR_OPERATING
-                                              : SensorState_SENSOR_IDLE;
-        pump_info.status = SensorStatus_STATUS_OK;
-        LOGI(TAG, "Pump - OK (enabled: %d, dir: %d, speed: %lu%%, rpm: %lu)",
-             pump_info.enabled, pump_info.direction,
-             (unsigned long)pump_info.speed_percent,
-             (unsigned long)pump_info.speed_rpm);
+
+        bool commanded_on = pump_info.enabled && pump_info.speed_percent > 0U;
+
+        if (!commanded_on) {
+          /* Intentionally off — driver is fine, just not running. */
+          pump_info.state = SensorState_SENSOR_IDLE;
+          pump_info.status = SensorStatus_STATUS_OK;
+          LOG_SENSOR_LINE("Pump", SensorStatus_STATUS_OK,
+                          SensorState_SENSOR_IDLE,
+                          "off (enabled=%d speed=%lu%%)", pump_info.enabled,
+                          (unsigned long)pump_info.speed_percent);
+        } else {
+          /* Commanded to run: confirm via the inline flow sensor. */
+          uint32_t pump_flow_rate = 0U;
+          flow_sensor_get_flow_rate(&g_flow_data, &pump_flow_rate);
+
+          pump_info.state = SensorState_SENSOR_OPERATING;
+          if (pump_flow_rate > 0U) {
+            pump_info.status = SensorStatus_STATUS_OK;
+            LOG_SENSOR_LINE("Pump", SensorStatus_STATUS_OK,
+                            SensorState_SENSOR_OPERATING,
+                            "dir=%d speed=%lu%% rpm~%lu flow=%lu.%02lu ml/min",
+                            pump_info.direction,
+                            (unsigned long)pump_info.speed_percent,
+                            (unsigned long)pump_info.speed_rpm,
+                            (unsigned long)(pump_flow_rate / 100U),
+                            (unsigned long)(pump_flow_rate % 100U));
+          } else {
+            /* Driving the bridge but no flow seen — cannot confirm pump. */
+            pump_info.status = SensorStatus_STATUS_DISCONNECTED;
+            LOGW(TAG,
+                 "%-10s | %-12s | %-9s | commanded on (dir=%d speed=%lu%%) but "
+                 "no flow detected: pump may be absent/dry/stalled",
+                 "Pump", sensor_status_str(SensorStatus_STATUS_DISCONNECTED),
+                 sensor_state_str(SensorState_SENSOR_OPERATING),
+                 pump_info.direction,
+                 (unsigned long)pump_info.speed_percent);
+          }
+        }
       }
+
+      /* Transmit pump info over UDP */
+      PBEnvelope env = PBEnvelope_init_zero;
+      env.which_payload = PBEnvelope_pump_info_tag;
+      env.payload.pump_info = pump_info;
+      udp_send_envelope(dest_ip, &env);
     }
 
 

@@ -81,8 +81,8 @@ result_t ETH_add_arp(uint8_t ip[4], uint8_t mac[6], int retry_count) {
            ip4addr_ntoa(&ipaddr));
       return RESULT_OK;
     } else {
-      LOGE(TAG, "Failed to add static ARP entry: %d\n",
-           result_to_short_str(err));
+      LOGE(TAG, "Failed to add static ARP entry: %d (%s)\n", err,
+           lwip_strerr(err));
     }
   }
   return RESULT_ERR_COMMS;

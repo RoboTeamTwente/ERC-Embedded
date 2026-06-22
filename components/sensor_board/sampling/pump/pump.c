@@ -1,9 +1,9 @@
 /**
  * @file pump.c
- * @brief DC 12V Mini Peristaltic Pump Driver Implementation
+ * @brief 12V DC Mini Peristaltic Pump Driver — single MOSFET switch
  *
- * PWM DUTY CYCLE CALCULATION
- * ==========================
+ * PWM DUTY CYCLE CALCULATION (MOSFET gate)
+ * ========================================
  * STM32 TIM compare register value for a given duty:
  *
  *   CCR = (speed_percent × (ARR + 1)) / 100
@@ -12,23 +12,16 @@
  * HAL_TIM_PWM_Start() must have been called once (done in pump_init).
  * Subsequent speed changes go through __HAL_TIM_SET_COMPARE().
  *
- * DIRECTION CHANGE SAFETY
- * =======================
- * Reversing polarity under load can spike current on cheap motor drivers.
- * pump_set_direction() sets duty to 0, waits PUMP_DIR_CHANGE_DELAY_MS,
- * flips the GPIO, then restores the previous duty.
+ * The motor is a plain 2-wire DC motor switched low-side by one MOSFET, so
+ * there is no direction or brake control: duty 0 % = off, duty 100 % = full.
  */
 
 #include "pump.h"
 
 #include <string.h>
-#include "cmsis_os2.h"   /* osDelay */
-
-/* Milliseconds to coast at 0 % before reversing direction */
-#define PUMP_DIR_CHANGE_DELAY_MS   50U
 
 /* --------------------------------------------------------------------------
- * Internal helper: apply speed_percent to the PWM compare register
+ * Internal helper: apply speed_percent to the gate PWM compare register
  * -------------------------------------------------------------------------- */
 static result_t apply_pwm_duty(pump_data_t *data, uint32_t speed_percent) {
     if (speed_percent > 100U) {
@@ -43,17 +36,6 @@ static result_t apply_pwm_duty(pump_data_t *data, uint32_t speed_percent) {
 }
 
 /* --------------------------------------------------------------------------
- * Internal helper: assert / de-assert the enable pin (if wired)
- * -------------------------------------------------------------------------- */
-static void set_enable_pin(const pump_data_t *data, bool active) {
-    if (data->hw.en_port == NULL) {
-        return; /* No enable pin — nothing to do */
-    }
-    HAL_GPIO_WritePin(data->hw.en_port, data->hw.en_pin,
-                      active ? GPIO_PIN_SET : GPIO_PIN_RESET);
-}
-
-/* --------------------------------------------------------------------------
  * Public API
  * -------------------------------------------------------------------------- */
 
@@ -61,7 +43,7 @@ result_t pump_init(pump_data_t *data, const pump_hw_t *hw) {
     if (data == NULL || hw == NULL) {
         return RESULT_ERR_INVALID_ARG;
     }
-    if (hw->htim == NULL || hw->dir_port == NULL) {
+    if (hw->htim == NULL) {
         return RESULT_ERR_INVALID_ARG;
     }
 
@@ -69,21 +51,15 @@ result_t pump_init(pump_data_t *data, const pump_hw_t *hw) {
     data->hw = *hw;          /* Copy hardware handles */
 
     data->enabled        = false;
-    data->direction      = true;   /* Forward */
+    data->direction      = true;   /* Stored only — no hardware effect */
     data->speed_percent  = 0U;
     data->speed_rpm      = 0U;
 
-    /* Start PWM output at 0 % duty */
+    /* Start gate PWM output at 0 % duty (motor off) */
     if (HAL_TIM_PWM_Start(data->hw.htim, data->hw.tim_channel) != HAL_OK) {
         return RESULT_ERR_IO;
     }
     apply_pwm_duty(data, 0U);
-
-    /* Direction pin: default forward (HIGH) */
-    HAL_GPIO_WritePin(data->hw.dir_port, data->hw.dir_pin, GPIO_PIN_SET);
-
-    /* Enable pin: de-asserted until explicitly enabled */
-    set_enable_pin(data, false);
 
     data->is_initialised = true;
     return RESULT_OK;
@@ -97,11 +73,9 @@ result_t pump_set_enabled(pump_data_t *data, bool enabled) {
     data->enabled = enabled;
 
     if (enabled) {
-        set_enable_pin(data, true);
         apply_pwm_duty(data, data->speed_percent);
     } else {
         apply_pwm_duty(data, 0U);
-        set_enable_pin(data, false);
         data->speed_rpm = 0U;
     }
 
@@ -113,24 +87,9 @@ result_t pump_set_direction(pump_data_t *data, bool forward) {
         return RESULT_ERR_INVALID_ARG;
     }
 
-    if (data->direction == forward) {
-        return RESULT_OK; /* Already at requested direction */
-    }
-
-    /* Coast to zero before reversing to protect driver */
-    uint32_t saved_speed = data->speed_percent;
-    apply_pwm_duty(data, 0U);
-    osDelay(PUMP_DIR_CHANGE_DELAY_MS);
-
+    /* Single MOSFET = unidirectional. Store the flag for proto round-trip;
+     * there is no GPIO to drive and no effect on the motor. */
     data->direction = forward;
-    HAL_GPIO_WritePin(data->hw.dir_port, data->hw.dir_pin,
-                      forward ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
-    /* Restore speed only if still enabled */
-    if (data->enabled) {
-        apply_pwm_duty(data, saved_speed);
-    }
-
     return RESULT_OK;
 }
 
