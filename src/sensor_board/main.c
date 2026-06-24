@@ -635,14 +635,6 @@ void MainTask(void *argument) {
              sensor_state_str(SensorState_SENSOR_ERROR));
       }
 
-      /* Transmit pH info over UDP */
-      {
-        PBEnvelope env = PBEnvelope_init_zero;
-        env.which_payload = PBEnvelope_ph_info_tag;
-        env.payload.ph_info = diagnostics.ph_sensor;
-        udp_send_envelope(dest_ip, &env);
-      }
-
       /* ---------- IMU -------------------------------------------------------
        */
       result_t imu_poll_result = poll_imu_sensor(&imu_data);
@@ -691,16 +683,10 @@ void MainTask(void *argument) {
         }
       }
 
-      /* Transmit IMU info over UDP */
-      {
-        PBEnvelope env = PBEnvelope_init_zero;
-        env.which_payload = PBEnvelope_imu_info_tag;
-        env.payload.imu_info = diagnostics.imu_sensor;
-        udp_send_envelope(dest_ip, &env);
-      }
-
       /* ---------- Load cells + pressure (index loop) -----------------------
        */
+      diagnostics.load_cell_count = 2;
+      diagnostics.pressure_sensor_count = 2;
       for (size_t i = 0; i < 2; i++) {
         /* Load cell */
         SensorBoardLoadCellInfo load_cell_info =
@@ -758,13 +744,8 @@ void MainTask(void *argument) {
         }
         load_cell_info.is_calibrated = load_cell_data[i].is_calibrated;
 
-        /* Transmit load cell info over UDP */
-        {
-          PBEnvelope env = PBEnvelope_init_zero;
-          env.which_payload = PBEnvelope_load_cell_info_tag;
-          env.payload.load_cell_info = load_cell_info;
-          udp_send_envelope(dest_ip, &env);
-        }
+        /* Store into aggregate diagnostics */
+        diagnostics.load_cell[i] = load_cell_info;
 
         /* Pressure sensor */
         SensorBoardPressureInfo pressure_info =
@@ -820,13 +801,8 @@ void MainTask(void *argument) {
         }
         pressure_info.is_calibrated = pressure_data[i].is_calibrated;
 
-        /* Transmit pressure (FSR force) info over UDP */
-        {
-          PBEnvelope env = PBEnvelope_init_zero;
-          env.which_payload = PBEnvelope_pressure_info_tag;
-          env.payload.pressure_info = pressure_info;
-          udp_send_envelope(dest_ip, &env);
-        }
+        /* Store into aggregate diagnostics */
+        diagnostics.pressure_sensor[i] = pressure_info;
       }
 
     } /* end skip_sensor_polling */
@@ -894,11 +870,9 @@ void MainTask(void *argument) {
         }
       }
 
-      /* Transmit flow info over UDP */
-      PBEnvelope env = PBEnvelope_init_zero;
-      env.which_payload = PBEnvelope_flow_sensor_info_tag;
-      env.payload.flow_sensor_info = flow_info;
-      udp_send_envelope(dest_ip, &env);
+      /* Store into aggregate diagnostics */
+      diagnostics.has_flow_sensor = true;
+      diagnostics.flow_sensor = flow_info;
     }
 
     /* ==========================================================================
@@ -972,10 +946,19 @@ void MainTask(void *argument) {
         }
       }
 
-      /* Transmit pump info over UDP */
+      /* Store into aggregate diagnostics */
+      diagnostics.has_pump = true;
+      diagnostics.pump = pump_info;
+    }
+
+    /* ==========================================================================
+     * Single aggregate diagnostics send — all 6 sensors in one envelope
+     * ==========================================================================
+     */
+    {
       PBEnvelope env = PBEnvelope_init_zero;
-      env.which_payload = PBEnvelope_pump_info_tag;
-      env.payload.pump_info = pump_info;
+      env.which_payload = PBEnvelope_sensor_diag_tag;
+      env.payload.sensor_diag = diagnostics;
       udp_send_envelope(dest_ip, &env);
     }
 
