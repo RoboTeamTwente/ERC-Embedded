@@ -731,7 +731,7 @@ rtU.LFActualSpeed = (real_T)motor_info.motor_speed;
 void forward_slowly_decrease_stop(){
     for (int speed = 5000; speed>0; speed=-100){
         
-    cubemars_ak_set_speed(&hfdcan2, 93, -speed*20);
+    
     cubemars_ak_set_speed(&hfdcan1, 93, speed*20);
     osDelay(20);
     }
@@ -742,7 +742,7 @@ void forward_slowly_increase(){
 
     for (int speed = 0; speed<5000; speed=+100){
         
-    cubemars_ak_set_speed(&hfdcan2, 93, -speed*20);
+    
     cubemars_ak_set_speed(&hfdcan1, 93, speed*20);
     osDelay(20);
     }
@@ -767,25 +767,34 @@ void DriveTask(void *argument)
     for (;;)
     {
 
-      forward_slowly_decrease_stop();
+      //forward_slowly_decrease_stop();
       //forward_slowly_increase();
       //backward_slowly_increase();
 
       
-/**
- *      if(motor_info.motor_temperature < 45){
-        cubemars_ak_set_speed(&hfdcan1, 93, rtY.controlLM);
-        cubemars_ak_set_speed(&hfdcan2, 93, -rtY.controlRM);
+     if(motor_info.motor_temperature < 45){
+        cubemars_ak_set_speed(&hfdcan1, 101, -rtY.controlRF);
+        cubemars_ak_set_speed(&hfdcan1, 102, -rtY.controlRM);
+        cubemars_ak_set_speed(&hfdcan1, 103, -rtY.controlRB);
+        cubemars_ak_set_speed(&hfdcan1, 201, rtY.controlLF);
+        cubemars_ak_set_speed(&hfdcan1, 202, rtY.controlLM);
+        cubemars_ak_set_speed(&hfdcan1, 203, rtY.controlLB);
+        
         osDelay(100);
-        CAN_LogStatus(&hfdcan1);
+        //CAN_LogStatus(&hfdcan1);
         osDelay(100);
         }
         else{
-          cubemars_ak_set_speed(&hfdcan1, 93, safe_speed);
+          cubemars_ak_set_speed(&hfdcan1, 101, -safe_speed);
+          cubemars_ak_set_speed(&hfdcan1, 102, -safe_speed);
+          cubemars_ak_set_speed(&hfdcan1, 103, -safe_speed);
+          cubemars_ak_set_speed(&hfdcan1, 201, safe_speed);
+          cubemars_ak_set_speed(&hfdcan1, 202, safe_speed);
+          cubemars_ak_set_speed(&hfdcan1, 203, safe_speed);
           safe_speed=safe_speed/2;
           osDelay(100);
         }
- */
+
 
         osDelay(1000);
 
