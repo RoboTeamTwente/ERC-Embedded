@@ -108,7 +108,7 @@ void ethernet_linkstatus_callback(void *arg) {
  * @param[in] env     Fully-populated envelope (which_payload + payload set)
  */
 /* true = envelopes sent; false = encode/send skipped. */
-static bool sendUDP = false;
+static bool sendUDP = true;
 
 static void udp_send_envelope(uint8_t dest_ip[4], PBEnvelope *env) {
   if (!sendUDP) {
