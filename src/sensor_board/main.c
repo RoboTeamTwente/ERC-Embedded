@@ -896,8 +896,8 @@ void MainTask(void *argument) {
 
       /* Transmit flow info over UDP */
       PBEnvelope env = PBEnvelope_init_zero;
-      env.which_payload = PBEnvelope_flow_info_tag;
-      env.payload.flow_info = flow_info;
+      env.which_payload = PBEnvelope_flow_sensor_info_tag;
+      env.payload.flow_sensor_info = flow_info;
       udp_send_envelope(dest_ip, &env);
     }
 
