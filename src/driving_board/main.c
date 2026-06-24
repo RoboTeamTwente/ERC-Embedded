@@ -608,7 +608,7 @@ void PwmTask(void *argument)
   /**
    * 
     static const uint32_t scope_pulse_counts[] = {
-      10U, 20U, 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
+      10U,  , 50U, 100U, 200U, 400U, 800U, 1600U, 3200U, 6400U,
   };
 
   const size_t count =
@@ -660,8 +660,34 @@ void PwmTask(void *argument)
 
       }   
    
+void rover_right(){
+
+
+      for (int i = 0; i < 100; i++) {
+
+        rotate_stepper(&stepperLF, 20, 30);
+        rotate_stepper(&stepperRB, 20, 30);
+        rotate_stepper(&stepperRF, 20, 30);
+        rotate_stepper(&stepperLB, 20, 30);
+        osDelay(10);
+      }
+    }
+  
+
 
  
+void rover_left(){
+
+      for (int i = 0; i < 100; i++) {
+
+        rotate_stepper(&stepperLF, -20, 30);
+        rotate_stepper(&stepperRB, -20, 30);
+        rotate_stepper(&stepperRF, -20, 30);
+        rotate_stepper(&stepperLB, -20, 30);
+        osDelay(10);
+      }
+    
+}
 
     
 
@@ -770,7 +796,8 @@ void DriveTask(void *argument)
       //forward_slowly_decrease_stop();
       //forward_slowly_increase();
       //backward_slowly_increase();
-
+      //rover_right()
+      //rover_left()
       
      if(motor_info.motor_temperature < 45){
         cubemars_ak_set_speed(&hfdcan1, 101, -rtY.controlRF);
