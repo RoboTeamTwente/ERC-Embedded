@@ -11,7 +11,7 @@
 #include "components/driving_board/motor_diagnostics.pb.h"
 #include "components/basestation/manual_brake.pb.h"
 #include "components/basestation/manual_drive.pb.h"
-#include "components/common/motor_driver/cubemars_ak/cubemars_ak.h"
+#include "cubemars_ak.h"
 #include "fdcan.h"
 #include "usart.h"
 #include "components/common/motor.pb.h"
@@ -797,8 +797,8 @@ void DriveTask(void *argument)
       //forward_slowly_decrease_stop();
       //forward_slowly_increase();
       //backward_slowly_increase();
-      rover_right()
-      //rover_left()
+      rover_right();
+      //rover_left();
       
      if(motor_info.motor_temperature < 45){
         cubemars_ak_set_speed(&hfdcan1, 101, -rtY.controlRF);

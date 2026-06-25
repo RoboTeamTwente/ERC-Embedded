@@ -1,4 +1,5 @@
 
+/** 
 #include <stdint.h>
 #include "math.h"
 #include "control_arm_manual.h"//get control output
@@ -229,3 +230,4 @@ float cl3e_get_position_rad(uint8_t motor_index, int32_t encoder_cpr)
 {
     return cl3e_get_position_rev(motor_index, encoder_cpr) * 2.0f * (float)M_PI;
 }
+*/

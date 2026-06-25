@@ -137,7 +137,6 @@ build_src_filter = +<src/${this.__env__}/**/*.c>
     +<components/common/*/*.c>
     +<components/common/*/stm/**/*.c>
     +<components/common/motor_driver/**>
-    +<components/common/stepper/driving_board/**>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
@@ -149,7 +148,6 @@ build_flags=
     +<components/common/*>
     +<components/common/*/stm/**>
     +<components/common/motor_driver/**>
-    +<components/common/stepper/driving_board/**>
     +<components/driving_board/**>
     -<components/driving_board/firmware/Drivers/**>
     +<components/driving_board/firmware/Drivers/BSP/**>
