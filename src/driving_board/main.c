@@ -662,14 +662,14 @@ void PwmTask(void *argument)
    
 void rover_right()
 {
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i <= 30; i++) {
 
         rotate_stepper(&stepperLF, -i, 30);
         rotate_stepper(&stepperRB, i, 30);
         rotate_stepper(&stepperRF, -i, 30);
         rotate_stepper(&stepperLB, i, 30);
 
-        osDelay(100);
+        osDelay(1000);
     }
 }
 
@@ -677,7 +677,7 @@ void rover_right()
  
 void rover_left(){
 
-    for (int i = 1; i <= 40; i++) {
+    for (int i = 1; i <= 30; i++) {
 
         rotate_stepper(&stepperLF, i, 30);
         rotate_stepper(&stepperLB, -i, 30);
@@ -685,7 +685,7 @@ void rover_left(){
         rotate_stepper(&stepperRF,  i, 30);
         rotate_stepper(&stepperRB,  -i, 30);
 
-        osDelay(100);
+        osDelay(1000);
     }
     
 }
