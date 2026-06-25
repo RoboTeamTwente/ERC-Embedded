@@ -141,6 +141,7 @@ void send_speed(int speed) {
   cubemars_ak_set_speed(&hfdcan1, 101, speed);
   cubemars_ak_set_speed(&hfdcan1, 102, speed);
   cubemars_ak_set_speed(&hfdcan1, 103, speed);
+  cubemars_ak_set_speed(&hfdcan1, 93, speed);
 
   cubemars_ak_set_speed(&hfdcan1, 201, -speed);
   cubemars_ak_set_speed(&hfdcan1, 202, -speed);
@@ -150,15 +151,15 @@ void send_speed(int speed) {
 void MainTaskSender() {
   LOGI(TAG, "Sender Task");
   for (;;) {
-    for (int i = 0; i < 1000; i += 100) {
-      osDelay(1000);
-      send_speed(i);
-      osDelay(100);
-    }
     osDelay(1000);
-    for (int i = 1000; i > 0; i -= 100) {
+    for (int i = 0; i < 1000; i += 10) {
       send_speed(i);
-      osDelay(100);
+      osDelay(10);
+    }
+    osDelay(800);
+    for (int i = 1000; i > 0; i -= 10) {
+      send_speed(i);
+      osDelay(10);
     }
   }
 }
