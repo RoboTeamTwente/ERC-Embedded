@@ -660,32 +660,33 @@ void PwmTask(void *argument)
 
       }   
    
-void rover_right(){
+void rover_right()
+{
+    for (int i = 0; i < 40; i++) {
 
+        rotate_stepper(&stepperLF, -i, 30);
+        rotate_stepper(&stepperRB, i, 30);
+        rotate_stepper(&stepperRF, -i, 30);
+        rotate_stepper(&stepperLB, i, 30);
 
-      for (int i = 0; i < 100; i++) {
-
-        rotate_stepper(&stepperLF, 20, 30);
-        rotate_stepper(&stepperRB, 20, 30);
-        rotate_stepper(&stepperRF, 20, 30);
-        rotate_stepper(&stepperLB, 20, 30);
-        osDelay(10);
-      }
+        osDelay(100);
     }
-  
+}
 
 
  
 void rover_left(){
 
-      for (int i = 0; i < 100; i++) {
+    for (int i = 1; i <= 40; i++) {
 
-        rotate_stepper(&stepperLF, -20, 30);
-        rotate_stepper(&stepperRB, -20, 30);
-        rotate_stepper(&stepperRF, -20, 30);
-        rotate_stepper(&stepperLB, -20, 30);
-        osDelay(10);
-      }
+        rotate_stepper(&stepperLF, i, 30);
+        rotate_stepper(&stepperLB, -i, 30);
+
+        rotate_stepper(&stepperRF,  i, 30);
+        rotate_stepper(&stepperRB,  -i, 30);
+
+        osDelay(100);
+    }
     
 }
 
@@ -796,7 +797,7 @@ void DriveTask(void *argument)
       //forward_slowly_decrease_stop();
       //forward_slowly_increase();
       //backward_slowly_increase();
-      //rover_right()
+      rover_right()
       //rover_left()
       
      if(motor_info.motor_temperature < 45){
