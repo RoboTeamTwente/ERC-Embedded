@@ -3,21 +3,17 @@
 #include "cmsis_os2.h"
 #include "components/basestation/manual_drive.pb.h"
 #include "components/common/motor_driver/cubemars_ak/cubemars_ak.h"
-#include "components/common/networking/inc/ethernet.h"
-#include "components/common/networking_constants/networking_constants.h"
 #include "components/debugging_board/firmware/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h"
 #include "cubemx_main.h"
 #include "fdcan.h"
 #include "gpio.h"
 #include "ip_mac_constants.h"
-#include "ip_mac_constants_test.h"
 #include "logging.h"
 #include "packet_dispatcher.h"
 #include "result.h"
 #include "stdbool.h"
 #include "stm32h7xx_hal_fdcan.h"
 #include "stm32h7xx_nucleo.h"
-#include "test/networking/constants/ip_mac_constants_test.h"
 #include "usart.h"
 // #include "task.h"
 #include "tim.h"
@@ -140,40 +136,30 @@ static void CAN_SendTestFrame(void) {
   }
 }
 
+void send_speed(int speed) {
+  LOGI(TAG, "Sending speed %d to all motors", speed);
+  cubemars_ak_set_speed(&hfdcan1, 101, speed);
+  cubemars_ak_set_speed(&hfdcan1, 102, speed);
+  cubemars_ak_set_speed(&hfdcan1, 103, speed);
+
+  cubemars_ak_set_speed(&hfdcan1, 201, -speed);
+  cubemars_ak_set_speed(&hfdcan1, 202, -speed);
+  cubemars_ak_set_speed(&hfdcan1, 203, -speed);
+}
+
 void MainTaskSender() {
   LOGI(TAG, "Sender Task");
   for (;;) {
-    LOGI(TAG, "Sending...");
-    // CAN_SendTestrame();
-
-    // cubemars_ak_set_speed(&hfdcan1, 111, 30000);
-    // cubemars_ak_print_feedback(&motor_info);
-    // HAL_Delay(1000);
-    // cubemars_ak_set_speed(&hfdcan1, 111, 00);
-    // HAL_Delay(500);
-    // // cubemars_ak_set_speed(&hfdcan1, 93, 10000);
-    // cubemars_ak_set_position(&hfdcan1,  93, 360);
-    // cubemars_ak_print_feedback(&motor_info);
-    // HAL_Delay(1000);
-    // cubemars_ak_set_speed(&hfdcan1, 93, 00);
-    // HAL_Delay(500);
-
-    cubemars_ak_set_speed(&hfdcan1, 93, 10000);
+    for (int i = 0; i < 1000; i += 100) {
+      osDelay(1000);
+      send_speed(i);
+      osDelay(100);
+    }
     osDelay(1000);
-
-    // cubemars_ak_set_speed(&hfdcan1, 93, 0);
-    // HAL_Delay(2000);
-
-    // cubemars_ak_print_feedback(&motor_info);
-    //
-    // cubemars_ak_set_speed(&hfdcan1, 93, -5000);
-    // HAL_Delay(500);
-    // cubemars_ak_print_feedback(&motor_info);
-    // cubemars_ak_set_speed(&hfdcan1, 93, 000);
-    // cubemars_ak_print_feedback(&motor_info);
-    // HAL_Delay(500);
-    // cubemars_ak_print_feedback(&motor_info);
-    // HAL_Delay(5000);
+    for (int i = 1000; i > 0; i -= 100) {
+      send_speed(i);
+      osDelay(100);
+    }
   }
 }
 
@@ -228,35 +214,35 @@ static packet_handler_config_t handler_configs[] = {
      .task_priority = tskIDLE_PRIORITY + 5U,
      .queue_length = 5,
      .queue_buffer = drive_packet_buffer}};
-
-void ethernet_task(void *_arg) {
-  int SendQueueSize = 80;
-  static StaticQueue_t xStaticQueue1;
-  uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue1 =
-      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
-                         ucQueueStorageArea1, &xStaticQueue1);
-
-  static StaticQueue_t xStaticQueue2;
-  uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
-  QueueHandle_t udp_receiver_queue2 =
-      xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
-                         ucQueueStorageArea2, &xStaticQueue2);
-  QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
-
-  uint8_t ip[4] = TEST_SEND_IP;
-  uint8_t mac[6] = TEST_SEND_MAC;
-
-  PacketDispatcherInit(handler_configs, 2);
-
-  ETH_udp_init(2, queues, DispatchPacket);
-  ETH_add_arp(ip, mac, 5);
-  while (1) {
-    ETH_udp_send(ip, 1500, GPS_packet_payload, 46, 1);
-    osDelay(1000);
-    LOGI(TAG, "ethernet sending");
-  }
-}
+//
+// void ethernet_task(void *_arg) {
+//   int SendQueueSize = 80;
+//   static StaticQueue_t xStaticQueue1;
+//   uint8_t ucQueueStorageArea1[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+//   QueueHandle_t udp_receiver_queue1 =
+//       xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+//                          ucQueueStorageArea1, &xStaticQueue1);
+//
+//   static StaticQueue_t xStaticQueue2;
+//   uint8_t ucQueueStorageArea2[SendQueueSize * ETHERNET_SQ_ITEM_SIZE];
+//   QueueHandle_t udp_receiver_queue2 =
+//       xQueueCreateStatic(SendQueueSize, ETHERNET_SQ_ITEM_SIZE,
+//                          ucQueueStorageArea2, &xStaticQueue2);
+//   QueueHandle_t queues[2] = {udp_receiver_queue1, udp_receiver_queue2};
+//
+//   uint8_t ip[4] = TEST_SEND_IP;
+//   uint8_t mac[6] = TEST_SEND_MAC;
+//
+//   PacketDispatcherInit(handler_configs, 2);
+//
+//   ETH_udp_init(2, queues, DispatchPacket);
+//   ETH_add_arp(ip, mac, 5);
+//   while (1) {
+//     ETH_udp_send(ip, 1500, GPS_packet_payload, 46, 1);
+//     osDelay(1000);
+//     LOGI(TAG, "ethernet sending");
+//   }
+// }
 static void CAN_ConfigRx(void) {
   FDCAN_FilterTypeDef filter = {0};
 
@@ -332,11 +318,11 @@ int main() {
   MX_TIM1_Init();
   MX_FDCAN1_Init();
   MX_USART2_UART_Init();
-  uint8_t ip[4] = TEST_BOARD_IP;
-  uint8_t netmask[4] = NETMASK;
-  uint8_t gateway[4] = GATEWAY;
-  uint8_t mac[6] = TEST_BOARD_MAC;
-  ETH_init(NULL, ip, netmask, gateway, mac);
+  // uint8_t ip[4] = TEST_BOARD_IP;
+  // uint8_t netmask[4] = NETMASK;
+  // uint8_t gateway[4] = GATEWAY;
+  // uint8_t mac[6] = TEST_BOARD_MAC;
+  // ETH_init(NULL, ip, netmask, gateway, mac);
 
   osKernelInitialize();
 
