@@ -420,10 +420,6 @@ void init_board() {
          hfdcan2.Init.Mode, hfdcan2.Init.NominalPrescaler,
          hfdcan2.Init.NominalTimeSeg1, hfdcan2.Init.NominalTimeSeg2,
          hfdcan2.Init.NominalSyncJumpWidth);
- 
-   
-  
-        
 
   osThreadNew(MainTask, NULL, &mainTask_attributes);
   osThreadNew(PwmTask, NULL, &pwmTask_attributes);

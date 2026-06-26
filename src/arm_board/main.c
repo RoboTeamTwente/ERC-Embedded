@@ -226,6 +226,8 @@ int main(void) {
     // Log init
     LOG_init(&huart_com);
 
+
+
     LOGI(TAG, "---------------main---------------");
 
     // ETH_init(NULL, my_ip, netmask, gateway, my_mac);
@@ -385,7 +387,7 @@ static void vControlTask(void *argument){
     }
 }
 
-#define calibration 1          // 0 = off, 1 = right, 2 = left, 3 = both (not working), 4 = wrist motor, 5 = base motor
+#define calibration 5          // 0 = off, 1 = right, 2 = left, 3 = both (not working), 4 = wrist motor, 5 = base motor
 #define calibrationDirection 0 // 0 = clockwise, 1 = counter clockwise
 #define calibrationSpeed 100   // fequency when calibrating stepper motors
 #define maxFrequency 250       // maximum frequency, to prevent the pullies from slipping
@@ -429,28 +431,47 @@ static void vArmController(void *argument) {
             rotate_stepper(&stepper1, -steps, freq);
         }
         else if(calibration == 4){
+            LOGI(TAG, "calibration4");
             float delta = 0.05;
             float maxPos = 270;
             if(calibrationDirection){
                 delta *= -1;
             }
             for (float currentPos = 0; abs(currentPos) < maxPos; currentPos += delta) {
+                CAN_LogStatus(&hfdcan1);
                 cubemars_ak_set_position(&hfdcan1, 111, currentPos);
                 LOGI(TAG, "gripper angle: %f", currentPos);
                 osDelay(10);
             }
+            for(;;){};
         }
         else if(calibration == 5){
+            LOGI(TAG, "calibration5");
             float delta = 0.05;
             float maxPos = 270;
             if(calibrationDirection){
                 delta *= -1;
             }
+            /*
             for (float currentPos = 0; abs(currentPos) < maxPos; currentPos += delta) {
-                C5E209_set_position(&hfdcan1, 111, currentPos);
+                CAN_LogStatus(&hfdcan1);
+                C5E209_set_position(&hfdcan1, 112, currentPos);
                 LOGI(TAG, "base angle: %f", currentPos);
-                osDelay(10);
+                osDelay(100);
             }
+            base motor gear ration 3.6:1
+            */
+            for(;;){
+                C5E209_set_speed(&hfdcan1, 112, 500);
+                LOGI(TAG, "setting speed to 500rpm");
+                osDelay(5000);
+                C5E209_set_speed(&hfdcan1, 112, 100);
+                LOGI(TAG, "setting speed to 100rpm");
+                osDelay(5000);
+                CAN_LogStatus(&hfdcan1);
+                //C5E209_halt(&hfdcan1, 112, C5E209_CMD_PROFILE_VELOCITY);
+                //osDelay(5000);
+            };
         }
 
         while (htim2.hdma[TIM_DMA_ID_CC1]->State != HAL_DMA_STATE_READY) {
