@@ -251,4 +251,48 @@ void cubemars_ak_print_feedback(cubemars_ak_information* info);
 
 result_t cubemars_ak_uart_get_motor_id(UART_HandleTypeDef* uart_handler,
                                        uint8_t* motor_id);
+
+/**
+ * @brief Generate a sinusoidal S-curve speed profile for CubeMars AK motors.
+ *
+ * Produces a list of ERPM setpoints that ramp from current_erpm to target_erpm
+ * using a smooth sinusoidal acceleration envelope. Acceleration rises from zero
+ * to the peak, then falls back to zero — no abrupt jerk at start or end.
+ *
+ * The total number of steps is derived from the desired peak acceleration and
+ * the control loop (pole) rate:
+ *
+ * @code
+ *   T        = |target - current| * pi / (2 * |peak_accel_erpm_s|)
+ *   n_steps  = round(T * pole_rate_hz)
+ *   v[i]     = current + delta/2 * (1 - cos(pi * i / n_steps))
+ * @endcode
+ *
+ * The last entry is always forced to target_erpm to avoid floating-point drift.
+ *
+ * @param[in]  current_erpm       Current motor speed in ERPM.
+ * @param[in]  target_erpm        Desired final speed in ERPM.
+ * @param[in]  peak_accel_erpm_s  Peak acceleration magnitude (ERPM/s). Sign is
+ *                                ignored; direction is inferred from the delta.
+ *                                Must be > 0.
+ * @param[in]  pole_rate_hz       Control loop frequency in Hz (setpoints/sec).
+ *                                Must be > 0.
+ * @param[out] out_speeds         Buffer to receive the ERPM setpoints.
+ * @param[in]  max_count          Capacity of out_speeds. If the computed number
+ *                                of steps exceeds this, the profile is truncated.
+ *
+ * @return Number of speed values written. 0 if arguments are invalid or
+ *         current_erpm == target_erpm.
+ */
+#define CUBEMARS_AK_SCURVE_STEPS(current_erpm, target_erpm, peak_accel_erpm_s, pole_rate_hz) \
+    ((uint16_t)(fabsf((float)((target_erpm) - (current_erpm))) * 3.14159265f / \
+                (2.0f * fabsf(peak_accel_erpm_s)) * (pole_rate_hz) + 0.5f))
+
+uint16_t cubemars_ak_scurve_generate(int32_t current_erpm,
+                                     int32_t target_erpm,
+                                     float peak_accel_erpm_s,
+                                     float pole_rate_hz,
+                                     int32_t* out_speeds,
+                                     uint16_t max_count);
+
 #endif

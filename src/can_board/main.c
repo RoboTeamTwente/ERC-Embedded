@@ -17,6 +17,8 @@
 #include "usart.h"
 // #include "task.h"
 #include "tim.h"
+#include <stdio.h>
+#include <string.h>
 
 COM_InitTypeDef BspCOMInit;
 UART_HandleTypeDef huart_com;
@@ -40,6 +42,12 @@ const osThreadAttr_t ethernet_task_attributes = {
     .stack_size = 1024 * 8,
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
+
+const osThreadAttr_t serialCmdTask_attributes = {
+    .name = "serialCmdTask",
+    .stack_size = 1024 * 2,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
+};
 const static char *TAG = "MAIN";
 
 FDCAN_TxHeaderTypeDef tx_header = {
@@ -60,6 +68,7 @@ static cubemars_ak_information motor_info = {0};
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
                                uint32_t RxFifo0ITs) {
+  return;
   if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0) {
     return;
   }
@@ -72,8 +81,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
     LOGE("CAN", "RX read failed, err=0x%08lx", HAL_FDCAN_GetError(hfdcan));
     return;
   }
-  cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
-  printf("TEMPRATURE: %d", motor_info.motor_temperature);
+  // cubemars_ak_parse_can_feedback(&rx_header, rx_data, &motor_info);
 }
 static void CAN_LogStatus(FDCAN_HandleTypeDef *hfdcan) {
   FDCAN_ProtocolStatusTypeDef protocol_status;
@@ -104,6 +112,12 @@ static void CAN_PrintRxState(void) {
     LOGI("CAN", "No messages in RX");
   }
 }
+static void send_speed(int speed);
+static void run_speed_profile(int32_t desired_erpm, float peak_accel_erpm_s,
+                              float operation_time_s, float pole_rate_hz);
+
+#define SENDER_POLE_RATE_HZ 200.0f
+
 void MainTaskListener() {
   LOGI(TAG, "Listener Task");
   for (;;) {
@@ -111,6 +125,52 @@ void MainTaskListener() {
     LOGI("CAN", "RX FIFO0 fill=%lu",
          HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0));
     HAL_Delay(5000);
+  }
+}
+
+#define SERIAL_CMD_BUF_SIZE 64
+
+static void SerialCommandTask(void *arg) {
+  char buf[SERIAL_CMD_BUF_SIZE];
+  uint8_t idx = 0;
+  uint8_t ch;
+
+  LOGI(TAG, "Serial command listener started on huart_com");
+  for (;;) {
+    if (HAL_UART_Receive(&huart_com, &ch, 1, 100) != HAL_OK) {
+      continue;
+    }
+    if (ch == '\r') {
+      continue;
+    }
+    if (ch == '\n' || idx >= SERIAL_CMD_BUF_SIZE - 1) {
+      buf[idx] = '\0';
+      idx = 0;
+      if (buf[0] == '\0') {
+        continue;
+      }
+
+      int val;
+      int erpm, accel, time_ms;
+
+      if (sscanf(buf, "speed %d", &val) == 1) {
+        LOGI(TAG, "CMD speed=%d", val);
+        send_speed(val);
+      } else if (strcmp(buf, "stop") == 0) {
+        LOGI(TAG, "CMD stop");
+        send_speed(0);
+      } else if (sscanf(buf, "profile %d %d %d", &erpm, &accel, &time_ms) ==
+                 3) {
+        LOGI(TAG, "CMD profile erpm=%d accel=%d time=%dms", erpm, accel,
+             time_ms);
+        run_speed_profile((int32_t)erpm, (float)accel, time_ms / 1000.0f,
+                          SENDER_POLE_RATE_HZ);
+      } else {
+        LOGI(TAG, "Unknown CMD: %s", buf);
+      }
+      continue;
+    }
+    buf[idx++] = (char)ch;
   }
 }
 
@@ -136,32 +196,108 @@ static void CAN_SendTestFrame(void) {
   }
 }
 
-void send_speed(int speed) {
+static void send_speed(int speed) {
   LOGI(TAG, "Sending speed %d to all motors", speed);
-  cubemars_ak_set_speed(&hfdcan1, 101, speed);
-  cubemars_ak_set_speed(&hfdcan1, 102, speed);
-  cubemars_ak_set_speed(&hfdcan1, 103, speed);
-  cubemars_ak_set_speed(&hfdcan1, 93, speed);
+  cubemars_ak_set_speed(&hfdcan1, 101, -speed);
+  osDelay(1);
+  cubemars_ak_set_speed(&hfdcan1, 102, -speed);
+  osDelay(1);
+  cubemars_ak_set_speed(&hfdcan1, 103, -speed);
+  osDelay(1);
+  //
+  // cubemars_ak_set_speed(&hfdcan1, 93, speed);
 
-  cubemars_ak_set_speed(&hfdcan1, 201, -speed);
-  cubemars_ak_set_speed(&hfdcan1, 202, -speed);
-  cubemars_ak_set_speed(&hfdcan1, 203, -speed);
+  cubemars_ak_set_speed(&hfdcan1, 201, speed);
+  osDelay(1);
+  cubemars_ak_set_speed(&hfdcan1, 202, speed);
+  osDelay(1);
+  cubemars_ak_set_speed(&hfdcan1, 203, speed);
+}
+
+#define SENDER_POLE_DELAY_MS 10
+#define SENDER_PEAK_ACCEL 1000.0f
+#define SENDER_TARGET_ERPM 1000
+#define SENDER_MAX_STEPS 1024
+
+static void run_speed_profile(int32_t desired_erpm, float peak_accel_erpm_s,
+                              float operation_time_s, float pole_rate_hz) {
+  static int32_t speeds[SENDER_MAX_STEPS];
+  uint32_t pole_delay_ms = (uint32_t)(1000.0f / pole_rate_hz + 0.5f);
+
+  uint16_t accel_steps =
+      cubemars_ak_scurve_generate(0, desired_erpm, peak_accel_erpm_s,
+                                  pole_rate_hz, speeds, SENDER_MAX_STEPS);
+  uint16_t decel_steps = CUBEMARS_AK_SCURVE_STEPS(
+      desired_erpm, 0, peak_accel_erpm_s, pole_rate_hz);
+
+  float ramp_time_s = (float)(accel_steps + decel_steps) / pole_rate_hz;
+  float coast_time_s = operation_time_s - ramp_time_s;
+  uint32_t coast_steps = (coast_time_s > 0.0f)
+                             ? (uint32_t)(coast_time_s * pole_rate_hz + 0.5f)
+                             : 0u;
+
+  uint32_t total_steps =
+      (uint32_t)accel_steps + coast_steps + (uint32_t)decel_steps;
+  LOGI(TAG,
+       "Profile: erpm=%d accel_steps=%u coast_steps=%lu decel_steps=%u "
+       "total_ms=%lu",
+       desired_erpm, accel_steps, coast_steps, decel_steps,
+       total_steps * pole_delay_ms);
+
+  for (uint16_t i = 0; i < accel_steps; i++) {
+    send_speed(speeds[i]);
+    // printf("%d, ", speeds[i]);
+    osDelay(pole_delay_ms);
+  }
+
+  for (uint32_t i = 0; i < coast_steps; i++) {
+    send_speed(desired_erpm);
+
+    // printf("%d, ", desired_erpm);
+
+    osDelay(pole_delay_ms);
+  }
+
+  uint16_t n =
+      cubemars_ak_scurve_generate(desired_erpm, 0, peak_accel_erpm_s,
+                                  pole_rate_hz, speeds, SENDER_MAX_STEPS);
+  for (uint16_t i = 0; i < n; i++) {
+    send_speed(speeds[i]);
+    // printf("%d, ", speeds[i]);
+    osDelay(pole_delay_ms);
+  }
+
+  send_speed(0);
 }
 
 void MainTaskSender() {
   LOGI(TAG, "Sender Task");
   for (;;) {
+    cubemars_ak_set_speed(&hfdcan1, 101, 1000);
+    cubemars_ak_set_speed(&hfdcan1, 101, 1000);
     osDelay(1000);
-    for (int i = 0; i < 1000; i += 10) {
-      send_speed(i);
-      osDelay(10);
-    }
-    osDelay(800);
-    for (int i = 1000; i > 0; i -= 10) {
-      send_speed(i);
-      osDelay(10);
-    }
+    cubemars_ak_set_speed(&hfdcan1, 102, 1000);
+    cubemars_ak_set_speed(&hfdcan1, 102, 1000);
+    osDelay(1000);
+
+    cubemars_ak_set_speed(&hfdcan1, 103, 1000);
+    cubemars_ak_set_speed(&hfdcan1, 103, 1000);
+    osDelay(1000);
+
+    cubemars_ak_set_speed(&hfdcan1, 201, 1000);
+    cubemars_ak_set_speed(&hfdcan1, 201, 1000);
+    osDelay(1000);
+
+    cubemars_ak_set_speed(&hfdcan1, 202, 1000);
+    cubemars_ak_set_speed(&hfdcan1, 202, 1000);
+    osDelay(1000);
+
+    cubemars_ak_set_speed(&hfdcan1, 203, 1000);
+    cubemars_ak_set_speed(&hfdcan1, 203, 1000);
+    osDelay(1000);
   }
+
+  // run_speed_profile(2000, 1000, 10, 200);
 }
 
 static result_t HandleGPSPacket(void *buffer) {
@@ -308,6 +444,7 @@ void HAL_FDCAN_TxBufferAbortCallback(FDCAN_HandleTypeDef *hfdcan,
 
 void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
   LOGE("CAN", "Error callback HALerr=0x%08lx\n", HAL_FDCAN_GetError(hfdcan));
+  CAN_LogStatus(hfdcan);
 }
 int main() {
   MPU_Config_wrapper();
@@ -370,7 +507,8 @@ int main() {
   LOGI("CAN", "Mode=%lu Presc=%lu TS1=%lu TS2=%lu SJW=%lu", hfdcan1.Init.Mode,
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
-  osThreadNew(MainTaskSender, NULL, &mainTaskSender_attributes);
+  // osThreadNew(MainTaskSender, NULL, &mainTaskSender_attributes);
+  osThreadNew(SerialCommandTask, NULL, &serialCmdTask_attributes);
   // osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
   // osThreadNew(ethernet_task, NULL, &ethernet_task_attributes);
   // MainTaskListener();
