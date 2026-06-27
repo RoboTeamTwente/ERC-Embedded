@@ -19,6 +19,7 @@ import socket
 import serial
 import serial.tools.list_ports
 import sys
+import time
 import logging
 
 logging.basicConfig(
@@ -33,17 +34,27 @@ STM32_VID = 0x0483
 
 
 def auto_detect_port() -> str:
-    matches = [p for p in serial.tools.list_ports.comports() if p.vid == STM32_VID]
-    if len(matches) == 0:
-        log.error("No STM32 device found (VID 0x%04X). Connect device or use --port.", STM32_VID)
-        sys.exit(1)
-    if len(matches) > 1:
-        ports = ", ".join(f"{p.device} ({p.description})" for p in matches)
-        log.error("Multiple STM32 devices found: %s. Use --port to specify.", ports)
-        sys.exit(1)
-    port = matches[0].device
-    log.info("Auto-detected STM32 on %s (%s)", port, matches[0].description)
-    return port
+    while True:
+        matches = [p for p in serial.tools.list_ports.comports() if p.vid == STM32_VID]
+        if len(matches) == 1:
+            port = matches[0].device
+            log.info("Auto-detected STM32 on %s (%s)", port, matches[0].description)
+            return port
+        if len(matches) > 1:
+            ports = ", ".join(f"{p.device} ({p.description})" for p in matches)
+            log.error("Multiple STM32 devices found: %s. Use --port to specify.", ports)
+            sys.exit(1)
+        log.info("Waiting for STM32 (VID 0x%04X)...", STM32_VID)
+        time.sleep(1)
+
+
+def wait_for_port(port: str) -> None:
+    while True:
+        available = [p.device for p in serial.tools.list_ports.comports()]
+        if port in available:
+            return
+        log.info("Waiting for %s to appear...", port)
+        time.sleep(1)
 
 
 def is_valid_command(msg: str) -> bool:
@@ -89,7 +100,11 @@ def main() -> None:
     parser.add_argument("--udp-port", type=int, default=5000, help="UDP port to listen on (default: 5000)")
     args = parser.parse_args()
 
-    port = args.port if args.port else auto_detect_port()
+    if args.port:
+        wait_for_port(args.port)
+        port = args.port
+    else:
+        port = auto_detect_port()
 
     try:
         run(port, args.baud, args.udp_host, args.udp_port)
