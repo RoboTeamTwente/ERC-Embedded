@@ -43,11 +43,30 @@ const osThreadAttr_t ethernet_task_attributes = {
     .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
 };
 
-const osThreadAttr_t serialCmdTask_attributes = {
-    .name = "serialCmdTask",
+const osThreadAttr_t serialReaderTask_attributes = {
+    .name = "serialReaderTask",
     .stack_size = 1024 * 2,
-    .priority = (osPriority_t)tskIDLE_PRIORITY + 1U,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 3U,
 };
+
+const osThreadAttr_t serialExecutorTask_attributes = {
+    .name = "serialExecutorTask",
+    .stack_size = 1024 * 2,
+    .priority = (osPriority_t)tskIDLE_PRIORITY + 3U,
+};
+
+typedef enum { CMD_SPEED, CMD_STOP, CMD_PROFILE } cmd_type_t;
+
+typedef struct {
+  cmd_type_t type;
+  int val;
+  int erpm;
+  int accel;
+  int time_ms;
+} serial_cmd_t;
+
+static osThreadId_t s_executor_thread = NULL;
+static serial_cmd_t s_current_cmd;
 const static char *TAG = "MAIN";
 
 FDCAN_TxHeaderTypeDef tx_header = {
@@ -130,12 +149,37 @@ void MainTaskListener() {
 
 #define SERIAL_CMD_BUF_SIZE 64
 
-static void SerialCommandTask(void *arg) {
+static void SerialExecutorTask(void *arg) {
+  LOGI("SERIAL EXECUTOR", "Executing command");
+  serial_cmd_t *cmd = (serial_cmd_t *)arg;
+  switch (cmd->type) {
+  case CMD_SPEED:
+    while (true) {
+      send_speed(cmd->val);
+      osDelay(20);
+    }
+    break;
+  case CMD_STOP:
+    while (true) {
+      send_speed(0);
+      osDelay(20);
+    }
+    break;
+  case CMD_PROFILE:
+    run_speed_profile((int32_t)cmd->erpm, (float)cmd->accel,
+                      cmd->time_ms / 1000.0f, SENDER_POLE_RATE_HZ);
+    break;
+  }
+  s_executor_thread = NULL;
+  osThreadExit();
+}
+
+static void SerialReaderTask(void *arg) {
   char buf[SERIAL_CMD_BUF_SIZE];
   uint8_t idx = 0;
   uint8_t ch;
 
-  LOGI(TAG, "Serial command listener started on huart_com");
+  LOGI(TAG, "Serial reader started on huart_com");
   for (;;) {
     if (HAL_UART_Receive(&huart_com, &ch, 1, 100) != HAL_OK) {
       continue;
@@ -150,23 +194,35 @@ static void SerialCommandTask(void *arg) {
         continue;
       }
 
-      int val;
-      int erpm, accel, time_ms;
-
-      if (sscanf(buf, "speed %d", &val) == 1) {
-        LOGI(TAG, "CMD speed=%d", val);
-        send_speed(val);
+      serial_cmd_t cmd = {0};
+      if (sscanf(buf, "speed %d", &cmd.val) == 1) {
+        cmd.type = CMD_SPEED;
+        LOGI(TAG, "CMD speed=%d", cmd.val);
       } else if (strcmp(buf, "stop") == 0) {
+        cmd.type = CMD_STOP;
         LOGI(TAG, "CMD stop");
-        send_speed(0);
-      } else if (sscanf(buf, "profile %d %d %d", &erpm, &accel, &time_ms) ==
-                 3) {
-        LOGI(TAG, "CMD profile erpm=%d accel=%d time=%dms", erpm, accel,
-             time_ms);
-        run_speed_profile((int32_t)erpm, (float)accel, time_ms / 1000.0f,
-                          SENDER_POLE_RATE_HZ);
+      } else if (sscanf(buf, "profile %d %d %d", &cmd.erpm, &cmd.accel,
+                        &cmd.time_ms) == 3) {
+        cmd.type = CMD_PROFILE;
+        LOGI(TAG, "CMD profile erpm=%d accel=%d time=%dms", cmd.erpm, cmd.accel,
+             cmd.time_ms);
       } else {
         LOGI(TAG, "Unknown CMD: %s", buf);
+        continue;
+      }
+
+      if (s_executor_thread != NULL) {
+        LOGI(TAG, "Purging task");
+        osThreadTerminate(s_executor_thread);
+        s_executor_thread = NULL;
+      }
+      s_current_cmd = cmd;
+      s_executor_thread = osThreadNew(SerialExecutorTask, &s_current_cmd,
+                                      &serialExecutorTask_attributes);
+      if (s_executor_thread == NULL) {
+        LOGE("SERIAL EXECUTOR", "osThreadNew failed - heap exhausted?");
+      } else {
+        LOGI("SERIAL EXECUTOR", "starting task");
       }
       continue;
     }
@@ -246,15 +302,11 @@ static void run_speed_profile(int32_t desired_erpm, float peak_accel_erpm_s,
 
   for (uint16_t i = 0; i < accel_steps; i++) {
     send_speed(speeds[i]);
-    // printf("%d, ", speeds[i]);
     osDelay(pole_delay_ms);
   }
 
   for (uint32_t i = 0; i < coast_steps; i++) {
     send_speed(desired_erpm);
-
-    // printf("%d, ", desired_erpm);
-
     osDelay(pole_delay_ms);
   }
 
@@ -263,7 +315,6 @@ static void run_speed_profile(int32_t desired_erpm, float peak_accel_erpm_s,
                                   pole_rate_hz, speeds, SENDER_MAX_STEPS);
   for (uint16_t i = 0; i < n; i++) {
     send_speed(speeds[i]);
-    // printf("%d, ", speeds[i]);
     osDelay(pole_delay_ms);
   }
 
@@ -332,7 +383,6 @@ static result_t HandleDrivingPacket(void *buffer) {
   printf("Got Driving Packet %i\n", packet->forward_backward);
   return RESULT_OK;
 }
-
 static uint8_t drive_packet_buffer[BasestationManualDrive_size * 5];
 
 static packet_handler_config_t handler_configs[] = {
@@ -508,7 +558,7 @@ int main() {
        hfdcan1.Init.NominalPrescaler, hfdcan1.Init.NominalTimeSeg1,
        hfdcan1.Init.NominalTimeSeg2, hfdcan1.Init.NominalSyncJumpWidth);
   // osThreadNew(MainTaskSender, NULL, &mainTaskSender_attributes);
-  osThreadNew(SerialCommandTask, NULL, &serialCmdTask_attributes);
+  osThreadNew(SerialReaderTask, NULL, &serialReaderTask_attributes);
   // osThreadNew(MainTaskListener, NULL, &mainTaskListener_attributes);
   // osThreadNew(ethernet_task, NULL, &ethernet_task_attributes);
   // MainTaskListener();
